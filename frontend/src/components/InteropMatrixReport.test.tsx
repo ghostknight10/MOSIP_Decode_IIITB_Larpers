@@ -15,6 +15,12 @@ const renderReport = (history: RunRecord[] = [], props: Partial<React.ComponentP
   return { ...handlers, user };
 };
 
+/** The heatmap is the default view; matrix-table assertions use the List view. */
+const renderList = async (history: RunRecord[] = []) => {
+  const result = renderReport(history);
+  await result.user.click(screen.getByRole('radio', { name: 'List' }));
+  return result;
+};
 const matrixTable = () => screen.getAllByRole('table')[0];
 const historyTable = () => screen.getAllByRole('table')[1];
 const matrixRow = (issuer: string, wallet: string, verifier: string, format: string) =>
@@ -39,8 +45,8 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('InteropMatrixReport with no runs', () => {
-  it('lists every combination as UNTESTED', () => {
-    renderReport();
+  it('lists every combination as UNTESTED', async () => {
+    await renderList();
     expect(within(matrixTable()).getAllByRole('row')).toHaveLength(TOTAL + 1);
     expect(within(matrixTable()).getAllByText('UNTESTED')).toHaveLength(TOTAL);
     expect(screen.getByText(`0 / ${TOTAL}`)).toBeInTheDocument();
@@ -56,7 +62,7 @@ describe('InteropMatrixReport with no runs', () => {
   it('disables exports and clearing', () => {
     renderReport();
     expect(screen.getByRole('button', { name: /Markdown/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /JSON/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'JSON' })).toBeDisabled();
     expect(screen.getByRole('button', { name: /Clear/ })).toBeDisabled();
   });
 });
@@ -71,16 +77,16 @@ describe('InteropMatrixReport with runs', () => {
     makeRun({ tampered: true, wallet: 'mock-wallet', verificationStatus: 'VALID', outcome: 'FAIL', errorDetail: 'accepted tampered VC' })
   ];
 
-  it('uses the latest clean run for each combination', () => {
-    renderReport(history);
+  it('uses the latest clean run for each combination', async () => {
+    await renderList(history);
     const row = matrixRow('Inji Certify', 'Inji Web / Mobile', 'Inji Verify', 'W3C VC (JSON-LD)');
     expect(within(row).getByText('FAIL')).toBeInTheDocument();
     expect(within(row).getByText('Issuer DID not resolvable')).toBeInTheDocument();
     expect(within(row).queryByText('older-run')).not.toBeInTheDocument();
   });
 
-  it('keeps tampered runs out of the matrix', () => {
-    renderReport(history);
+  it('keeps tampered runs out of the matrix', async () => {
+    await renderList(history);
     const row = matrixRow('Inji Certify', 'Simulated Holder', 'Inji Verify', 'W3C VC (JSON-LD)');
     expect(within(row).getByText('UNTESTED')).toBeInTheDocument();
   });
@@ -99,8 +105,8 @@ describe('InteropMatrixReport with runs', () => {
     expect(screen.getByText(/100%/)).toBeInTheDocument();
   });
 
-  it('flags runs that hit the emulated sandbox', () => {
-    renderReport([makeRun({ sandboxFallback: true })]);
+  it('flags runs that hit the emulated sandbox', async () => {
+    await renderList([makeRun({ sandboxFallback: true })]);
     expect(within(matrixTable()).getByTitle('Emulated sandbox response')).toBeInTheDocument();
   });
 
@@ -165,7 +171,7 @@ describe('InteropMatrixReport actions', () => {
   it('exports raw runs as JSON', async () => {
     const history = [makeRun(), makeRun({ outcome: 'FAIL' })];
     const { user } = renderReport(history);
-    await user.click(screen.getByRole('button', { name: /JSON/ }));
+    await user.click(screen.getByRole('button', { name: 'JSON' }));
     expect(JSON.parse(await blobs[0].text())).toEqual(history);
   });
 
@@ -207,7 +213,7 @@ describe('toMarkdown', () => {
     const run = makeRun({ sandboxFallback: true, tampered: true });
     const combo = { issuer: run.issuer, wallet: run.wallet, verifier: run.verifier, format: run.format };
     const md = toMarkdown([{ combo, run }], [run]);
-    expect(md).toMatch(/\| PASS \|  \| yes \|/);
+    expect(md).toMatch(/\| PASS \|  \|  \| yes \|/);
     expect(md).toContain('| tampered |');
   });
 });
@@ -225,5 +231,75 @@ describe('scoreMatrix', () => {
       real: { tested: 2, passed: 1 },
       emulated: { tested: 1, passed: 1 }
     });
+  });
+});
+
+describe('InteropMatrixReport heatmap and failure layers', () => {
+  const cell = (label: RegExp) => screen.getByRole('button', { name: label });
+
+  it('shows a 4 x 4 heatmap by default with every cell untested', () => {
+    renderReport();
+    expect(screen.getByRole('radio', { name: 'Heatmap' })).toHaveAttribute('aria-checked', 'true');
+    const heatmap = screen.getAllByRole('table')[0];
+    expect(within(heatmap).getAllByRole('rowheader')).toHaveLength(4);
+    expect(within(heatmap).getAllByRole('button', { name: /UNTESTED/ })).toHaveLength(TOTAL);
+  });
+
+  it('labels each cell with the combination, outcome, emulation and layer', () => {
+    renderReport([makeRun({ outcome: 'FAIL', verificationStatus: 'SIGNATURE_MISMATCH', failedChecks: ['signatureValid'], sandboxFallback: true })]);
+    const c = cell(/^Inji Certify → Inji Web \/ Mobile → Inji Verify, W3C VC \(JSON-LD\), FAIL/);
+    expect(c).toHaveAccessibleName(/emulated sandbox, Technical layer$/);
+    expect(c).toHaveTextContent('FAIL');
+    expect(c).toHaveTextContent('TECH');
+  });
+
+  it('filters the run history to a combination when a cell is selected', async () => {
+    const history = [makeRun(), makeRun({ issuer: 'mock-openid4vci' }), makeRun({ issuer: 'mock-openid4vci', format: 'sd-jwt' })];
+    const { user } = renderReport(history);
+    const target = cell(/^Mock OpenID4VCI → Inji Web \/ Mobile → Inji Verify, W3C VC/);
+    await user.click(target);
+    expect(target).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('(1 of 3)')).toBeInTheDocument();
+    expect(screen.getByText(/Showing Mock OpenID4VCI → Inji Web \/ Mobile → Inji Verify/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Clear combination filter' }));
+    expect(screen.getByText('(3 of 3)')).toBeInTheDocument();
+  });
+
+  it('toggles the combination filter off when the same cell is clicked again', async () => {
+    const { user } = renderReport([makeRun(), makeRun({ issuer: 'mock-openid4vci' })]);
+    const target = cell(/^Inji Certify → Inji Web \/ Mobile → Inji Verify, W3C VC/);
+    await user.click(target);
+    await user.click(target);
+    expect(screen.getByText('(2 of 2)')).toBeInTheDocument();
+  });
+
+  it('shows the failure layer in history and filters by it', async () => {
+    const history = [
+      makeRun({ outcome: 'FAIL', verificationStatus: 'EXPIRED', failedChecks: ['notExpired'] }),
+      makeRun({ outcome: 'FAIL', errorDetail: 'Issuance failed: down' }),
+      makeRun()
+    ];
+    const { user } = renderReport(history);
+    const historyTable = screen.getAllByRole('table')[1];
+    expect(within(historyTable).getByText('Organizational')).toBeInTheDocument();
+    expect(within(historyTable).getByText('Technical')).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Filter by layer'), 'Organizational');
+    expect(within(screen.getAllByRole('table')[1]).getAllByRole('row')).toHaveLength(2);
+  });
+
+  it('explains the layers', () => {
+    renderReport();
+    expect(screen.getByText('Failure layers (Schumm et al., 2025)')).toBeInTheDocument();
+    expect(screen.getByText(/Out of scope for automated runs/)).toBeInTheDocument();
+  });
+
+  it('includes the layer in the Markdown export', () => {
+    const run = makeRun({ outcome: 'FAIL', verificationStatus: 'INVALID', failedChecks: ['formatCheck'] });
+    const combo = { issuer: run.issuer, wallet: run.wallet, verifier: run.verifier, format: run.format };
+    const md = toMarkdown([{ combo, run }], [run]);
+    expect(md).toContain('| FAIL | Syntactical |');
+    expect(md).toContain('## Failure layers');
+    expect(md).toContain('- **Legal**:');
   });
 });

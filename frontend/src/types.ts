@@ -105,6 +105,8 @@ export interface RunRecord {
   tampered: boolean;
   outcome: 'PASS' | 'FAIL';
   verificationStatus?: VerificationStatus;
+  /** Names of the verifier checks that failed, e.g. ['signatureValid']. */
+  failedChecks?: (keyof VerificationResult['checks'])[];
   errorDetail?: string;
   sandboxFallback: boolean;
 }

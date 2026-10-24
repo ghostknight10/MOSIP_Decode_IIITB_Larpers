@@ -197,6 +197,16 @@ describe('verify', () => {
     expect(h.current.logs.map(l => l.step)).toEqual([4, 3, 2, 1]);
   });
 
+  it('records which verifier checks failed', async () => {
+    const h = await issueThenVerify('EXPIRED', { forceExpired: true, corruptSignature: false });
+    expect(h.current.history[0].failedChecks).toEqual(['notExpired']);
+  });
+
+  it('records no failed checks for a clean pass', async () => {
+    const h = await issueThenVerify('VALID');
+    expect(h.current.history[0].failedChecks).toEqual([]);
+  });
+
   it('counts a tampered credential the verifier rejects as PASS', async () => {
     const h = await issueThenVerify('SIGNATURE_MISMATCH', { forceExpired: false, corruptSignature: true });
     expect(h.current.phase).toBe('failed');

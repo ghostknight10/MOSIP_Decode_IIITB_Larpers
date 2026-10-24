@@ -2,6 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, XCircle, CircleDashed, Download, Award, Play, Printer, Trash2, Loader2, FileJson } from 'lucide-react';
 import { CredentialFormat, RunRecord } from '../types';
 import { allCombinations, comboKey, formatLabel, nodeLabel } from '../config/nodes';
+import { Selection } from '../hooks/usePlaygroundRun';
+import { failureLayer, FailureLayer, LAYERS, shortLayer } from '../lib/failureLayer';
+import { InteropHeatmap } from './report/InteropHeatmap';
 
 interface InteropMatrixReportProps {
   history: RunRecord[];
@@ -53,25 +56,29 @@ export const toMarkdown = (matrix: { combo: ReturnType<typeof allCombinations>[n
     '',
     '## Matrix (latest clean run per combination)',
     '',
-    row(['Issuer', 'Wallet', 'Verifier', 'Format', 'Proof type', 'Outcome', 'Error detail', 'Emulated sandbox']),
-    row(['---', '---', '---', '---', '---', '---', '---', '---']),
+    row(['Issuer', 'Wallet', 'Verifier', 'Format', 'Proof type', 'Outcome', 'Layer', 'Error detail', 'Emulated sandbox']),
+    row(['---', '---', '---', '---', '---', '---', '---', '---', '---']),
     ...matrix.map(({ combo, run }) =>
       row([
         nodeLabel(combo.issuer), nodeLabel(combo.wallet), nodeLabel(combo.verifier), formatLabel(combo.format),
-        run?.proofType, run?.outcome ?? 'UNTESTED', run?.errorDetail, run ? (run.sandboxFallback ? 'yes' : 'no') : ''
+        run?.proofType, run?.outcome ?? 'UNTESTED', run ? failureLayer(run) ?? '' : '', run?.errorDetail, run ? (run.sandboxFallback ? 'yes' : 'no') : ''
       ])
     ),
     '',
     '## All runs',
     '',
-    row(['Time', 'Issuer', 'Wallet', 'Verifier', 'Format', 'Proof type', 'Mode', 'Verifier status', 'Outcome', 'Error detail', 'Transaction']),
-    row(['---', '---', '---', '---', '---', '---', '---', '---', '---', '---', '---']),
+    row(['Time', 'Issuer', 'Wallet', 'Verifier', 'Format', 'Proof type', 'Mode', 'Verifier status', 'Outcome', 'Layer', 'Error detail', 'Transaction']),
+    row(['---', '---', '---', '---', '---', '---', '---', '---', '---', '---', '---', '---']),
     ...history.map(r =>
       row([
         r.finishedAt, nodeLabel(r.issuer), nodeLabel(r.wallet), nodeLabel(r.verifier), formatLabel(r.format), r.proofType,
-        r.tampered ? 'tampered' : 'clean', r.verificationStatus, r.outcome, r.errorDetail, r.transactionId
+        r.tampered ? 'tampered' : 'clean', r.verificationStatus, r.outcome, failureLayer(r) ?? '', r.errorDetail, r.transactionId
       ])
-    )
+    ),
+    '',
+    '## Failure layers',
+    '',
+    ...LAYERS.map(l => `- **${l.layer}**: ${l.description}`)
   ];
   return lines.join('\n') + '\n';
 };
@@ -113,14 +120,17 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
   const [formatFilter, setFormatFilter] = useState<'all' | CredentialFormat>('all');
   const [outcomeFilter, setOutcomeFilter] = useState<'all' | RunRecord['outcome']>('all');
   const [modeFilter, setModeFilter] = useState<'all' | 'clean' | 'tampered'>('all');
+  const [layerFilter, setLayerFilter] = useState<'all' | FailureLayer>('all');
+  const [view, setView] = useState<'heatmap' | 'list'>('heatmap');
+  const [comboFilter, setComboFilter] = useState<Selection | null>(null);
 
   // History is newest-first, so the first clean run seen per combination is the latest.
-  const matrix = useMemo(() => {
+  const { latest, matrix } = useMemo(() => {
     const latest = new Map<string, RunRecord>();
     for (const r of history) {
       if (!r.tampered && !latest.has(comboKey(r))) latest.set(comboKey(r), r);
     }
-    return allCombinations().map(combo => ({ combo, run: latest.get(comboKey(combo)) }));
+    return { latest, matrix: allCombinations().map(combo => ({ combo, run: latest.get(comboKey(combo)) })) };
   }, [history]);
 
   const scores = scoreMatrix(matrix);
@@ -131,7 +141,9 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
   const filtered = history.filter(r =>
     (formatFilter === 'all' || r.format === formatFilter) &&
     (outcomeFilter === 'all' || r.outcome === outcomeFilter) &&
-    (modeFilter === 'all' || (modeFilter === 'tampered') === r.tampered)
+    (modeFilter === 'all' || (modeFilter === 'tampered') === r.tampered) &&
+    (layerFilter === 'all' || failureLayer(r) === layerFilter) &&
+    (!comboFilter || comboKey(r) === comboKey(comboFilter))
   );
 
   const stamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
@@ -212,10 +224,46 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
       </div>
 
       {/* Matrix */}
-      <h3 className="text-sm font-semibold text-white mb-1">Matrix <span className="text-xs font-normal text-slate-400">— latest clean run per combination</span></h3>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+        <h3 className="text-sm font-semibold text-white">Matrix <span className="text-xs font-normal text-slate-400">— latest clean run per combination</span></h3>
+        <div role="radiogroup" aria-label="Matrix view" className="flex gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs print:hidden">
+          {(['heatmap', 'list'] as const).map(v => (
+            <button
+              key={v}
+              type="button"
+              role="radio"
+              aria-checked={view === v}
+              onClick={() => setView(v)}
+              className={`px-2.5 py-1 rounded-md ${view === v ? 'bg-sky-600 text-white font-semibold' : 'text-slate-400 hover:text-slate-200'}`}
+            >
+              {v === 'heatmap' ? 'Heatmap' : 'List'}
+            </button>
+          ))}
+        </div>
+      </div>
       <p className="text-xs text-slate-400 mb-2">
         <span aria-hidden="true" className="text-amber-300 font-bold">†</span> answered by the emulated sandbox, not a real MOSIP service.
+        {view === 'heatmap' && ' Select a cell to filter the run history.'}
       </p>
+      {view === 'heatmap' && (
+        <div className="mb-3">
+          <InteropHeatmap latest={latest} selectedKey={comboFilter ? comboKey(comboFilter) : null} onSelect={setComboFilter} />
+        </div>
+      )}
+      <details className="mb-8 text-xs text-slate-400">
+        <summary className="cursor-pointer text-slate-300">Failure layers (Schumm et al., 2025)</summary>
+        <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+          {LAYERS.map(l => (
+            <React.Fragment key={l.layer}>
+              <dt className="font-mono text-slate-200">{l.short}</dt>
+              <dd>
+                <span className="text-slate-200">{l.layer}:</span> {l.description}
+              </dd>
+            </React.Fragment>
+          ))}
+        </dl>
+      </details>
+      {view === 'list' && (
       <div className="overflow-x-auto rounded-xl border border-slate-800 mb-8">
         <table className="w-full text-left text-xs">
           <thead className="bg-slate-950 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
@@ -226,6 +274,7 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
               <th className="p-3">Credential Format</th>
               <th className="p-3">Proof Type</th>
               <th className="p-3 text-center">Status</th>
+              <th className="p-3">Layer</th>
               <th className="p-3">Error Detail</th>
             </tr>
           </thead>
@@ -243,12 +292,14 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
                     <abbr title="Emulated sandbox response" aria-label="emulated" className="ml-1 text-amber-300 font-bold no-underline">†</abbr>
                   )}
                 </td>
+                <td className="p-3 font-mono">{run && failureLayer(run) ? shortLayer(failureLayer(run)!) : ''}</td>
                 <td className="p-3 text-rose-300 max-w-xs">{run?.errorDetail ?? ''}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      )}
 
       {/* Run history */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
@@ -269,8 +320,25 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
             <option value="clean">Clean only</option>
             <option value="tampered">Tampered only</option>
           </select>
+          <select aria-label="Filter by layer" value={layerFilter} onChange={e => setLayerFilter(e.target.value as typeof layerFilter)} className={selectCls}>
+            <option value="all">All layers</option>
+            {LAYERS.filter(l => l.layer !== 'Legal').map(l => (
+              <option key={l.layer} value={l.layer}>
+                {l.layer}
+              </option>
+            ))}
+            <option value="Unclassified">Unclassified</option>
+          </select>
         </div>
       </div>
+      {comboFilter && (
+        <p className="mb-2 text-xs text-slate-300 flex flex-wrap items-center gap-2">
+          Showing {nodeLabel(comboFilter.issuer)} → {nodeLabel(comboFilter.wallet)} → {nodeLabel(comboFilter.verifier)} · {formatLabel(comboFilter.format)}
+          <button type="button" onClick={() => setComboFilter(null)} className="px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200">
+            Clear combination filter
+          </button>
+        </p>
+      )}
       {history.length === 0 ? (
         <p className="text-xs text-slate-400 p-6 text-center border border-dashed border-slate-800 rounded-xl">
           No runs yet. Run a flow in the Playground or click “Run All Combinations”.
@@ -287,6 +355,7 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
                 <th className="p-3">Mode</th>
                 <th className="p-3">Verifier Status</th>
                 <th className="p-3 text-center">Outcome</th>
+                <th className="p-3">Layer</th>
                 <th className="p-3">Error Detail</th>
                 <th className="p-3">Transaction</th>
               </tr>
@@ -295,12 +364,13 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
               {filtered.map(r => (
                 <tr key={r.id} className="hover:bg-slate-800/30 transition-colors">
                   <td className="p-3 font-mono whitespace-nowrap">{new Date(r.finishedAt).toLocaleString()}</td>
-                  <td className="p-3">{nodeLabel(r.issuer)} → {nodeLabel(r.wallet)} → {nodeLabel(r.verifier)}</td>
+                  <td className="p-3 min-w-64">{nodeLabel(r.issuer)} → {nodeLabel(r.wallet)} → {nodeLabel(r.verifier)}</td>
                   <td className="p-3"><FormatChip format={r.format} /></td>
                   <td className="p-3 font-mono">{r.proofType}</td>
                   <td className="p-3">{r.tampered ? <span className="text-rose-300">tampered</span> : 'clean'}</td>
                   <td className="p-3 font-mono">{r.verificationStatus ?? '—'}</td>
                   <td className="p-3 text-center"><OutcomeBadge outcome={r.outcome} /></td>
+                  <td className="p-3 font-mono">{failureLayer(r) ?? ''}</td>
                   <td className="p-3 text-rose-300 max-w-xs">{r.errorDetail ?? ''}</td>
                   <td className="p-3 font-mono text-slate-500">{r.transactionId}</td>
                 </tr>

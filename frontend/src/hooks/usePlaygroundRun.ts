@@ -211,6 +211,7 @@ export function usePlaygroundRun() {
         tampered,
         outcome: passed ? 'PASS' : 'FAIL',
         verificationStatus: result?.status,
+        failedChecks: result ? (Object.keys(result.checks ?? {}) as (keyof VerificationResult['checks'])[]).filter(k => !result.checks[k]) : undefined,
         errorDetail: errorDetail ?? (passed ? undefined : result?.details),
         sandboxFallback: fallback
       }
