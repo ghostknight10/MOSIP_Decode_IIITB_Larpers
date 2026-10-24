@@ -30,6 +30,9 @@ jobs:
       - name: Build Frontend UI
         run: npm run build:frontend
 
+      - name: Run Unit & Component Tests (Vitest)
+        run: npm test
+
       - name: Verify Docker Compose Configuration
         run: docker compose config
 
