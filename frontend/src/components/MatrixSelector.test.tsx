@@ -15,7 +15,7 @@ const renderSelector = (props: Partial<React.ComponentProps<typeof MatrixSelecto
       onSelect={onSelect}
       phase="idle"
       hasCredential={false}
-      sandboxFallback={false}
+      emulated={{ issuer: false, wallet: false, verifier: false }}
       {...props}
     />
   );
@@ -74,9 +74,23 @@ describe('MatrixSelector', () => {
   });
 
   it('labels selected MOSIP nodes as Emulated when the sandbox fell back', () => {
-    renderSelector({ sandboxFallback: true });
+    renderSelector({ emulated: { issuer: true, wallet: true, verifier: true } });
     expect(screen.getAllByText('Emulated')).toHaveLength(3);
     expect(screen.getByRole('radio', { name: /Mock OpenID4VCI/ })).toHaveTextContent('Custom Spec');
+  });
+
+  it('marks only the roles that were actually emulated', () => {
+    renderSelector({ emulated: { issuer: true, wallet: false, verifier: false } });
+    expect(screen.getByRole('radio', { name: /Inji Certify/ })).toHaveTextContent('Emulated');
+    expect(screen.getByRole('radio', { name: /Inji Verify/ })).toHaveTextContent('MOSIP Collab');
+  });
+
+  it('never marks a non-MOSIP node as Emulated', () => {
+    renderSelector({
+      selection: { ...selection, issuer: 'mock-openid4vci' },
+      emulated: { issuer: true, wallet: false, verifier: false }
+    });
+    expect(screen.queryByText('Emulated')).not.toBeInTheDocument();
   });
 
   it('shows vendor badges when not emulated', () => {

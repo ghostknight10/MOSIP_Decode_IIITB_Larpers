@@ -8,6 +8,7 @@ import { InteropMatrixReport } from './components/InteropMatrixReport';
 import { usePlaygroundRun } from './hooks/usePlaygroundRun';
 import { api } from './api/client';
 import { allCombinations, DEFAULT_SUBJECT } from './config/nodes';
+import { fallbackNotice } from './lib/fallback';
 import { AlertTriangle, Info } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -16,6 +17,7 @@ export const App: React.FC = () => {
   const run = usePlaygroundRun();
   const { selection } = run;
   const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
+  const emulatedNotice = fallbackNotice(selection, run.issueFallback, run.verifyFallback);
 
   const handleRunAll = async () => {
     const combos = allCombinations();
@@ -54,7 +56,7 @@ export const App: React.FC = () => {
               phase={run.phase}
               hasCredential={Boolean(run.issuedCredential)}
               verificationStatus={run.verificationResult?.status}
-              sandboxFallback={run.sandboxFallback}
+              emulated={{ issuer: run.issueFallback, wallet: run.sandboxFallback, verifier: run.verifyFallback }}
             />
 
             {run.error && (
@@ -63,10 +65,10 @@ export const App: React.FC = () => {
                 {run.error}
               </div>
             )}
-            {run.sandboxFallback && run.notices.length > 0 && (
-              <div className="mb-6 p-3 rounded-xl border border-amber-500/40 bg-amber-950/20 text-amber-200 text-xs flex items-center gap-2">
+            {emulatedNotice && (
+              <div role="status" className="mb-6 p-3 rounded-xl border border-amber-500/40 bg-amber-950/20 text-amber-200 text-xs flex items-center gap-2">
                 <Info className="h-4 w-4 text-amber-400 shrink-0" />
-                Sandbox unreachable — showing emulated responses. {run.notices.join(' ')}
+                {emulatedNotice}
               </div>
             )}
 

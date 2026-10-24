@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { CheckCircle2, XCircle, CircleDashed, Download, Award, Play, Printer, Trash2, Loader2, FileJson } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, XCircle, CircleDashed, Download, Award, Play, Printer, Trash2, Loader2, FileJson } from 'lucide-react';
 import { CredentialFormat, RunRecord } from '../types';
 import { allCombinations, comboKey, formatLabel, nodeLabel } from '../config/nodes';
 
@@ -76,6 +76,39 @@ export const toMarkdown = (matrix: { combo: ReturnType<typeof allCombinations>[n
   return lines.join('\n') + '\n';
 };
 
+interface Score {
+  tested: number;
+  passed: number;
+}
+
+const rate = ({ tested, passed }: Score) => (tested ? Math.round((passed / tested) * 100) : null);
+
+/**
+ * Splits matrix results into real and emulated-sandbox runs, so a pass rate
+ * earned against the mock engine is never presented as an Inji result.
+ */
+export const scoreMatrix = (matrix: { run?: RunRecord }[]) => {
+  const runs = matrix.flatMap(m => (m.run ? [m.run] : []));
+  const score = (rs: RunRecord[]): Score => ({ tested: rs.length, passed: rs.filter(r => r.outcome === 'PASS').length });
+  return {
+    all: score(runs),
+    real: score(runs.filter(r => !r.sandboxFallback)),
+    emulated: score(runs.filter(r => r.sandboxFallback))
+  };
+};
+
+const ScoreChip: React.FC<{ label: string; score: Score }> = ({ label, score }) => {
+  const allPass = score.passed === score.tested;
+  return (
+    <span className={`text-xs font-semibold px-2 py-0.5 rounded-sm border inline-flex items-center gap-1 ${
+      allPass ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+    }`}>
+      {allPass ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+      {label}: {score.passed}/{score.tested} pass
+    </span>
+  );
+};
+
 export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ history, onRunAll, batchProgress, busy, onClearHistory }) => {
   const [formatFilter, setFormatFilter] = useState<'all' | CredentialFormat>('all');
   const [outcomeFilter, setOutcomeFilter] = useState<'all' | RunRecord['outcome']>('all');
@@ -90,9 +123,8 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
     return allCombinations().map(combo => ({ combo, run: latest.get(comboKey(combo)) }));
   }, [history]);
 
-  const tested = matrix.filter(m => m.run);
-  const passed = tested.filter(m => m.run!.outcome === 'PASS').length;
-  const passRate = tested.length ? Math.round((passed / tested.length) * 100) : null;
+  const scores = scoreMatrix(matrix);
+  const allEmulated = scores.all.tested > 0 && scores.real.tested === 0;
   const negativeRuns = history.filter(r => r.tampered);
   const negativePassed = negativeRuns.filter(r => r.outcome === 'PASS').length;
 
@@ -110,13 +142,13 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl mb-6">
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 mb-6 border-b border-slate-800">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-bold text-white">Ecosystem Interoperability Certification Matrix</h2>
-            {passRate !== null && (
-              <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-sm border ${
-                passRate === 100 ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-              }`}>
-                {passRate}% Pass Rate
+            {scores.real.tested > 0 && <ScoreChip label="Real" score={scores.real} />}
+            {scores.emulated.tested > 0 && <ScoreChip label="Emulated" score={scores.emulated} />}
+            {allEmulated && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-sm border bg-amber-500/15 text-amber-200 border-amber-500/30 inline-flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" /> No real MOSIP results yet
               </span>
             )}
           </div>
@@ -153,7 +185,7 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800">
           <div className="text-xs text-slate-400 font-medium">Combinations Tested</div>
-          <div className="text-2xl font-bold text-white mt-1">{tested.length} / {matrix.length}</div>
+          <div className="text-2xl font-bold text-white mt-1">{scores.all.tested} / {matrix.length}</div>
         </div>
         <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800">
           <div className="text-xs text-slate-400 font-medium">Standards Profile</div>
@@ -168,14 +200,22 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
         </div>
         <div className="p-4 rounded-xl bg-slate-950/70 border border-emerald-500/20 bg-emerald-950/10">
           <div className="text-xs text-emerald-400 font-medium">Cross-Interop Pass Rate</div>
-          <div className="text-2xl font-bold text-emerald-400 mt-1 flex items-center gap-1.5">
-            <Award className="h-6 w-6" /> {passRate === null ? '—' : `${passRate}%`}
-          </div>
+          <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-2 items-baseline">
+            <dt className="text-xs text-slate-400">Real</dt>
+            <dd className="text-2xl font-bold text-emerald-400 flex items-center gap-1.5">
+              <Award className="h-5 w-5" /> {rate(scores.real) === null ? '—' : `${rate(scores.real)}%`}
+            </dd>
+            <dt className="text-xs text-slate-400">Emulated</dt>
+            <dd className="text-sm font-semibold text-slate-300">{rate(scores.emulated) === null ? '—' : `${rate(scores.emulated)}%`}</dd>
+          </dl>
         </div>
       </div>
 
       {/* Matrix */}
-      <h3 className="text-sm font-semibold text-white mb-2">Matrix <span className="text-xs font-normal text-slate-400">— latest clean run per combination</span></h3>
+      <h3 className="text-sm font-semibold text-white mb-1">Matrix <span className="text-xs font-normal text-slate-400">— latest clean run per combination</span></h3>
+      <p className="text-xs text-slate-400 mb-2">
+        <span aria-hidden="true" className="text-amber-300 font-bold">†</span> answered by the emulated sandbox, not a real MOSIP service.
+      </p>
       <div className="overflow-x-auto rounded-xl border border-slate-800 mb-8">
         <table className="w-full text-left text-xs">
           <thead className="bg-slate-950 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
@@ -199,7 +239,9 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
                 <td className="p-3 font-mono">{run?.proofType ?? '—'}</td>
                 <td className="p-3 text-center">
                   <OutcomeBadge outcome={run?.outcome ?? 'UNTESTED'} />
-                  {run?.sandboxFallback && <div className="text-[10px] text-amber-300 mt-1">emulated sandbox</div>}
+                  {run?.sandboxFallback && (
+                    <abbr title="Emulated sandbox response" aria-label="emulated" className="ml-1 text-amber-300 font-bold no-underline">†</abbr>
+                  )}
                 </td>
                 <td className="p-3 text-rose-300 max-w-xs">{run?.errorDetail ?? ''}</td>
               </tr>

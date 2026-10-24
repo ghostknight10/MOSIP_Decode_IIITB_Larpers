@@ -38,6 +38,10 @@ interface PlaygroundState {
   issuedCredential: any;
   presentationDefinition: any;
   verificationResult: VerificationResult | null;
+  /** Inji Certify / Inji Verify answered from the emulated sandbox in this run. */
+  issueFallback: boolean;
+  verifyFallback: boolean;
+  /** issueFallback || verifyFallback */
   sandboxFallback: boolean;
   notices: string[];
   error: string | null;
@@ -65,6 +69,8 @@ const emptyRun = {
   issuedCredential: null,
   presentationDefinition: null,
   verificationResult: null,
+  issueFallback: false,
+  verifyFallback: false,
   sandboxFallback: false,
   notices: [],
   error: null
@@ -100,7 +106,16 @@ function reducer(state: PlaygroundState, action: Action): PlaygroundState {
       // any other change invalidates it.
       const onlyVerifierChanged = Object.keys(action.patch).every(k => k === 'verifier');
       if (onlyVerifierChanged && state.issuedCredential) {
-        return { ...state, selection, phase: 'issued', verificationResult: null, presentationDefinition: null, error: null };
+        return {
+          ...state,
+          selection,
+          phase: 'issued',
+          verificationResult: null,
+          presentationDefinition: null,
+          error: null,
+          verifyFallback: false,
+          sandboxFallback: state.issueFallback
+        };
       }
       return { ...state, ...emptyRun, selection };
     }
@@ -112,6 +127,8 @@ function reducer(state: PlaygroundState, action: Action): PlaygroundState {
         phase: 'issued',
         credentialOffer: action.credentialOffer ?? null,
         issuedCredential: action.issuedCredential,
+        issueFallback: Boolean(action.fallback),
+        verifyFallback: false,
         sandboxFallback: Boolean(action.fallback),
         notices: action.notice ? [action.notice] : [],
         logs: mergeLogs(state.logs, action.logs, state.transactionId)
@@ -124,7 +141,8 @@ function reducer(state: PlaygroundState, action: Action): PlaygroundState {
         phase: action.verificationResult.status === 'VALID' ? 'verified' : 'failed',
         verificationResult: action.verificationResult,
         presentationDefinition: action.presentationDefinition ?? null,
-        sandboxFallback: state.sandboxFallback || Boolean(action.fallback),
+        verifyFallback: Boolean(action.fallback),
+        sandboxFallback: state.issueFallback || Boolean(action.fallback),
         notices: action.notice ? [...state.notices, action.notice] : state.notices,
         logs: mergeLogs(state.logs, action.logs, state.transactionId)
       };
@@ -229,7 +247,8 @@ export function usePlaygroundRun() {
       transactionId: state.transactionId ?? newTransactionId(),
       startedAt: state.startedAt ?? new Date().toISOString(),
       credential: state.issuedCredential,
-      fallback: state.sandboxFallback
+      // Only issuance carries over: a re-verification decides its own fallback.
+      fallback: state.issueFallback
     },
     sel: Selection = state.selection
   ) => {
@@ -257,7 +276,7 @@ export function usePlaygroundRun() {
       record(sel, run.transactionId, run.startedAt, run.credential, tamper, run.fallback, undefined, `Verification failed: ${err.message}`);
       return null;
     }
-  }, [state.selection, state.transactionId, state.startedAt, state.issuedCredential, state.sandboxFallback]);
+  }, [state.selection, state.transactionId, state.startedAt, state.issuedCredential, state.issueFallback]);
 
   /** Issue then immediately present & verify, optionally for an explicit matrix combination. */
   const runFullFlow = useCallback(async (subject: CredentialSubjectInput, tamper?: TamperOptions, sel: Selection = state.selection) => {

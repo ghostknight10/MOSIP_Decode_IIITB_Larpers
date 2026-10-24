@@ -22,7 +22,8 @@ interface MatrixSelectorProps {
   phase: RunPhase;
   hasCredential: boolean;
   verificationStatus?: VerificationStatus;
-  sandboxFallback: boolean;
+  /** Which roles were answered by the emulated sandbox in this run. */
+  emulated: Record<NodeRole, boolean>;
 }
 
 export type ColumnStatus = 'standby' | 'active' | 'holding' | 'done' | 'rejected' | 'failed';
@@ -96,10 +97,10 @@ interface RoleColumnProps<Id extends string> {
   statusDetail?: string;
   locked: boolean;
   format: CredentialFormat;
-  sandboxFallback: boolean;
+  emulated: boolean;
 }
 
-function RoleColumn<Id extends string>({ role, nodes, selectedId, onPick, status, statusDetail, locked, format, sandboxFallback }: RoleColumnProps<Id>) {
+function RoleColumn<Id extends string>({ role, nodes, selectedId, onPick, status, statusDetail, locked, format, emulated }: RoleColumnProps<Id>) {
   const meta = ROLE_META[role];
   return (
     <div className="flex flex-col rounded-xl border border-slate-800 bg-slate-950/60 p-4 transition-all hover:border-slate-700">
@@ -142,7 +143,7 @@ function RoleColumn<Id extends string>({ role, nodes, selectedId, onPick, status
                 <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-sm ${
                   node.isMosip ? 'bg-slate-800 text-slate-200' : 'bg-amber-500/20 text-amber-300'
                 }`}>
-                  {selected && node.isMosip && sandboxFallback ? 'Emulated' : node.badge}
+                  {selected && node.isMosip && emulated ? 'Emulated' : node.badge}
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-1.5">{node.description}</p>
@@ -167,7 +168,7 @@ export const MatrixSelector: React.FC<MatrixSelectorProps> = ({
   phase,
   hasCredential,
   verificationStatus,
-  sandboxFallback
+  emulated
 }) => {
   const locked = phase === 'issuing' || phase === 'verifying';
   const statuses = {
@@ -233,7 +234,7 @@ export const MatrixSelector: React.FC<MatrixSelectorProps> = ({
           status={statuses.issuer}
           locked={locked}
           format={selection.format}
-          sandboxFallback={sandboxFallback}
+          emulated={emulated.issuer}
         />
         <Connector lit={statuses.issuer === 'done'} />
         <RoleColumn
@@ -244,7 +245,7 @@ export const MatrixSelector: React.FC<MatrixSelectorProps> = ({
           status={statuses.wallet}
           locked={locked}
           format={selection.format}
-          sandboxFallback={sandboxFallback}
+          emulated={emulated.wallet}
         />
         <Connector lit={statuses.verifier === 'done' || statuses.verifier === 'rejected'} />
         <RoleColumn
@@ -256,7 +257,7 @@ export const MatrixSelector: React.FC<MatrixSelectorProps> = ({
           statusDetail={verifierDetail}
           locked={locked}
           format={selection.format}
-          sandboxFallback={sandboxFallback}
+          emulated={emulated.verifier}
         />
       </div>
     </div>

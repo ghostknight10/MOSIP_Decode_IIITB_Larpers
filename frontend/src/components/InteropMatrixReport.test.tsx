@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { InteropMatrixReport, toMarkdown } from './InteropMatrixReport';
+import { InteropMatrixReport, scoreMatrix, toMarkdown } from './InteropMatrixReport';
 import { allCombinations } from '../config/nodes';
 import { makeRun } from '../test/fixtures';
 import { RunRecord } from '../types';
@@ -49,7 +49,8 @@ describe('InteropMatrixReport with no runs', () => {
   it('shows an empty history message and no pass rate', () => {
     renderReport();
     expect(screen.getByText(/No runs yet/)).toBeInTheDocument();
-    expect(screen.queryByText(/% Pass Rate/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/pass$/)).not.toBeInTheDocument();
+    expect(screen.queryByText('No real MOSIP results yet')).not.toBeInTheDocument();
   });
 
   it('disables exports and clearing', () => {
@@ -87,18 +88,34 @@ describe('InteropMatrixReport with runs', () => {
   it('computes coverage, pass rate and negative-path results', () => {
     renderReport(history);
     expect(screen.getByText(`2 / ${TOTAL}`)).toBeInTheDocument();
-    expect(screen.getByText('50% Pass Rate')).toBeInTheDocument();
+    expect(screen.getByText('Real: 1/2 pass')).toBeInTheDocument();
+    expect(screen.getByText(/50%/)).toBeInTheDocument();
     expect(screen.getByText('1 / 2')).toBeInTheDocument();
   });
 
   it('shows 100% when every tested combination passes', () => {
     renderReport([makeRun()]);
-    expect(screen.getByText('100% Pass Rate')).toBeInTheDocument();
+    expect(screen.getByText('Real: 1/1 pass')).toBeInTheDocument();
+    expect(screen.getByText(/100%/)).toBeInTheDocument();
   });
 
   it('flags runs that hit the emulated sandbox', () => {
     renderReport([makeRun({ sandboxFallback: true })]);
-    expect(within(matrixTable()).getByText('emulated sandbox')).toBeInTheDocument();
+    expect(within(matrixTable()).getByTitle('Emulated sandbox response')).toBeInTheDocument();
+  });
+
+  it('reports real and emulated results separately', () => {
+    renderReport([makeRun(), makeRun({ issuer: 'mock-openid4vci', sandboxFallback: true, outcome: 'FAIL', errorDetail: 'x' })]);
+    expect(screen.getByText('Real: 1/1 pass')).toBeInTheDocument();
+    expect(screen.getByText('Emulated: 0/1 pass')).toBeInTheDocument();
+    expect(screen.queryByText('No real MOSIP results yet')).not.toBeInTheDocument();
+  });
+
+  it('warns when every result came from the emulated sandbox', () => {
+    renderReport([makeRun({ sandboxFallback: true })]);
+    expect(screen.getByText('Emulated: 1/1 pass')).toBeInTheDocument();
+    expect(screen.queryByText(/^Real:/)).not.toBeInTheDocument();
+    expect(screen.getByText('No real MOSIP results yet')).toBeInTheDocument();
   });
 
   it('lists every run in the history table', () => {
@@ -192,5 +209,21 @@ describe('toMarkdown', () => {
     const md = toMarkdown([{ combo, run }], [run]);
     expect(md).toMatch(/\| PASS \|  \| yes \|/);
     expect(md).toContain('| tampered |');
+  });
+});
+
+describe('scoreMatrix', () => {
+  it('splits tested combinations into real and emulated scores', () => {
+    const scores = scoreMatrix([
+      { run: makeRun() },
+      { run: makeRun({ outcome: 'FAIL' }) },
+      { run: makeRun({ sandboxFallback: true }) },
+      {}
+    ]);
+    expect(scores).toEqual({
+      all: { tested: 3, passed: 2 },
+      real: { tested: 2, passed: 1 },
+      emulated: { tested: 1, passed: 1 }
+    });
   });
 });

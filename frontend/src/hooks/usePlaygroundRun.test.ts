@@ -237,6 +237,30 @@ describe('verify', () => {
     expect(h.current.notices).toEqual(['verify emulated']);
     expect(h.current.history[0].sandboxFallback).toBe(true);
   });
+
+  it('tracks which phase was emulated', async () => {
+    issueMock.mockImplementation(async (_p, txId) => issueOk(txId, { isSandboxFallback: true }));
+    const { result: h } = setup();
+    await act(() => h.current.issue(DEFAULT_SUBJECT));
+    expect([h.current.issueFallback, h.current.verifyFallback]).toEqual([true, false]);
+    await act(() => h.current.verify());
+    expect([h.current.issueFallback, h.current.verifyFallback, h.current.sandboxFallback]).toEqual([true, false, true]);
+  });
+
+  it('drops the verify fallback when re-presenting to another verifier', async () => {
+    verifyMock
+      .mockImplementationOnce(async (_p, txId) => verifyOk(txId, 'VALID', { isSandboxFallback: true }))
+      .mockImplementationOnce(async (_p, txId) => verifyOk(txId, 'VALID'));
+    const { result: h } = setup();
+    await act(() => h.current.issue(DEFAULT_SUBJECT));
+    await act(() => h.current.verify());
+    expect(h.current.verifyFallback).toBe(true);
+
+    act(() => h.current.select({ verifier: 'mock-openid4vp' }));
+    expect([h.current.verifyFallback, h.current.sandboxFallback]).toEqual([false, false]);
+    await act(() => h.current.verify());
+    expect(h.current.history.map(r => r.sandboxFallback)).toEqual([false, true]);
+  });
 });
 
 describe('select', () => {

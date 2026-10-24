@@ -108,7 +108,7 @@ describe('App', () => {
 
     await user.click(screen.getByRole('button', { name: /Interop Matrix Report/ }));
     expect(screen.getByText(`1 / ${allCombinations().length}`)).toBeInTheDocument();
-    expect(screen.getByText('100% Pass Rate')).toBeInTheDocument();
+    expect(screen.getByText('Real: 1/1 pass')).toBeInTheDocument();
     const history = screen.getAllByRole('table')[1];
     expect(within(history).getAllByText('PASS')).toHaveLength(2);
     expect(within(history).getByText('tampered')).toBeInTheDocument();
@@ -136,7 +136,8 @@ describe('App', () => {
     });
     const { user } = setup();
     await user.click(screen.getByRole('button', { name: /Issue Credential/ }));
-    expect(await screen.findByText(/Sandbox unreachable — showing emulated responses\. Collab unreachable/)).toBeInTheDocument();
+    expect(await screen.findByText('MOSIP Collab sandbox unreachable: Inji Certify responses are emulated by the mock engine.')).toBeInTheDocument();
+    expect(screen.queryByText(/Collab unreachable/)).not.toBeInTheDocument();
     expect(screen.getAllByText('Emulated').length).toBeGreaterThan(0);
   });
 
