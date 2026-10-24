@@ -159,7 +159,31 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /Issue Credential/ }));
     await screen.findByText('2 Transactions Logged');
     await user.click(screen.getByRole('button', { name: 'Clear History' }));
-    expect(await screen.findByText('0 Transactions Logged')).toBeInTheDocument();
+    expect(await screen.findByText(/No run yet/)).toBeInTheDocument();
+    expect(screen.queryByText(/Transactions Logged/)).not.toBeInTheDocument();
     expect(fetchFn).toHaveBeenCalledWith('/api/playground/logs', expect.objectContaining({ method: 'DELETE' }));
+  });
+
+  it('shows one compact empty state instead of empty panels before any run', async () => {
+    stubBff();
+    setup();
+    expect(screen.getByText(/No run yet/)).toBeInTheDocument();
+    expect(screen.queryByText(/Transactions Logged/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Live Dynamic Sequence Visualizer')).not.toBeInTheDocument();
+  });
+
+  it('shows the current run only, with a toggle for all runs', async () => {
+    stubBff();
+    const { user } = setup();
+    await user.click(screen.getByRole('button', { name: /Run Full Flow/ }));
+    await screen.findByText('4 Transactions Logged');
+    await user.click(screen.getByRole('button', { name: /Run Full Flow/ }));
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'All runs (2)' })).toBeInTheDocument());
+
+    expect(screen.getByText('4 Transactions Logged')).toBeInTheDocument();
+    expect(within(screen.getByRole('list', { name: 'Protocol steps' })).getAllByRole('listitem')).toHaveLength(4);
+
+    await user.click(screen.getByRole('radio', { name: 'All runs (2)' }));
+    expect(screen.getByText('8 Transactions Logged')).toBeInTheDocument();
   });
 });

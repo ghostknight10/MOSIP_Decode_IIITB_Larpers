@@ -34,12 +34,12 @@ export const VerdictCard: React.FC<{ result: VerificationResult }> = ({ result }
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-bold uppercase">Result:</span>
             <span className="text-xs font-extrabold font-mono px-2 py-0.5 rounded-sm bg-slate-900 border">{result.status}</span>
-            <span className="text-[11px]">{validButExpired ? 'Valid but Expired' : STATUS_LABEL[result.status]}</span>
+            <span className="text-xs">{validButExpired ? 'Valid but Expired' : STATUS_LABEL[result.status]}</span>
           </div>
-          <div className="text-[11px] text-slate-300 mt-0.5">{result.details}</div>
+          <div className="text-xs text-slate-300 mt-0.5">{result.details}</div>
         </div>
       </div>
-      <ul className="mt-3 grid grid-cols-2 gap-1.5 text-[11px]">
+      <ul className="mt-3 grid grid-cols-2 gap-1.5 text-xs">
         {CHECK_LABELS.map(([key, label]) => {
           const ok = result.checks?.[key];
           return (

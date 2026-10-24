@@ -34,7 +34,7 @@ export const PresentPhase: React.FC<PresentPhaseProps> = ({
       <div>
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">Phase 2: OpenID4VP</span>
-          <span className="text-[11px] text-slate-400 font-mono">Response: vp_token</span>
+          <span className="text-xs text-slate-400 font-mono">Response: vp_token</span>
         </div>
         <p className="text-xs text-slate-300 mb-4">
           Verifier dispatches Presentation Definition. Wallet generates Verifiable Presentation and submits cryptographic proof.

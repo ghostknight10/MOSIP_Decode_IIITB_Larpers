@@ -28,7 +28,7 @@ export const IssuePhase: React.FC<IssuePhaseProps> = ({ phase, format, credentia
       <div>
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-bold uppercase tracking-wider text-sky-400">Phase 1: OpenID4VCI</span>
-          <span className="text-[11px] text-slate-400 font-mono">Grant: Pre-authorized Code</span>
+          <span className="text-xs text-slate-400 font-mono">Grant: Pre-authorized Code</span>
         </div>
         <p className="text-xs text-slate-300 mb-3">
           Issuer generates a standardized Credential Offer QR code. Wallet retrieves offer and requests{' '}
@@ -39,7 +39,7 @@ export const IssuePhase: React.FC<IssuePhaseProps> = ({ phase, format, credentia
           type="button"
           onClick={() => setSubjectOpen(!subjectOpen)}
           aria-expanded={subjectOpen}
-          className="text-[11px] text-slate-400 hover:text-slate-200 flex items-center gap-1 mb-3"
+          className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1 mb-3"
         >
           {subjectOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
           Credential subject claims
@@ -48,7 +48,7 @@ export const IssuePhase: React.FC<IssuePhaseProps> = ({ phase, format, credentia
 
         {credentialOffer && <QrPanel title="Credential Offer (scan with Inji Wallet)" uri={buildOfferUri(credentialOffer)} />}
         {issuedCredential && !credentialOffer && (
-          <p className="mb-4 text-[11px] text-amber-300">Issuer returned a credential without a credential offer payload.</p>
+          <p className="mb-4 text-xs text-amber-300">Issuer returned a credential without a credential offer payload.</p>
         )}
         {issuedCredential && <CredentialSummary credential={issuedCredential} format={format} />}
       </div>

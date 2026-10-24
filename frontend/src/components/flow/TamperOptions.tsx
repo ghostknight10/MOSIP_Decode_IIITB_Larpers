@@ -27,6 +27,6 @@ export const TamperOptions: React.FC<{ value: TamperOptionsValue; onChange: (val
       />
       Corrupt Cryptographic Signature
     </label>
-    <span className="text-[11px] text-rose-300/70">Applied when the wallet presents to the verifier.</span>
+    <span className="text-xs text-rose-300/70">Applied when the wallet presents to the verifier.</span>
   </div>
 );

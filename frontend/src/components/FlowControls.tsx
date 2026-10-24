@@ -56,7 +56,7 @@ export const FlowControls: React.FC<FlowControlsProps> = ({
             Workflow Execution Pipeline
           </h3>
           <p className="text-xs text-slate-400">Execute standard OpenID4VCI and OpenID4VP transactions across the selected nodes.</p>
-          {transactionId && <p className="text-[11px] text-slate-500 font-mono mt-1">Transaction: {transactionId}</p>}
+          {transactionId && <p className="text-xs text-slate-500 font-mono mt-1">Transaction: {transactionId}</p>}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -94,7 +94,7 @@ export const FlowControls: React.FC<FlowControlsProps> = ({
 
       {tamperMode && <TamperOptions value={tamperOptions} onChange={setTamperOptions} />}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-6 items-start">
         <IssuePhase
           phase={phase}
           format={format}

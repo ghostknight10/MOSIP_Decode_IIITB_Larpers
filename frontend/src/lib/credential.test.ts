@@ -13,7 +13,7 @@ describe('decodeJwtPayload', () => {
   });
 
   it('handles base64url characters', () => {
-    // '?>' encodes to 'Pz4' in base64 and needs no '-'/'_', so force one with '>?' -> 'Pj8'
+    // '>>>???' base64-encodes with '+' and '/', which base64url turns into '-' and '_'.
     const payload = { s: '>>>???' };
     expect(decodeJwtPayload(`h.${b64url(payload)}.s`)).toEqual(payload);
   });

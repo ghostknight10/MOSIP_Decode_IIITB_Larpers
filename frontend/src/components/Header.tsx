@@ -21,7 +21,7 @@ export const Header: React.FC<HeaderProps> = ({ serverConnected, activeTab, setA
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white">MOSIP VC Interoperability Playground</h1>
-              <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">
+              <span className="text-xs font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">
                 Topic 02
               </span>
             </div>
@@ -55,7 +55,7 @@ export const Header: React.FC<HeaderProps> = ({ serverConnected, activeTab, setA
             <Layers className="h-4 w-4" />
             Interop Matrix Report
             {runCount > 0 && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-300">{runCount}</span>
+              <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-300">{runCount}</span>
             )}
           </button>
         </nav>

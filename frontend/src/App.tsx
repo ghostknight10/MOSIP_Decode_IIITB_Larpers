@@ -5,6 +5,7 @@ import { FlowControls } from './components/FlowControls';
 import { ProtocolInspector } from './components/ProtocolInspector';
 import { SequenceDiagram } from './components/SequenceDiagram';
 import { InteropMatrixReport } from './components/InteropMatrixReport';
+import { RunTimeline } from './components/RunTimeline';
 import { usePlaygroundRun } from './hooks/usePlaygroundRun';
 import { api } from './api/client';
 import { allCombinations, DEFAULT_SUBJECT } from './config/nodes';
@@ -18,6 +19,9 @@ export const App: React.FC = () => {
   const { selection } = run;
   const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
   const emulatedNotice = fallbackNotice(selection, run.issueFallback, run.verifyFallback);
+  const [logScope, setLogScope] = useState<'run' | 'all'>('run');
+  const txCount = new Set(run.logs.map(l => l.transactionId)).size;
+  const visibleLogs = logScope === 'all' ? run.logs : run.logs.filter(l => l.transactionId && l.transactionId === run.transactionId);
 
   const handleRunAll = async () => {
     const combos = allCombinations();
@@ -66,32 +70,70 @@ export const App: React.FC = () => {
               </div>
             )}
             {emulatedNotice && (
-              <div role="status" className="mb-6 p-3 rounded-xl border border-amber-500/40 bg-amber-950/20 text-amber-200 text-xs flex items-center gap-2">
+              <div role="note" className="mb-6 p-3 rounded-xl border border-amber-500/40 bg-amber-950/20 text-amber-200 text-xs flex items-center gap-2">
                 <Info className="h-4 w-4 text-amber-400 shrink-0" />
                 {emulatedNotice}
               </div>
             )}
 
-            {/* Workflow Execution Pipeline */}
-            <FlowControls
-              onIssue={run.issue}
-              onVerify={run.verify}
-              onRunFullFlow={run.runFullFlow}
-              onReset={run.reset}
-              phase={run.phase}
-              transactionId={run.transactionId}
-              issuedCredential={run.issuedCredential}
-              credentialOffer={run.credentialOffer}
-              presentationDefinition={run.presentationDefinition}
-              verificationResult={run.verificationResult}
-              format={selection.format}
-              verifier={selection.verifier}
-            />
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-6 items-start">
+              {/* Actions: workflow execution pipeline */}
+              <FlowControls
+                onIssue={run.issue}
+                onVerify={run.verify}
+                onRunFullFlow={run.runFullFlow}
+                onReset={run.reset}
+                phase={run.phase}
+                transactionId={run.transactionId}
+                issuedCredential={run.issuedCredential}
+                credentialOffer={run.credentialOffer}
+                presentationDefinition={run.presentationDefinition}
+                verificationResult={run.verificationResult}
+                format={selection.format}
+                verifier={selection.verifier}
+              />
 
-            {/* Live Visualizations (Ayaan's Sequence + Inspector) */}
-            <div className="grid grid-cols-1 gap-6">
-              <SequenceDiagram logs={run.logs} />
-              <ProtocolInspector logs={run.logs} onClearLogs={run.clearLogs} />
+              {/* Effects: live protocol view, kept beside the actions on wide screens */}
+              <aside aria-label="Live protocol view" className="space-y-4 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto xl:pr-1">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-sm font-bold text-white">Live protocol view</h2>
+                  {txCount > 1 && (
+                    <div role="radiogroup" aria-label="Log scope" className="flex gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs">
+                      {(['run', 'all'] as const).map(scope => (
+                        <button
+                          key={scope}
+                          type="button"
+                          role="radio"
+                          aria-checked={logScope === scope}
+                          onClick={() => setLogScope(scope)}
+                          className={`px-2.5 py-1 rounded-md ${logScope === scope ? 'bg-sky-600 text-white font-semibold' : 'text-slate-400 hover:text-slate-200'}`}
+                        >
+                          {scope === 'run' ? 'This run' : `All runs (${txCount})`}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {visibleLogs.length === 0 ? (
+                  <div className="p-6 rounded-2xl border border-dashed border-slate-800 text-center text-sm text-slate-400">
+                    {run.logs.length === 0
+                      ? 'No run yet. Press Run Full Flow, or issue a credential, to see every protocol message here.'
+                      : 'No messages for the current run yet. Switch to All runs to see earlier traffic.'}
+                  </div>
+                ) : (
+                  <>
+                    <section aria-label="Run progress" className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+                      <RunTimeline logs={visibleLogs} />
+                    </section>
+                    {/* The diagram is unreadable on phones; the timeline above covers it there. */}
+                    <div className="hidden md:block">
+                      <SequenceDiagram logs={visibleLogs} />
+                    </div>
+                    <ProtocolInspector logs={visibleLogs} onClearLogs={run.clearLogs} />
+                  </>
+                )}
+              </aside>
             </div>
           </div>
         ) : (

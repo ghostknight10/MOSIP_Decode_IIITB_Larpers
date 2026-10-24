@@ -9,7 +9,7 @@ export const CredentialSummary: React.FC<{ credential: any; format: CredentialFo
   const summary = summarise(credential, format);
   const wireFormat = FORMATS.find(f => f.id === format)?.wireFormat;
   return (
-    <dl className="mb-4 p-3 rounded-lg bg-slate-900 border border-slate-800 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11px]">
+    <dl className="mb-4 p-3 rounded-lg bg-slate-900 border border-slate-800 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
       <dt className="text-slate-500">Format</dt>
       <dd className="text-slate-200 font-mono">{wireFormat}</dd>
       <dt className="text-slate-500">Proof</dt>

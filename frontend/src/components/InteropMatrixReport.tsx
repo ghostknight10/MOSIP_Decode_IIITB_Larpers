@@ -20,7 +20,7 @@ const OutcomeBadge: React.FC<{ outcome: Outcome }> = ({ outcome }) => {
     UNTESTED: { cls: 'bg-slate-800 text-slate-400 border-slate-700', Icon: CircleDashed }
   }[outcome];
   return (
-    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-bold text-[11px] border ${style.cls}`}>
+    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-bold text-xs border ${style.cls}`}>
       <style.Icon className="h-3 w-3" />
       {outcome}
     </span>
@@ -28,7 +28,7 @@ const OutcomeBadge: React.FC<{ outcome: Outcome }> = ({ outcome }) => {
 };
 
 const FormatChip: React.FC<{ format: CredentialFormat }> = ({ format }) => (
-  <span className={`px-2 py-0.5 rounded-sm text-[11px] font-sans whitespace-nowrap ${
+  <span className={`px-2 py-0.5 rounded-sm text-xs font-sans whitespace-nowrap ${
     format === 'sd-jwt' ? 'bg-indigo-500/20 text-indigo-300' : 'bg-sky-500/20 text-sky-300'
   }`}>
     {formatLabel(format)}

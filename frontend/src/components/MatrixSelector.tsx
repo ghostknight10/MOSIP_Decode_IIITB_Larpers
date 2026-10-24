@@ -81,7 +81,7 @@ const ACCENT_RING: Record<NodeRole, string> = {
 const StatusBadge: React.FC<{ status: ColumnStatus; detail?: string }> = ({ status, detail }) => {
   const { label, className, Icon, spin } = STATUS_STYLE[status];
   return (
-    <span aria-live="polite" className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-semibold ${className}`}>
+    <span aria-live="polite" className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-semibold ${className}`}>
       <Icon className={`h-3 w-3 ${spin ? 'animate-spin' : ''}`} />
       {detail ?? label}
     </span>
@@ -103,7 +103,7 @@ interface RoleColumnProps<Id extends string> {
 function RoleColumn<Id extends string>({ role, nodes, selectedId, onPick, status, statusDetail, locked, format, emulated }: RoleColumnProps<Id>) {
   const meta = ROLE_META[role];
   return (
-    <div className="flex flex-col rounded-xl border border-slate-800 bg-slate-950/60 p-4 transition-all hover:border-slate-700">
+    <div className="flex flex-col rounded-xl border border-slate-800 bg-slate-950/60 p-3 md:p-4 transition-all hover:border-slate-700">
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
           <div className={`h-8 w-8 rounded-lg bg-slate-800/60 ${ACCENT_TEXT[role]} flex items-center justify-center font-bold`}>
@@ -111,14 +111,14 @@ function RoleColumn<Id extends string>({ role, nodes, selectedId, onPick, status
           </div>
           <span className="text-sm font-semibold text-slate-200 uppercase tracking-wider">{meta.title}</span>
         </div>
-        <span className={`text-[11px] px-2 py-0.5 rounded-full border font-medium ${ACCENT_CHIP[role]}`}>{meta.protocol}</span>
+        <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${ACCENT_CHIP[role]}`}>{meta.protocol}</span>
       </div>
 
       <div className="mb-3">
         <StatusBadge status={status} detail={statusDetail} />
       </div>
 
-      <div role="radiogroup" aria-label={meta.title} className="space-y-3 flex-1">
+      <div role="radiogroup" aria-label={meta.title} className="grid grid-cols-2 md:grid-cols-1 gap-2 md:gap-3 flex-1">
         {nodes.map(node => {
           const selected = node.id === selectedId;
           const unsupported = !node.supportedFormats.includes(format);
@@ -131,23 +131,24 @@ function RoleColumn<Id extends string>({ role, nodes, selectedId, onPick, status
               aria-checked={selected}
               disabled={locked || unsupported}
               onClick={() => onPick(node.id)}
-              className={`w-full text-left p-3.5 rounded-xl border transition-all disabled:cursor-not-allowed ${
+              className={`w-full text-left p-3 rounded-xl border transition-all disabled:cursor-not-allowed ${
                 selected ? ACCENT_RING[role] : 'border-slate-800 bg-slate-900/50 hover:bg-slate-800/40 text-slate-400'
               } ${unsupported ? 'opacity-40' : ''} ${locked && !selected ? 'opacity-60' : ''}`}
             >
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-1 md:gap-2">
                 <div className="font-semibold text-white text-sm flex items-center gap-2">
                   <NodeIcon className={`h-4 w-4 ${node.isMosip ? ACCENT_TEXT[role] : 'text-amber-400'}`} />
                   {node.label}
                 </div>
-                <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-sm ${
+                <span className={`text-xs uppercase font-bold px-1.5 py-0.5 rounded-sm ${
                   node.isMosip ? 'bg-slate-800 text-slate-200' : 'bg-amber-500/20 text-amber-300'
                 }`}>
                   {selected && node.isMosip && emulated ? 'Emulated' : node.badge}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-1.5">{node.description}</p>
-              {unsupported && <p className="text-[11px] text-amber-300 mt-1">Does not support the selected format</p>}
+              {/* Descriptions only for the chosen node, and only where there is room. */}
+              {selected && <p className="hidden md:block text-xs text-slate-400 mt-1.5">{node.description}</p>}
+              {unsupported && <p className="text-xs text-amber-300 mt-1">Does not support the selected format</p>}
             </button>
           );
         })}
@@ -187,7 +188,7 @@ export const MatrixSelector: React.FC<MatrixSelectorProps> = ({
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl mb-6">
       {/* Credential Format Toggle Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-6 mb-6 border-b border-slate-800">
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 mb-4 md:pb-6 md:mb-6 border-b border-slate-800">
         <div>
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-sky-400" />
@@ -198,7 +199,7 @@ export const MatrixSelector: React.FC<MatrixSelectorProps> = ({
           </p>
         </div>
 
-        <div role="radiogroup" aria-label="Credential format" className="flex flex-wrap items-center gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-medium">
+        <div role="radiogroup" aria-label="Credential format" className="w-full sm:w-auto flex flex-wrap items-center gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-medium">
           <span className="text-slate-400 px-2 flex items-center gap-1.5">
             <FileCode2 className="h-3.5 w-3.5" /> Spec Format:
           </span>
@@ -213,7 +214,7 @@ export const MatrixSelector: React.FC<MatrixSelectorProps> = ({
                 aria-checked={active}
                 disabled={locked || !supported}
                 onClick={() => onSelect({ format: f.id })}
-                className={`px-3 py-1.5 rounded-lg transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
+                className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
                   active ? 'bg-sky-600 text-white font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
