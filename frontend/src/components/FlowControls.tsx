@@ -118,6 +118,7 @@ export const FlowControls: React.FC<FlowControlsProps> = ({
         />
         <PresentPhase
           phase={phase}
+          format={format}
           verifier={verifier}
           transactionId={transactionId}
           issuedCredential={issuedCredential}

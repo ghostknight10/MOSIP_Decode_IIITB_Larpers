@@ -1,13 +1,15 @@
 import React from 'react';
 import { ArrowRight, RefreshCw } from 'lucide-react';
-import { RunPhase, VerificationResult, VerifierType } from '../../types';
+import { CredentialFormat, RunPhase, VerificationResult, VerifierType } from '../../types';
 import { getNode } from '../../config/nodes';
 import { buildVpRequestUri } from '../../lib/credential';
 import { QrPanel } from './QrPanel';
 import { VerdictCard } from './VerdictCard';
+import { SharedClaimsPanel } from './SharedClaimsPanel';
 
 interface PresentPhaseProps {
   phase: RunPhase;
+  format: CredentialFormat;
   verifier: VerifierType;
   transactionId: string | null;
   issuedCredential: any;
@@ -19,6 +21,7 @@ interface PresentPhaseProps {
 /** Phase 2 (OpenID4VP): authorization request QR, verdict, present button. */
 export const PresentPhase: React.FC<PresentPhaseProps> = ({
   phase,
+  format,
   verifier,
   transactionId,
   issuedCredential,
@@ -47,6 +50,14 @@ export const PresentPhase: React.FC<PresentPhaseProps> = ({
           />
         )}
         {verificationResult && <VerdictCard result={verificationResult} />}
+        {verificationResult && (
+          <SharedClaimsPanel
+            presentationDefinition={presentationDefinition}
+            credential={issuedCredential}
+            format={format}
+            verifiedClaims={verificationResult.verifiedClaims}
+          />
+        )}
       </div>
 
       <button
