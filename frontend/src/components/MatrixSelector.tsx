@@ -25,7 +25,7 @@ interface MatrixSelectorProps {
   sandboxFallback: boolean;
 }
 
-type ColumnStatus = 'standby' | 'active' | 'holding' | 'done' | 'rejected' | 'failed';
+export type ColumnStatus = 'standby' | 'active' | 'holding' | 'done' | 'rejected' | 'failed';
 
 const STATUS_STYLE: Record<ColumnStatus, { label: string; className: string; Icon: LucideIcon; spin?: boolean }> = {
   standby: { label: 'Standby', className: 'text-slate-400 bg-slate-800/60 border-slate-700', Icon: Circle },
@@ -37,7 +37,7 @@ const STATUS_STYLE: Record<ColumnStatus, { label: string; className: string; Ico
 };
 
 /** Derive each role's live status from the run phase. */
-const columnStatus = (role: NodeRole, phase: RunPhase, hasCredential: boolean, verification?: VerificationStatus): ColumnStatus => {
+export const columnStatus = (role: NodeRole, phase: RunPhase, hasCredential: boolean, verification?: VerificationStatus): ColumnStatus => {
   const issued = hasCredential && phase !== 'issuing';
   switch (role) {
     case 'issuer':

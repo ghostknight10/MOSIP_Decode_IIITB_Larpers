@@ -44,7 +44,7 @@ const download = (filename: string, content: string, type: string) => {
   URL.revokeObjectURL(url);
 };
 
-const toMarkdown = (matrix: { combo: ReturnType<typeof allCombinations>[number]; run?: RunRecord }[], history: RunRecord[]) => {
+export const toMarkdown = (matrix: { combo: ReturnType<typeof allCombinations>[number]; run?: RunRecord }[], history: RunRecord[]) => {
   const row = (cells: (string | undefined)[]) => `| ${cells.map(c => (c ?? '').replace(/\|/g, '\\|')).join(' | ')} |`;
   const lines = [
     '# Interoperability Report',

@@ -1,0 +1,196 @@
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { InteropMatrixReport, toMarkdown } from './InteropMatrixReport';
+import { allCombinations } from '../config/nodes';
+import { makeRun } from '../test/fixtures';
+import { RunRecord } from '../types';
+
+const TOTAL = allCombinations().length;
+
+const renderReport = (history: RunRecord[] = [], props: Partial<React.ComponentProps<typeof InteropMatrixReport>> = {}) => {
+  const handlers = { onRunAll: vi.fn(), onClearHistory: vi.fn() };
+  const user = userEvent.setup();
+  render(<InteropMatrixReport history={history} batchProgress={null} busy={false} {...handlers} {...props} />);
+  return { ...handlers, user };
+};
+
+const matrixTable = () => screen.getAllByRole('table')[0];
+const historyTable = () => screen.getAllByRole('table')[1];
+const matrixRow = (issuer: string, wallet: string, verifier: string, format: string) =>
+  within(matrixTable())
+    .getAllByRole('row')
+    .find(r => {
+      const cells = within(r).queryAllByRole('cell').map(c => c.textContent);
+      return cells[0] === issuer && cells[1] === wallet && cells[2] === verifier && cells[3] === format;
+    })!;
+
+// Blob downloads: capture the blob handed to URL.createObjectURL.
+let blobs: Blob[] = [];
+beforeEach(() => {
+  blobs = [];
+  vi.spyOn(URL, 'createObjectURL').mockImplementation((b: Blob | MediaSource) => {
+    blobs.push(b as Blob);
+    return 'blob:mock';
+  });
+  vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+});
+afterEach(() => vi.restoreAllMocks());
+
+describe('InteropMatrixReport with no runs', () => {
+  it('lists every combination as UNTESTED', () => {
+    renderReport();
+    expect(within(matrixTable()).getAllByRole('row')).toHaveLength(TOTAL + 1);
+    expect(within(matrixTable()).getAllByText('UNTESTED')).toHaveLength(TOTAL);
+    expect(screen.getByText(`0 / ${TOTAL}`)).toBeInTheDocument();
+  });
+
+  it('shows an empty history message and no pass rate', () => {
+    renderReport();
+    expect(screen.getByText(/No runs yet/)).toBeInTheDocument();
+    expect(screen.queryByText(/% Pass Rate/)).not.toBeInTheDocument();
+  });
+
+  it('disables exports and clearing', () => {
+    renderReport();
+    expect(screen.getByRole('button', { name: /Markdown/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /JSON/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Clear/ })).toBeDisabled();
+  });
+});
+
+describe('InteropMatrixReport with runs', () => {
+  const history = [
+    // newest first
+    makeRun({ outcome: 'FAIL', verificationStatus: 'INVALID', errorDetail: 'Issuer DID not resolvable' }),
+    makeRun({ proofType: 'older-run' }),
+    makeRun({ issuer: 'mock-openid4vci', format: 'sd-jwt', proofType: 'JWT (ES256)' }),
+    makeRun({ tampered: true, verificationStatus: 'EXPIRED', outcome: 'PASS' }),
+    makeRun({ tampered: true, wallet: 'mock-wallet', verificationStatus: 'VALID', outcome: 'FAIL', errorDetail: 'accepted tampered VC' })
+  ];
+
+  it('uses the latest clean run for each combination', () => {
+    renderReport(history);
+    const row = matrixRow('Inji Certify', 'Inji Web / Mobile', 'Inji Verify', 'W3C VC (JSON-LD)');
+    expect(within(row).getByText('FAIL')).toBeInTheDocument();
+    expect(within(row).getByText('Issuer DID not resolvable')).toBeInTheDocument();
+    expect(within(row).queryByText('older-run')).not.toBeInTheDocument();
+  });
+
+  it('keeps tampered runs out of the matrix', () => {
+    renderReport(history);
+    const row = matrixRow('Inji Certify', 'Simulated Holder', 'Inji Verify', 'W3C VC (JSON-LD)');
+    expect(within(row).getByText('UNTESTED')).toBeInTheDocument();
+  });
+
+  it('computes coverage, pass rate and negative-path results', () => {
+    renderReport(history);
+    expect(screen.getByText(`2 / ${TOTAL}`)).toBeInTheDocument();
+    expect(screen.getByText('50% Pass Rate')).toBeInTheDocument();
+    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+  });
+
+  it('shows 100% when every tested combination passes', () => {
+    renderReport([makeRun()]);
+    expect(screen.getByText('100% Pass Rate')).toBeInTheDocument();
+  });
+
+  it('flags runs that hit the emulated sandbox', () => {
+    renderReport([makeRun({ sandboxFallback: true })]);
+    expect(within(matrixTable()).getByText('emulated sandbox')).toBeInTheDocument();
+  });
+
+  it('lists every run in the history table', () => {
+    renderReport(history);
+    expect(within(historyTable()).getAllByRole('row')).toHaveLength(history.length + 1);
+    expect(screen.getByText(`(${history.length} of ${history.length})`)).toBeInTheDocument();
+  });
+
+  it.each([
+    ['Filter by format', 'sd-jwt', 1],
+    ['Filter by outcome', 'FAIL', 2],
+    ['Filter by mode', 'tampered', 2],
+    ['Filter by mode', 'clean', 3]
+  ])('%s = %s narrows history to %i runs', async (label, value, count) => {
+    const { user } = renderReport(history);
+    await user.selectOptions(screen.getByLabelText(label), value);
+    expect(within(historyTable()).getAllByRole('row')).toHaveLength(count + 1);
+  });
+});
+
+describe('InteropMatrixReport actions', () => {
+  it('starts a batch run', async () => {
+    const { onRunAll, user } = renderReport();
+    await user.click(screen.getByRole('button', { name: /Run All Combinations/ }));
+    expect(onRunAll).toHaveBeenCalled();
+  });
+
+  it('shows batch progress and blocks a second batch', () => {
+    renderReport([], { batchProgress: { done: 3, total: TOTAL } });
+    expect(screen.getByRole('button', { name: `Running 3/${TOTAL}…` })).toBeDisabled();
+  });
+
+  it('blocks a batch while a single run is in progress', () => {
+    renderReport([], { busy: true });
+    expect(screen.getByRole('button', { name: /Run All Combinations/ })).toBeDisabled();
+  });
+
+  it('exports the report as Markdown', async () => {
+    const history = [makeRun()];
+    const { user } = renderReport(history);
+    await user.click(screen.getByRole('button', { name: /Markdown/ }));
+    expect(blobs).toHaveLength(1);
+    expect(blobs[0].type).toBe('text/markdown');
+    expect(await blobs[0].text()).toContain('# Interoperability Report');
+  });
+
+  it('exports raw runs as JSON', async () => {
+    const history = [makeRun(), makeRun({ outcome: 'FAIL' })];
+    const { user } = renderReport(history);
+    await user.click(screen.getByRole('button', { name: /JSON/ }));
+    expect(JSON.parse(await blobs[0].text())).toEqual(history);
+  });
+
+  it('clears history only after confirmation', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const { onClearHistory, user } = renderReport([makeRun()]);
+    await user.click(screen.getByRole('button', { name: /Clear/ }));
+    expect(onClearHistory).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: /Clear/ }));
+    expect(onClearHistory).toHaveBeenCalledTimes(1);
+    expect(confirm).toHaveBeenCalledTimes(2);
+  });
+
+  it('prints', async () => {
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {});
+    const { user } = renderReport();
+    await user.click(screen.getByRole('button', { name: /Print/ }));
+    expect(print).toHaveBeenCalled();
+  });
+});
+
+describe('toMarkdown', () => {
+  it('renders a matrix row per combination and a row per run', () => {
+    const run = makeRun({ errorDetail: undefined });
+    const md = toMarkdown(allCombinations().map(combo => ({ combo })), [run]);
+    const lines = md.split('\n');
+    expect(lines.filter(l => l.includes('| UNTESTED |'))).toHaveLength(TOTAL);
+    expect(md).toContain(`| ${run.transactionId} |`);
+    expect(md).toContain('| clean |');
+  });
+
+  it('escapes pipes inside cells so the table stays valid', () => {
+    const run = makeRun({ outcome: 'FAIL', errorDetail: 'expected a|b' });
+    const md = toMarkdown([], [run]);
+    expect(md).toContain('expected a\\|b');
+  });
+
+  it('marks emulated and tampered runs', () => {
+    const run = makeRun({ sandboxFallback: true, tampered: true });
+    const combo = { issuer: run.issuer, wallet: run.wallet, verifier: run.verifier, format: run.format };
+    const md = toMarkdown([{ combo, run }], [run]);
+    expect(md).toMatch(/\| PASS \|  \| yes \|/);
+    expect(md).toContain('| tampered |');
+  });
+});

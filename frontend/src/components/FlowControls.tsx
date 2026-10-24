@@ -36,12 +36,12 @@ interface FlowControlsProps {
 
 // Practical QR byte capacity at error-correction level L; larger payloads are
 // a real interop gap (see problem statement), so we surface it instead of crashing.
-const QR_MAX_BYTES = 2900;
+export const QR_MAX_BYTES = 2900;
 
-const buildOfferUri = (offer: any) =>
+export const buildOfferUri = (offer: any) =>
   `openid-credential-offer://?credential_offer=${encodeURIComponent(JSON.stringify(offer))}`;
 
-const buildVpRequestUri = (pd: any, clientId: string, nonce: string) =>
+export const buildVpRequestUri = (pd: any, clientId: string, nonce: string) =>
   'openid4vp://authorize?' +
   new URLSearchParams({
     response_type: 'vp_token',
@@ -61,7 +61,7 @@ const decodeJwtPayload = (jwt: string) => {
 };
 
 /** Normalise the two credential shapes into a few display fields. */
-const summarise = (credential: any, format: CredentialFormat) => {
+export const summarise = (credential: any, format: CredentialFormat) => {
   if (format === 'sd-jwt') {
     const payload = credential?.rawToken ? decodeJwtPayload(credential.rawToken) : null;
     const disclosures = credential?.rawToken ? credential.rawToken.split('~').slice(1).filter(Boolean).length : 0;
