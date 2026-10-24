@@ -43,7 +43,7 @@ A developer-first workbench and visual testing harness for validating cross-ecos
 
 * **Amogh (Lead Frontend):** 3-Column Matrix UI, dynamic status badges, and interactive workflow execution controls.
 * **Ayaan (Frontend Visualizations):** Protocol Inspector (wire payloads, syntax highlighting) and dynamic Mermaid.js sequence visualizer.
-* **Aatraya (Lead Backend):** Express BFF Orchestrator, proxy gateway to MOSIP Collab sandbox, and in-memory audit logging middleware.
+* **Aatraya (Lead Backend):** Express BFF Orchestrator, proxy gateway to MOSIP Collab sandbox, and [in-memory audit logging middleware](docs/audit-logger-architecture.md).
 * **Aryan (API Integration & Mocks):** Standards compliance (OpenID4VCI Draft 13, OpenID4VP Draft 21), W3C VC JSON-LD vs. SD-JWT formats, and negative test edge cases.
 * **Yug (DevOps & Submission Assets):** Monorepo architecture, Docker Compose orchestration, documentation, API specifications, and demonstration video script.
 

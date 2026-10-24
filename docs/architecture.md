@@ -38,6 +38,8 @@ The **MOSIP Verifiable Credential (VC) Interoperability Playground** is an inter
 +-----------------------------------+       +---------------------------------------+
 ```
 
+> **Subsystem Deep-Dive:** Complete interactive specifications and Mermaid diagrams for the In-Memory Protocol Audit Logger can be found in [docs/audit-logger-architecture.md](./audit-logger-architecture.md).
+
 ---
 
 ## Supported Protocols & Formats
