@@ -212,4 +212,31 @@ describe('App', () => {
     const issueBody = JSON.parse(fetchFn.mock.calls.find(([url]) => url === '/api/playground/issue')![1]!.body as string);
     expect(issueBody).toMatchObject({ issuer: 'mock-openid4vci', wallet: 'inji-wallet', format: 'sd-jwt' });
   });
+
+  it('replays a run step by step through the diagram and inspector', async () => {
+    stubBff();
+    const { user } = setup();
+    await user.click(screen.getByRole('button', { name: /Run Full Flow/ }));
+    await screen.findByText('4 Transactions Logged');
+
+    await user.click(screen.getByRole('button', { name: 'First step' }));
+    expect(screen.getByText('1 Transactions Logged')).toBeInTheDocument();
+    expect(screen.getByText(/^Step 1 of 4/)).toBeInTheDocument();
+    const items = within(screen.getByRole('list', { name: 'Protocol steps' })).getAllByRole('listitem');
+    expect(items[0]).toHaveAttribute('aria-current', 'step');
+    expect(items[3]).toHaveTextContent('Not yet');
+
+    await user.click(screen.getByRole('button', { name: 'Live' }));
+    expect(screen.getByText('4 Transactions Logged')).toBeInTheDocument();
+  });
+
+  it('snaps back to live when a new run starts', async () => {
+    stubBff();
+    const { user } = setup();
+    await user.click(screen.getByRole('button', { name: /Run Full Flow/ }));
+    await screen.findByText('4 Transactions Logged');
+    await user.click(screen.getByRole('button', { name: 'First step' }));
+    await user.click(screen.getByRole('button', { name: /Run Full Flow/ }));
+    await waitFor(() => expect(screen.getByText(/^Live · 4 steps/)).toBeInTheDocument());
+  });
 });

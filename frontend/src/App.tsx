@@ -6,6 +6,8 @@ import { ProtocolInspector } from './components/ProtocolInspector';
 import { SequenceDiagram } from './components/SequenceDiagram';
 import { InteropMatrixReport } from './components/InteropMatrixReport';
 import { RunTimeline } from './components/RunTimeline';
+import { RunPlayer } from './components/RunPlayer';
+import { replaySlice } from './lib/participants';
 import { usePlaygroundRun } from './hooks/usePlaygroundRun';
 import { api } from './api/client';
 import { allCombinations, DEFAULT_SUBJECT } from './config/nodes';
@@ -40,6 +42,11 @@ export const App: React.FC = () => {
   };
   const txCount = new Set(run.logs.map(l => l.transactionId)).size;
   const visibleLogs = logScope === 'all' ? run.logs : run.logs.filter(l => l.transactionId && l.transactionId === run.transactionId);
+  // Replay position over the visible logs; null follows the live run.
+  const [revealed, setRevealed] = useState<number | null>(null);
+  const shownLogs = replaySlice(visibleLogs, revealed);
+  // New traffic or a different view snaps back to live.
+  useEffect(() => setRevealed(null), [visibleLogs.length, logScope, run.transactionId]);
 
   const handleRunAll = async () => {
     const combos = allCombinations();
@@ -145,13 +152,14 @@ export const App: React.FC = () => {
                 ) : (
                   <>
                     <section aria-label="Run progress" className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-                      <RunTimeline logs={visibleLogs} />
+                      <RunPlayer logs={visibleLogs} revealed={revealed} onChange={setRevealed} />
+                      <RunTimeline logs={visibleLogs} revealed={revealed ?? undefined} />
                     </section>
                     {/* The diagram is unreadable on phones; the timeline above covers it there. */}
                     <div className="hidden md:block">
-                      <SequenceDiagram logs={visibleLogs} />
+                      <SequenceDiagram logs={shownLogs} />
                     </div>
-                    <ProtocolInspector logs={visibleLogs} onClearLogs={run.clearLogs} />
+                    <ProtocolInspector logs={shownLogs} onClearLogs={run.clearLogs} />
                   </>
                 )}
               </aside>

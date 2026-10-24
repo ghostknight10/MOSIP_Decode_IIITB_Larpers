@@ -17,3 +17,10 @@ export const participantOf = (name: string): Participant | null => {
 
 /** Logs are stored newest-first; most views want them in protocol order. */
 export const chronological = (logs: ProtocolLog[]) => [...logs].reverse();
+
+/**
+ * The logs visible at a replay position: the first `revealed` steps in
+ * protocol order, returned newest-first like the stored logs. null = live.
+ */
+export const replaySlice = (logs: ProtocolLog[], revealed: number | null) =>
+  revealed === null ? logs : chronological(logs).slice(0, Math.max(0, revealed)).reverse();
