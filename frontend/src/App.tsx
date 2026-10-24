@@ -36,15 +36,12 @@ export const App: React.FC = () => {
           <div>
             {/* 3-Column Matrix Configurator */}
             <MatrixSelector
-              issuer={selection.issuer}
-              setIssuer={issuer => run.select({ issuer })}
-              wallet={selection.wallet}
-              setWallet={wallet => run.select({ wallet })}
-              verifier={selection.verifier}
-              setVerifier={verifier => run.select({ verifier })}
-              format={selection.format}
-              setFormat={format => run.select({ format })}
-              flowState={run.phase}
+              selection={selection}
+              onSelect={run.select}
+              phase={run.phase}
+              hasCredential={Boolean(run.issuedCredential)}
+              verificationStatus={run.verificationResult?.status}
+              sandboxFallback={run.sandboxFallback}
             />
 
             {run.error && (
