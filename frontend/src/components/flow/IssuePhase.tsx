@@ -6,6 +6,7 @@ import { buildOfferUri } from '../../lib/credential';
 import { QrPanel } from './QrPanel';
 import { CredentialSummary } from './CredentialSummary';
 import { SubjectEditor } from './SubjectEditor';
+import { CredentialInspector } from './CredentialInspector';
 
 interface IssuePhaseProps {
   phase: RunPhase;
@@ -51,6 +52,7 @@ export const IssuePhase: React.FC<IssuePhaseProps> = ({ phase, format, credentia
           <p className="mb-4 text-xs text-amber-300">Issuer returned a credential without a credential offer payload.</p>
         )}
         {issuedCredential && <CredentialSummary credential={issuedCredential} format={format} />}
+        {issuedCredential && <CredentialInspector credential={issuedCredential} format={format} />}
       </div>
 
       <button
