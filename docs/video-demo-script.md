@@ -1,56 +1,65 @@
-# MOSIP Interoperability Playground — Video Demo Pitch Script (3 to 5 Minutes)
+# MOSIP Interoperability Playground — Video Demo Script (3 to 5 Minutes)
 
-This script outlines the video demonstration for the hackathon evaluation, covering the project's background, live matrix execution, wire inspector, and cross-ecosystem certification.
+This script covers the problem, live matrix execution, the wire inspector, negative paths and the interoperability report, in at least one full issue → hold → present → verify cycle with the protocol inspector visible (as the deliverables require).
 
----
+**Before recording:**
 
-### Segment 1: The Problem & The Solution (0:00 – 0:45)
-* **Visual:** Pitch deck slide / Playground landing screen with top navbar and 3-column matrix.
-* **Speaker:**
-  > "Welcome. Digital identity ecosystems frequently suffer from fragmentation—where credentials issued under one sovereign authority cannot be seamlessly received by independent wallets or verified by third-party relying parties.
-  > To solve this, our team has engineered the **MOSIP VC Interoperability Playground**—a comprehensive testbed and protocol transparency engine. It validates bi-directional compatibility between MOSIP reference implementations—Inji Certify, Inji Wallet, and Inji Verify—and independent OpenID4VCI and OpenID4VP standard endpoints across both W3C VC and SD-JWT formats."
-
----
-
-### Segment 2: The 3-Column Matrix & Dual Spec Support (0:45 – 1:45)
-* **Visual:** Cursor moves across the 3 columns: Issuer, Identity Wallet, and Verifier.
-* **Speaker:**
-  > "Our user interface is anchored by an interactive 3-column matrix selector.
-  > In Column 1, we choose our Issuer—either MOSIP Inji Certify connected to the Collab Sandbox, or our custom OpenID4VCI Draft-13 Mock Issuer.
-  > In Column 2, we select our Identity Wallet—Inji Web/Mobile via Mimoto, or our simulated browser holder.
-  > In Column 3, we select our Verifier—Inji Verify or our OpenID4VP Draft-21 Verifier.
-  > With one click at the top, we toggle between credential formats: standard W3C Linked Data Proofs, or high-privacy IETF SD-JWT with selective disclosure."
+- `docker compose up --build`, open <http://localhost:5173> and check the header shows **Online (Collab/Mock)**.
+- Clear old runs (**Interop Matrix Report → Clear**) so the report starts at 0 / 16.
+- Have a phone with a QR scanner ready for Segment 3.
+- If the Collab sandbox is still unreachable, Inji nodes show **Emulated**. Say so on camera (see the Segment 3 note) rather than hiding it.
 
 ---
 
-### Segment 3: Live Execution & Wire Transparency (1:45 – 3:00)
-* **Visual:**
-  1. Click **Trigger "Issue Credential" Flow**.
-  2. Show QR code offer appear.
-  3. Click **Trigger "Present & Verify" Flow**.
-  4. Show Green `VALID` badge.
-  5. Scroll down to show dynamic **Mermaid.js Sequence Diagram** and open the **Protocol Inspector**.
-* **Speaker:**
-  > "Let's run a live transaction. We click 'Trigger Issue Credential Flow'. The BFF coordinates the pre-authorized code exchange, generating a standard OpenID Credential Offer and cryptographic proof.
-  > Next, our simulated holder presents the credential to the Verifier. The Verifier inspects the schema, checks the cryptographic signature against the issuer DID, and confirms validity.
-  > Notice below: our dynamic sequence visualizer has automatically rendered the entire four-step protocol exchange from live wire logs. In the Protocol Inspector, developers can view and copy the raw HTTP payloads, headers, and cryptographic signatures with full syntax highlighting."
+## Segment 1: The problem & the solution (0:00 – 0:40)
 
----
+- **Visual:** title slide, then the playground landing screen.
+- **Speaker:**
+  > "Digital identity only works if a credential issued by one system can be held by another vendor's wallet and verified by a third party. Each MOSIP Inji module speaks open standards, but proving they interoperate with each other, and with implementations outside MOSIP, has meant stitching tools together by hand.
+  > The MOSIP VC Interoperability Playground puts that in one screen: pick an issuer, a wallet and a verifier, run the full OpenID4VCI and OpenID4VP flow, see every payload, and get a pass/fail report."
 
-### Segment 4: Chaos Mode & Negative Verification (3:00 – 4:00)
-* **Visual:**
-  1. Enable **Tamper Mode**.
-  2. Check **Expire Timestamp**.
-  3. Re-run verification.
-  4. Show Red `EXPIRED` badge and warning in the sequence diagram.
-* **Speaker:**
-  > "Interoperability also demands resilience against invalid or malicious data. We switch on 'Tamper Mode' and inject an expired timestamp into the presentation token.
-  > Upon verification, our verifier engine immediately flags the failure with a red badge, rejecting the expired proof. The sequence visualizer updates in real time with a warning note, confirming robust defense mechanisms."
+## Segment 2: The 3-column matrix & two formats (0:40 – 1:20)
 
----
+- **Visual:** hover across the three columns, then toggle the format.
+- **Speaker:**
+  > "Column one is the issuer: Inji Certify, or our standards-based OpenID4VCI Draft 13 mock. Column two is the wallet: Inji Web or Mobile through Mimoto, or a simulated holder. Column three is the verifier: Inji Verify, or our OpenID4VP Draft 21 mock.
+  > At the top, we switch between W3C Verifiable Credentials with JSON-LD proofs and IETF SD-JWT with selective disclosure. Every run is labelled with its format."
 
-### Segment 5: The Certification Matrix & Summary (4:00 – 4:45)
-* **Visual:** Switch to **Interop Matrix Report** tab showing the 8/8 PASS scorecard and export option.
-* **Speaker:**
-  > "Finally, our Interoperability Matrix Report aggregates all 8 permutation combinations across Inji and mock nodes. With 100% pass rate across both W3C VC and SD-JWT formats, the MOSIP ecosystem proves ready for cross-border, cross-vendor identity interoperability.
-  > The entire project runs with a single command via Docker Compose. Thank you."
+## Segment 3: Live issue → hold → present → verify (1:20 – 2:40)
+
+- **Visual:**
+  1. Click **Trigger "Issue Credential" Flow**. The issuer badge turns **Done** and the wallet badge shows **Holding VC**.
+  2. Show the **Credential Offer QR** and scan it with the phone to show the `openid-credential-offer://` link. Point out the credential summary (format, proof type, expiry).
+  3. Click **Trigger "Present & Verify" Flow**. Show the green **VALID** card with its four checks and the Authorization Request QR.
+  4. Scroll to the **sequence diagram**, then click through frames in the **Protocol Inspector** (request/response tabs, Copy JSON).
+- **Speaker:**
+  > "We issue a credential. The issuer produces a standard pre-authorized-code credential offer, which is this QR code. A mobile wallet can scan it, or a browser wallet can open it as a deep link. The wallet now holds the credential.
+  > Now the wallet presents it. The verifier sends a presentation definition, and the wallet answers with a vp_token. Format, signature, expiry and schema all check out, so it's valid.
+  > Below, the sequence diagram is generated from the actual wire logs of this one transaction, and the inspector shows every raw request and response, ready to copy."
+- **If Inji nodes show Emulated:**
+  > "The Inji nodes are marked Emulated because the Collab sandbox wasn't reachable during recording. The playground falls back to a standards-compliant emulation and tells you so, and the report flags those runs as well."
+
+## Segment 4: Tamper mode & negative paths (2:40 – 3:30)
+
+- **Visual:**
+  1. Click **Enable Tamper Mode** and tick **Expire Timestamp**, then **Run Full Flow**. Show the red **EXPIRED** card labelled **Valid but Expired**.
+  2. Untick it, tick **Corrupt Cryptographic Signature** and run again. Show **SIGNATURE_MISMATCH** and the **⚠️ Tampered Payload Detected!** note in the diagram.
+- **Speaker:**
+  > "Interoperability also means rejecting bad data. We expire the credential at presentation time, and the verifier rejects it. The signature is still fine, which is why it reads 'valid but expired'.
+  > Now we corrupt the signature, and the verifier catches the mismatch. The sequence diagram marks exactly which step was tampered with. In the report, both count as passes, because the verifier did the right thing."
+
+## Segment 5: The interoperability report (3:30 – 4:30)
+
+- **Visual:**
+  1. Open **Interop Matrix Report**, click **Run All Combinations** and let the progress counter run to 16 / 16.
+  2. Show the matrix (issuer, wallet, verifier, format, proof type, status, error detail), the pass rate and the negative-path count.
+  3. Filter the history by **Tampered only**, then click **Markdown** and open the exported file.
+- **Speaker:**
+  > "One click runs every combination: two issuers, two wallets, two verifiers, two formats, sixteen in all. The report is built from those real runs. Anything not yet run shows as untested, and anything that fails shows why.
+  > We export it as Markdown, and that file is our interoperability report: what was tested, with what, and the outcome."
+
+## Segment 6: Close (4:30 – 4:50)
+
+- **Visual:** terminal running `npm test`, then `docker compose up`.
+- **Speaker:**
+  > "Everything runs with one Docker Compose command. Around 250 automated tests run in CI on every push, and the interoperability gaps we found are documented for the Inji teams. Thank you."

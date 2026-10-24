@@ -1,76 +1,101 @@
-# MOSIP VC Interoperability Playground — Verification & Test Cases
+# MOSIP VC Interoperability Playground — Manual Test Cases
 
-This document defines 5 automated and manual test scenarios to validate cross-ecosystem interoperability and protocol conformance for the submission.
+These scenarios validate cross-ecosystem interoperability and protocol conformance through the UI. They mirror the automated `npm run test:interop` suite (TC-01 to TC-05), and the same behaviour is covered by the unit and component tests described in [testing.md](./testing.md).
+
+**Setup:** run `docker compose up --build` (or `npm run dev:backend` + `npm run dev:frontend`) and open <http://localhost:5173>. The header should show **BFF Proxy: Online (Collab/Mock)**.
+
+**Reading results:**
+
+- The verdict card shows the verifier status (`VALID`, `INVALID`, `EXPIRED`, `SIGNATURE_MISMATCH`) and the four checks.
+- Every run is recorded in **Interop Matrix Report → Run History**. **PASS** means the verifier behaved as expected: it accepted a clean credential, or rejected a tampered one.
+- Inji nodes showing **Emulated** mean the Collab sandbox was unreachable and the BFF answered from the mock engine. Record that alongside the result.
 
 ---
 
-### TC-01: Happy Path W3C VC Issuance & Verification
-* **Objective:** Verify end-to-end issuance and verification of a standard W3C Linked Data Proof (JSON-LD) credential.
-* **Nodes:**
-  * Issuer: `Inji Certify` (or `Mock OpenID4VCI`)
-  * Wallet: `Inji Web / Mobile` (or `Simulated Wallet`)
-  * Verifier: `Inji Verify` (or `Mock OpenID4VP`)
-  * Format: `W3C VC (JSON-LD)`
-* **Steps:**
-  1. Select nodes in the 3-Column Matrix.
+## TC-01: Happy path W3C VC issuance & verification
+
+- **Objective:** end-to-end issuance and verification of a W3C Linked Data Proof (JSON-LD) credential.
+- **Nodes:** Issuer `Inji Certify` (or `Mock OpenID4VCI`) · Wallet `Inji Web / Mobile` (or `Simulated Holder`) · Verifier `Inji Verify` (or `Mock OpenID4VP`) · Format `W3C VC (JSON-LD) ldp_vc`
+- **Steps:**
+  1. Select the nodes in the 3-column matrix.
   2. Click **Trigger "Issue Credential" Flow**.
-  3. Confirm Credential Offer QR code and signed VC are generated.
-  4. Click **Trigger "Present & Verify" Flow**.
-* **Expected Result:**
-  * Verifier status returns `VALID`.
-  * Protocol Inspector logs 4 distinct transactions:
-    1. `GET /.well-known/openid-credential-issuer`
-    2. `POST /credential`
-    3. `GET openid4vp://authorize`
-    4. `POST /vp-response`
+  3. Confirm the **Credential Offer** QR appears (scanning it yields an `openid-credential-offer://` URI), the issuer badge shows **Done** and the wallet badge shows **Holding VC**.
+  4. Confirm the credential summary shows format `ldp_vc` and proof `Ed25519Signature2020`.
+  5. Click **Trigger "Present & Verify" Flow**.
+- **Expected result:**
+  - The verdict is `VALID` and all four checks are green. The verifier badge shows `VALID`.
+  - The Authorization Request QR (`openid4vp://authorize?…`) is shown.
+  - The Protocol Inspector lists **4** frames for the run (newest first): `POST /vp-response`, `openid4vp://authorize`, `POST /credential`, `GET /.well-known/openid-credential-issuer`.
+  - The sequence diagram draws them in chronological order.
+  - Run History records a **PASS** row.
 
 ---
 
-### TC-02: Happy Path SD-JWT VC Issuance & Verification
-* **Objective:** Validate IETF Selective Disclosure JWT VC lifecycle with salted disclosures.
-* **Nodes:**
-  * Issuer: `Mock OpenID4VCI`
-  * Wallet: `Inji Web / Mobile`
-  * Verifier: `Mock OpenID4VP`
-  * Format: `SD-JWT VC`
-* **Steps:**
-  1. Toggle format selector to `SD-JWT VC`.
-  2. Trigger Issuance followed by Presentation & Verification.
-* **Expected Result:**
-  * Raw token envelope contains `vc+sd-jwt` formatting (`~` separated disclosures).
-  * Verifier status returns `VALID`.
+## TC-02: Happy path SD-JWT VC issuance & verification
+
+- **Objective:** IETF Selective Disclosure JWT VC lifecycle with salted disclosures.
+- **Nodes:** Issuer `Mock OpenID4VCI` · Wallet `Inji Web / Mobile` · Verifier `Mock OpenID4VP` · Format `SD-JWT VC vc+sd-jwt`
+- **Steps:**
+  1. Toggle the format to **SD-JWT VC**.
+  2. Click **Run Full Flow**.
+- **Expected result:**
+  - The credential summary shows proof `JWT (ES256)` and a selective disclosure count. In the inspector, the raw token is `header.payload.signature~disclosure~`.
+  - The verdict is `VALID`, and the run is **PASS** with format `SD-JWT VC`.
 
 ---
 
-### TC-03: Negative Test — Expired Credential Presentation
-* **Objective:** Ensure verifier correctly detects and rejects expired credentials.
-* **Steps:**
-  1. Enable **Tamper / Chaos Mode** in the workflow pipeline.
-  2. Check **Expire Timestamp (Negative Path)**.
-  3. Execute Issuance and Verification.
-* **Expected Result:**
-  * Verifier status returns `EXPIRED`.
-  * Status badge highlights in red with detail `Credential expiration check failed: validity period exceeded`.
+## TC-03: Negative test — expired credential presentation
+
+- **Objective:** the verifier detects and rejects expired credentials.
+- **Steps:**
+  1. Click **Enable Tamper Mode** (it changes to **Tamper / Chaos Mode: ACTIVE**).
+  2. Tick **Expire Timestamp (Negative Path)**.
+  3. Click **Run Full Flow**. Tamper options apply when the wallet presents, so issuance itself is clean.
+- **Expected result:**
+  - The verdict is `EXPIRED`, labelled **Valid but Expired** (the signature check stays green and the **Not expired** check is red).
+  - The details read `Credential expiration check failed: validity period exceeded.`
+  - The verifier badge shows `EXPIRED`.
+  - Run History records the run as **tampered** with outcome **PASS** (correct rejection).
 
 ---
 
-### TC-04: Negative Test — Corrupted Cryptographic Signature
-* **Objective:** Validate cryptographic integrity check when the proof signature has been modified.
-* **Steps:**
-  1. Enable **Tamper / Chaos Mode**.
-  2. Check **Corrupt Cryptographic Signature**.
-  3. Execute Presentation & Verification.
-* **Expected Result:**
-  * Verifier returns `SIGNATURE_MISMATCH`.
-  * Dynamic sequence diagram annotates the step with a warning: `⚠️ Tampered Payload Detected!`.
+## TC-04: Negative test — corrupted cryptographic signature
+
+- **Objective:** the integrity check fails when the proof signature has been modified.
+- **Steps:**
+  1. Enable **Tamper Mode** and tick **Corrupt Cryptographic Signature** only.
+  2. Issue a credential, then click **Trigger "Present & Verify" Flow**.
+- **Expected result:**
+  - The verdict is `SIGNATURE_MISMATCH` and the **Signature** check is red.
+  - The sequence diagram annotates the submission step with `⚠️ Tampered Payload Detected!`.
+  - Run History records a tampered **PASS**.
+- **Control:** with tamper mode on but **no** attack ticked, the run is treated as clean (`VALID`, no tamper note).
 
 ---
 
-### TC-05: Cross-Ecosystem Boundary Test (Mock to Inji & Inji to Mock)
-* **Objective:** Confirm full interoperability across heterogeneous software implementations.
-* **Combinations:**
-  * Combination A: `Mock OpenID4VCI` &rarr; `Inji Web` &rarr; `Inji Verify`
-  * Combination B: `Inji Certify` &rarr; `Simulated Wallet` &rarr; `Mock OpenID4VP`
-* **Expected Result:**
-  * Both combinations execute without schema or format rejection.
-  * Interop Matrix view marks all 8 combinations with 100% `PASS`.
+## TC-05: Cross-ecosystem matrix
+
+- **Objective:** interoperability across heterogeneous implementations, in both directions.
+- **Spot checks:**
+  - Combination A: `Mock OpenID4VCI` → `Inji Web / Mobile` → `Inji Verify`
+  - Combination B: `Inji Certify` → `Simulated Holder` → `Mock OpenID4VP`
+- **Full matrix:**
+  1. Open **Interop Matrix Report** and click **Run All Combinations**. The button shows progress (`Running n/16…`).
+  2. When it finishes, check **Combinations Tested** reads **16 / 16**.
+  3. Click **Markdown** to export the report.
+- **Expected result:**
+  - Every combination has an outcome. The pass rate is computed from these runs, not hard-coded.
+  - Any FAIL row shows its error detail. Rows marked **emulated sandbox** did not reach the real Collab services.
+  - The exported Markdown contains the matrix table and the full run history (the submission's interoperability report).
+
+---
+
+## TC-06: Re-present a held credential to a different verifier
+
+- **Objective:** the same issued credential is accepted by both verifiers.
+- **Steps:**
+  1. Issue a credential (any issuer and format), then present to **Inji Verify**.
+  2. Switch the verifier column to **Mock OpenID4VP**. The wallet keeps **Holding VC** and the transaction ID stays the same.
+  3. Click **Trigger "Present & Verify" Flow** again.
+- **Expected result:** both verifications are `VALID`, and Run History shows two PASS rows with the same transaction ID and different verifiers.
+- **Contrast:** changing the issuer, wallet or format instead resets the run (all badges return to **Standby**).

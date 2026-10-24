@@ -1,28 +1,34 @@
 # MOSIP VC Interoperability Playground — Architecture & Protocol Specs
-<!-- hello -->
-## Overview
-The **MOSIP Verifiable Credential (VC) Interoperability Playground** is an interactive, developer-first testing workbench engineered to validate cross-ecosystem interoperability across standard digital identity protocols and credential formats.
 
-### Core Objectives
-1. **Multi-Party Matrix Execution**: Select and execute combinations of standard Issuers, Wallets, and Verifiers.
-2. **Dual Credential Standards**: Test **W3C VC (JSON-LD)** and **IETF SD-JWT VC (Selective Disclosure)**.
-3. **Protocol Transparency**: Intercept and inspect real-time HTTP wire payloads for **OpenID4VCI (Draft 13)** and **OpenID4VP (Draft 21)**.
-4. **Negative Path / Tamper Simulation**: Evaluate cryptographically signed proof resilience against expired timestamps and signature tampering.
+## Overview
+
+The **MOSIP Verifiable Credential (VC) Interoperability Playground** is an interactive, developer-first workbench for checking that credentials interoperate across standard digital identity protocols and credential formats, between MOSIP's Inji stack and independent standards-compliant implementations.
+
+### Core objectives
+
+1. **Multi-party matrix execution:** select and run any combination of issuer, wallet and verifier.
+2. **Two credential standards:** **W3C VC (JSON-LD)** and **IETF SD-JWT VC** (selective disclosure), labelled on every run.
+3. **Protocol transparency:** inspect the wire payloads of **OpenID4VCI (Draft 13)** and **OpenID4VP (Draft 21)** per run.
+4. **Negative paths:** show that verifiers reject expired and signature-tampered credentials.
+5. **Evidence:** produce a pass/fail interoperability report from real runs, exportable as Markdown or JSON.
 
 ---
 
-## System Component Topology
+## System component topology
 
-```
+```text
 +-----------------------------------------------------------------------------------+
-|                                Browser Client (UI)                                |
-|   - 3-Column Matrix Selector (Amogh)    - Mermaid.js Dynamic Visualizer (Ayaan)   |
-|   - Flow Execution Controls (Amogh)     - Live Protocol Inspector (Ayaan)         |
+|                         Browser Client (React 19 + Vite 8)                        |
+|   - 3-Column Matrix Selector + status badges (Amogh)                              |
+|   - Flow Controls: QR offers, tamper mode, results (Amogh)                        |
+|   - Interop Report + run history (Amogh)                                          |
+|   - Mermaid.js Sequence Visualizer, Live Protocol Inspector (Ayaan)               |
 +-----------------------------------------------------------------------------------+
                                         |  HTTP / REST (/api/playground)
+                                        |  one x-transaction-id per run
                                         v
 +-----------------------------------------------------------------------------------+
-|                        Node.js / Express BFF Orchestrator                         |
+|                      Node.js / Express 5 BFF Orchestrator                         |
 |   - In-Memory Protocol Audit Logger (Aatraya)                                     |
 |   - Mock Standards Protocol Engine (Aryan)                                        |
 |   - Proxy Gateway to MOSIP Collab Sandbox (Aatraya)                               |
@@ -38,37 +44,149 @@ The **MOSIP Verifiable Credential (VC) Interoperability Playground** is an inter
 +-----------------------------------+       +---------------------------------------+
 ```
 
-> **Subsystem Deep-Dive:** Complete interactive specifications and Mermaid diagrams for the In-Memory Protocol Audit Logger can be found in [docs/audit-logger-architecture.md](./audit-logger-architecture.md).
+When a Collab call fails, the BFF answers from the mock engine instead, relabels the log participants as "(Collab Sandbox Emulated)" and sets `isSandboxFallback: true`. The UI surfaces this as an **Emulated** badge and banner, and the report flags those runs.
+
+> **Subsystem deep-dive:** specifications and Mermaid diagrams for the audit logger are in [audit-logger-architecture.md](./audit-logger-architecture.md).
 
 ---
 
-## Supported Protocols & Formats
+## Supported protocols & formats
 
 ### 1. OpenID for Verifiable Credential Issuance (OpenID4VCI — Draft 13)
-* **Endpoint Discovery**: `/.well-known/openid-credential-issuer`
-* **Credential Offer**:
-  * Format: `openid-credential-offer://`
-  * Grants: `urn:ietf:params:oauth:grant-type:pre-authorized_code`
-* **Credential Request**:
-  * Formats: `ldp_vc` (W3C Linked Data Proof) and `vc+sd-jwt` (IETF Selective Disclosure JWT)
-  * Proof: Proof-of-possession JWT (`proof_type: jwt`)
+
+- **Endpoint discovery:** `/.well-known/openid-credential-issuer`
+- **Credential offer:**
+  - URI: `openid-credential-offer://?credential_offer=<url-encoded JSON>`. The UI renders it as a QR code and a same-device deep link.
+  - Grant: `urn:ietf:params:oauth:grant-type:pre-authorized_code`
+  - Configuration IDs: `NationalId_W3C_JSONLD`, `NationalId_SD_JWT`
+- **Credential request:**
+  - Formats: `ldp_vc` (W3C Linked Data Proof) and `vc+sd-jwt` (IETF Selective Disclosure JWT)
+  - Proof of possession: JWT (`proof_type: jwt`)
 
 ### 2. OpenID for Verifiable Presentations (OpenID4VP — Draft 21)
-* **Authorization Request**:
-  * Format: `openid4vp://authorize?response_type=vp_token`
-  * Parameters: `client_id`, `presentation_definition`, `nonce`
-* **Presentation Submission**:
-  * Envelope: `vp_token`
-  * Cryptographic Verification: Schema validation, issuer DID resolution, cryptographic signature verification, expiry checks.
+
+- **Authorization request:**
+  - URI: `openid4vp://authorize?response_type=vp_token&response_mode=direct_post&client_id=…&nonce=…&presentation_definition=…`
+  - The UI renders it as a QR code (cross-device) and a deep link (same-device). The `nonce` is the run's transaction ID, and `client_id` comes from the verifier's registry entry.
+  - The presentation definition requests `fullName` and `nationalId` and accepts the `ES256` and `EdDSA` algorithms.
+- **Presentation submission:**
+  - Envelope: `vp_token` posted to the verifier's response endpoint
+  - Checks: format, signature, expiry and schema, each reported separately
+
+### 3. Credential formats
+
+| Format | Wire format | Proof shown in UI | Notes |
+| --- | --- | --- | --- |
+| W3C VC 1.1 (JSON-LD) | `ldp_vc` | `proof.type`, e.g. `Ed25519Signature2020` | `@context`, `credentialSubject`, `expirationDate` |
+| IETF SD-JWT VC | `vc+sd-jwt` | `JWT (<alg>)`, e.g. `JWT (ES256)` | `header.payload.signature~disclosure~…`; the UI decodes `iss`, `vct`, `exp` and counts disclosures |
 
 ---
 
-## Edge Case & Tamper Testing Matrix
+## Frontend architecture
 
-| Test Case | Scenario | Expected Outcome | Visual Indicator |
-|-----------|----------|------------------|------------------|
-| TC-01 | Happy Path Issuance & Presentation (W3C VC) | Valid verification status | Green badge (`VALID`) |
-| TC-02 | Happy Path Issuance & Presentation (SD-JWT) | Valid verification status + selective disclosure | Green badge (`VALID`) |
-| TC-03 | Expired Credential Presentation | Verification rejected: timestamp expiry check | Red badge (`EXPIRED`) |
-| TC-04 | Corrupted Signature Tampering | Verification rejected: signature mismatch | Red badge (`SIGNATURE_MISMATCH`) |
-| TC-05 | Cross-Ecosystem Matrix (Mock Issuer to Inji Verify) | Standards compliance holds cross-boundary | Green badge (`PASS`) |
+### Module layout
+
+| Module | Responsibility |
+| --- | --- |
+| `config/nodes.ts` | **Registry** of issuers, wallets, verifiers and formats (labels, badges, supported formats, OpenID4VP `client_id`). `allCombinations()` builds the issuer × wallet × verifier × format product used by the report and the batch runner. |
+| `api/client.ts` | Typed BFF client. Sends `x-transaction-id`, turns `success:false` or non-2xx responses into `ApiError` carrying the backend message, and explains when the BFF is unreachable. |
+| `hooks/usePlaygroundRun.ts` | **Single source of truth** for a run: selection, phase, payloads, logs and run history. Components only render this state and call its actions. |
+| `components/MatrixSelector.tsx` | Role columns built from the registry, live status badges, format toggle. |
+| `components/FlowControls.tsx` | Issue / present / full-flow / reset actions, subject editor, tamper options, QR codes, credential summary, verdict card. |
+| `components/InteropMatrixReport.tsx` | Coverage matrix, run history, filters, batch runner, exports. |
+| `components/SequenceDiagram.tsx`, `ProtocolInspector.tsx` | Visualise the run's logs (Ayaan). |
+
+### Run state machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> idle
+    idle --> issuing: issue()
+    issuing --> issued: credential received
+    issuing --> failed: transport / backend error
+    issued --> verifying: verify(tamper?)
+    verifying --> verified: status VALID
+    verifying --> failed: rejected or error
+    verified --> issued: verifier changed (credential kept)
+    failed --> issued: verifier changed (credential kept)
+    issued --> idle: issuer / wallet / format changed, or reset()
+    verified --> idle: reset()
+    failed --> idle: reset()
+```
+
+Rules enforced by the hook:
+
+- **Selection is locked** while a phase runs (`issuing` / `verifying`).
+- Changing the **verifier** keeps the held credential, so the same credential can be presented to another verifier. Changing the issuer, wallet or format starts a new run.
+- One **transaction ID** is generated per issuance and reused for its verification, so the BFF groups all frames of a run.
+- **Tamper flags are only sent at presentation time**, and only when at least one attack is ticked.
+- **Logs are kept newest-first.** The BFF returns a transaction's frames oldest-first, including issuance frames on `/verify`, so the hook replaces that transaction's frames and reverses them. The inspector lists newest-first, and the sequence diagram reverses the list to draw it chronologically.
+
+### Data flow of one run
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as FlowControls
+    participant Hook as usePlaygroundRun
+    participant API as api/client
+    participant BFF as BFF /api/playground
+
+    UI->>Hook: issue(subject)
+    Hook->>API: issue(selection, tx-1234abcd)
+    API->>BFF: POST /issue (x-transaction-id: tx-1234abcd)
+    BFF-->>API: credentialOffer, issuedCredential, protocolLogs[1..2]
+    API-->>Hook: IssueResponse
+    Hook-->>UI: phase=issued, offer QR, summary
+    UI->>Hook: verify(tamper?)
+    Hook->>API: verify(credential, tamper, tx-1234abcd)
+    API->>BFF: POST /verify (same transaction id)
+    BFF-->>API: verificationResult, presentationDefinition, protocolLogs[1..4]
+    API-->>Hook: VerifyResponse
+    Hook->>Hook: replace tx logs, append RunRecord to history
+    Hook-->>UI: phase=verified|failed, verdict card, VP QR
+```
+
+### Run records and the report
+
+Every completed or failed run appends a `RunRecord`: issuer, wallet, verifier, format, proof type, tampered flag, outcome, verifier status, error detail, sandbox fallback, transaction ID and timestamps. History is kept newest-first and capped at 200 runs. It is persisted in the browser's `localStorage` (`mosip-playground-runs`).
+
+**Outcome semantics:** a run is **PASS** when the verifier behaves as expected:
+
+| Credential | Verifier says | Outcome |
+| --- | --- | --- |
+| Clean | `VALID` | PASS |
+| Clean | anything else | FAIL (error detail = verifier details) |
+| Tampered | anything but `VALID` | PASS (correct rejection) |
+| Tampered | `VALID` | FAIL (tampering not caught) |
+| Any | transport / backend error | FAIL (`Issuance failed: …` / `Verification failed: …`) |
+
+The **matrix** shows the latest *clean* run per combination (tampered runs are counted separately as negative-path runs). The pass rate is computed over tested combinations only, and untested combinations show **UNTESTED**.
+
+---
+
+## Edge case & tamper testing matrix
+
+| Test case | Scenario | Expected outcome | Visual indicator |
+| --- | --- | --- | --- |
+| TC-01 | Happy path issuance & presentation (W3C VC) | Valid verification status | Green `VALID`, run PASS |
+| TC-02 | Happy path issuance & presentation (SD-JWT) | Valid + selective disclosure | Green `VALID`, disclosures counted |
+| TC-03 | Expired credential presentation | Rejected: expiry check | Red `EXPIRED`, "Valid but Expired", run PASS |
+| TC-04 | Corrupted signature | Rejected: signature mismatch | Red `SIGNATURE_MISMATCH`, diagram tamper note |
+| TC-05 | Cross-ecosystem matrix | Standards compliance holds across boundaries | Report: all 16 combinations tested |
+| TC-06 | Re-present a held credential to another verifier | Same credential verified by both verifiers | Verifier switch keeps "Holding VC" |
+
+Step-by-step procedures are in [test-cases.md](./test-cases.md), and the automated coverage is in [testing.md](./testing.md).
+
+---
+
+## Runtime & tooling
+
+| Layer | Stack |
+| --- | --- |
+| Runtime | Node.js 26 (CI, Docker `node:26-alpine`, `engines: >=26`) |
+| Frontend | React 19, Vite 8, Tailwind CSS 4 (`@tailwindcss/vite`), TypeScript 7, mermaid 12, qrcode.react, lucide-react |
+| Backend | Express 5, axios, dotenv 18, uuid 14, TypeScript 7, tsx |
+| Tests | Vitest 5, Testing Library (React, user-event, jest-dom), jsdom 30 |
+
+Open bugs and interoperability gaps are listed in [known-issues.md](./known-issues.md).

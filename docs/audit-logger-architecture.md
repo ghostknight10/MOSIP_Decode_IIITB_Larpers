@@ -1,7 +1,33 @@
 # Architecture Design Document: In-Memory Protocol Audit Logger
-### MOSIP VC Interoperability Playground
+
+**MOSIP VC Interoperability Playground**
 
 This document provides the formal architectural specifications and interactive **Mermaid.js** diagrams for the **In-Memory Protocol Audit Logger**, embedded within the Node.js / Express Backend-For-Frontend (BFF) Orchestrator.
+
+---
+
+## 0. Implementation Status (2026-10-25)
+
+The design below is the target. This table describes what is wired up today:
+
+| Component | File | Status |
+| --- | --- | --- |
+| Ring buffer (350 frames, singleton) | `backend/src/utils/RingBuffer.js` | Implemented and tested. Used by all playground routes. |
+| Redactor | `backend/src/utils/redactor.js` | Implemented and tested. |
+| Audit client (`createAuditClient`, axios interceptors) | `backend/src/middleware/auditInterceptor.js` | Implemented and tested. Used only by the proxy gateway. |
+| Proxy gateway (`/api/proxy/:target/*splat`) | `backend/src/routes/proxyGateway.js` | Implemented and tested, **not yet mounted** in `index.ts`. |
+| Playground routes (`/api/playground/issue`, `/verify`) | `backend/src/routes/playground.ts` | Store the mock engine's `ProtocolLog` entries in the ring buffer, tagged with the caller's `x-transaction-id`. Collab calls use plain axios, not the audit client. |
+
+**Transaction IDs** come from the UI. The frontend generates one `tx-xxxxxxxx` per run and sends it as `x-transaction-id` on both `/issue` and `/verify`. The BFF generates one only when the header is missing.
+
+**Two frame shapes** currently share the buffer: the mock engine's `ProtocolLog` (`step`, `sender`, `receiver`, `action`, `request`, `response`), which the UI renders, and the audit client's frame (section 6), which comes back as `_auditTrail` from the proxy.
+
+**Known issues** (pinned by `it.fails` tests in `backend/tests/`, details in [known-issues.md](./known-issues.md)):
+
+- B-1: the audit client rejects form-urlencoded bodies (OpenID4VP `direct_post`).
+- B-2: the proxy mangles non-JSON upstream bodies.
+- B-5: `getLogs(limit)` repeats frames when `limit` exceeds the capacity.
+- G-2: `mso_mdoc` is coerced to "W3C VC (JSON-LD)".
 
 ---
 
@@ -50,11 +76,12 @@ flowchart TD
 
 To prevent V8 garbage collection pauses, memory leaks, and dynamic reallocation overhead under continuous evaluation workloads, the logger employs a pre-allocated fixed-size circular array object pool of **350 Audit Frames**.
 
-### Sizing Model & Eviction Semantics:
-* **Capacity**: Exactly 350 fixed slots (`Array(350)`).
-* **Flow Sizing**: Average end-to-end VC transaction (Issuance or Presentation) generates 4 to 5 network frames.
-* **Concurrency**: Preserves the complete audit history for approximately **70 concurrent user flows**.
-* **Zero-Allocation Overwrites**: Uses a circular write pointer `pointer = (pointer + 1) % 350` to overwrite expired slots in $O(1)$ constant time.
+### Sizing Model & Eviction Semantics
+
+- **Capacity**: Exactly 350 fixed slots (`Array(350)`).
+- **Flow Sizing**: Average end-to-end VC transaction (Issuance or Presentation) generates 4 to 5 network frames.
+- **Concurrency**: Preserves the complete audit history for approximately **70 concurrent user flows**.
+- **Zero-Allocation Overwrites**: Uses a circular write pointer `pointer = (pointer + 1) % 350` to overwrite expired slots in $O(1)$ constant time.
 
 ```mermaid
 flowchart LR
@@ -90,8 +117,8 @@ flowchart LR
 
 Standard security logging naively redacts all sensitive tokens, which breaks identity testing tools by hiding verifiable presentations. The Interceptor enforces a **Strict VC Exemption Rule**:
 
-* **Redacted**: Authentication tokens (`Bearer`, `dpop`), cookies, client secrets, and OAuth assertions.
-* **Exempt / Retained**: Cryptographic identity proofs (`vp_token`, `verifiableCredential`, `proof`, and claims).
+- **Redacted**: Authentication tokens (`Bearer`, `dpop`), cookies, client secrets, and OAuth assertions.
+- **Exempt / Retained**: Cryptographic identity proofs (`vp_token`, `verifiableCredential`, `proof`, and claims).
 
 ```mermaid
 flowchart TD
@@ -126,10 +153,10 @@ flowchart TD
     PASSTHROUGH --> AUDIT_FRAME
 ```
 
-### Redaction Rules Reference:
+### Redaction Rules Reference
 
 | Domain | Keys Monitored | Sanitization Action |
-|:-------|:---------------|:--------------------|
+| --- | --- | --- |
 | **HTTP Transport Headers** | `authorization`, `dpop`, `cookie`, `set-cookie` | Value replaced with `"[REDACTED]"` |
 | **OAuth / OIDC Credentials** | `client_secret`, `access_token`, `refresh_token`, `id_token`, `client_assertion` | String replaced with `"[REDACTED]"` |
 | **Verifiable Credential Payloads** | `vp_token`, `credential`, `verifiableCredential`, `proof`, `claims` | **EXEMPT**: Retained unredacted for developer inspection |
@@ -182,7 +209,7 @@ sequenceDiagram
     Note over Developer,Engine: Step 1: OpenID4VCI Credential Issuance Flow
     Developer->>Interceptor: POST /api/playground/issue (format: w3c-vc)
     activate Interceptor
-    Interceptor->>Interceptor: Generate transactionId (UUID) & start timer
+    Interceptor->>Interceptor: Read x-transaction-id from the UI (generate if missing) & start timer
     Interceptor->>Engine: OpenID4VCI Request (GET /.well-known & POST /credential)
     activate Engine
     Engine-->>Interceptor: Return Credential Offer + Signed VC
@@ -218,7 +245,7 @@ Every frame in the ring buffer adheres to the normalized schema below:
 
 ```json
 {
-  "transactionId": "tx-8f9b2c3d-4e5f-4321-ba98-123456789abc",
+  "transactionId": "tx-8f9b2c3d",
   "sequenceNo": 3,
   "isSandbox": true,
   "origin": "holder-wallet-app",
@@ -229,8 +256,8 @@ Every frame in the ring buffer adheres to the normalized schema below:
   },
   "protocolContext": {
     "protocol": "OpenID4VP",
-    "complianceStandard": "OID4VP Draft 21",
-    "credentialFormat": "w3c-vc",
+    "complianceStandard": "OpenID4VP Draft 21",
+    "credentialFormat": "W3C VC (JSON-LD)",
     "specStep": "Authorization Response Verification"
   },
   "packet": {
