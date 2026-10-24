@@ -12,7 +12,7 @@ import { AlertTriangle, Info } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'playground' | 'matrix'>('playground');
-  const [serverConnected, setServerConnected] = useState<boolean>(false);
+  const [serverConnected, setServerConnected] = useState<boolean | null>(null);
   const run = usePlaygroundRun();
   const { selection } = run;
   const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
@@ -41,9 +41,10 @@ export const App: React.FC = () => {
         serverConnected={serverConnected}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        runCount={run.history.length}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6">
         {activeTab === 'playground' ? (
           <div>
             {/* 3-Column Matrix Configurator */}
@@ -102,7 +103,7 @@ export const App: React.FC = () => {
         )}
       </main>
 
-      <footer className="border-t border-slate-900 bg-slate-950/80 py-4 px-6 text-center text-xs text-slate-500">
+      <footer className="print:hidden border-t border-slate-900 bg-slate-950/80 py-4 px-6 text-center text-xs text-slate-500">
         MOSIP VC Interoperability Playground &bull; OpenID4VCI (Draft 13) &bull; OpenID4VP (Draft 21) &bull; W3C VC JSON-LD &bull; SD-JWT VC
       </footer>
     </div>

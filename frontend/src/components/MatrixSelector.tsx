@@ -184,7 +184,7 @@ export const MatrixSelector: React.FC<MatrixSelectorProps> = ({
   ];
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl mb-6">
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl mb-6">
       {/* Credential Format Toggle Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-6 mb-6 border-b border-slate-800">
         <div>

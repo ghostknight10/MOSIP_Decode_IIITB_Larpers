@@ -163,7 +163,7 @@ export const FlowControls: React.FC<FlowControlsProps> = ({
   const validButExpired = verificationResult?.status === 'EXPIRED' && verificationResult.checks.signatureValid;
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl mb-6">
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl mb-6">
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 mb-4 border-b border-slate-800">
         <div>
           <h3 className="text-base font-bold text-white flex items-center gap-2">
