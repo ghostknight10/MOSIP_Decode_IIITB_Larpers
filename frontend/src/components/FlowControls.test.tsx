@@ -107,6 +107,15 @@ describe('FlowControls actions', () => {
     expect(onVerify).toHaveBeenCalledWith(undefined);
   });
 
+  it('sends no tamper payload when tamper mode is on but nothing is ticked', async () => {
+    const { onVerify, onRunFullFlow, user } = renderControls({ phase: 'issued', issuedCredential: W3C_VC });
+    await user.click(screen.getByRole('button', { name: 'Enable Tamper Mode' }));
+    await user.click(verifyButton());
+    await user.click(screen.getByRole('button', { name: /Run Full Flow/ }));
+    expect(onVerify).toHaveBeenCalledWith(undefined);
+    expect(onRunFullFlow).toHaveBeenCalledWith(DEFAULT_SUBJECT, undefined);
+  });
+
   it('runs the full flow with subject and tamper options', async () => {
     const { onRunFullFlow, user } = renderControls();
     await user.click(screen.getByRole('button', { name: 'Enable Tamper Mode' }));

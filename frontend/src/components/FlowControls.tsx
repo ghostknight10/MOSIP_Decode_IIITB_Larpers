@@ -154,7 +154,9 @@ export const FlowControls: React.FC<FlowControlsProps> = ({
   const [subjectOpen, setSubjectOpen] = useState(false);
 
   const busy = phase === 'issuing' || phase === 'verifying';
-  const tamper = tamperMode ? tamperOptions : undefined;
+  // Send nothing unless an attack is actually selected: the mock verifier
+  // treats any tamperPayload object as tampered, even with every flag false.
+  const tamper = tamperMode && (tamperOptions.forceExpired || tamperOptions.corruptSignature) ? tamperOptions : undefined;
   const formatMeta = FORMATS.find(f => f.id === format);
   const summary = issuedCredential ? summarise(issuedCredential, format) : null;
   const clientId = getNode(verifier)?.clientId ?? 'https://verifier.example';
