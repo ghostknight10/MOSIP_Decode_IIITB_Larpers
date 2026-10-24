@@ -65,12 +65,12 @@ export const ProtocolInspector: React.FC<ProtocolInspectorProps> = ({ logs, onCl
                   >
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-semibold text-slate-200 truncate flex items-center gap-1.5">
-                        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-800 text-sky-300 font-bold">
+                        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-sm bg-slate-800 text-sky-300 font-bold">
                           Step {log.step}
                         </span>
                         {log.action}
                       </span>
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-sm ${
                         log.status === 'SUCCESS' ? 'text-emerald-400 bg-emerald-500/10' : 'text-rose-400 bg-rose-500/10'
                       }`}>
                         {log.status}
@@ -97,7 +97,7 @@ export const ProtocolInspector: React.FC<ProtocolInspectorProps> = ({ logs, onCl
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setActiveTab('response')}
-                    className={`px-2.5 py-1 rounded font-medium transition-all ${
+                    className={`px-2.5 py-1 rounded-sm font-medium transition-all ${
                       activeTab === 'response' ? 'bg-sky-500 text-white font-semibold' : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
@@ -105,7 +105,7 @@ export const ProtocolInspector: React.FC<ProtocolInspectorProps> = ({ logs, onCl
                   </button>
                   <button
                     onClick={() => setActiveTab('request')}
-                    className={`px-2.5 py-1 rounded font-medium transition-all ${
+                    className={`px-2.5 py-1 rounded-sm font-medium transition-all ${
                       activeTab === 'request' ? 'bg-sky-500 text-white font-semibold' : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
@@ -120,7 +120,7 @@ export const ProtocolInspector: React.FC<ProtocolInspectorProps> = ({ logs, onCl
                       selectedLog.id
                     )
                   }
-                  className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition-all"
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-sm bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition-all"
                 >
                   {copiedId === selectedLog.id ? (
                     <>

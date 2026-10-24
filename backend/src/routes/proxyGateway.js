@@ -18,7 +18,8 @@ const TARGETS = {
  * Frontend calls: /api/proxy/INJI_CERTIFY/v1/credential-offer
  * Proxy routes to: https://collab.mosip.io/inji-certify/v1/credential-offer
  */
-router.all('/api/proxy/:targetService/*', async (req, res) => {
+// Express 5 (path-to-regexp v8) requires named wildcards: '*splat', not '*'.
+router.all('/api/proxy/:targetService/*splat', async (req, res) => {
   const { targetService } = req.params;
   
   // 1. Resolve Target Base URL

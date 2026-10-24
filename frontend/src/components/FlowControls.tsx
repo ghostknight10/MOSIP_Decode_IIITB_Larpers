@@ -106,11 +106,11 @@ const QrPanel: React.FC<{ title: string; uri: string }> = ({ title, uri }) => {
   return (
     <div className="p-3 mb-4 rounded-lg bg-slate-900 border border-slate-800 flex flex-col sm:flex-row items-start gap-3">
       {fits ? (
-        <div className="p-2 bg-white rounded-md flex-shrink-0">
+        <div className="p-2 bg-white rounded-md shrink-0">
           <QRCodeSVG value={uri} size={132} level="L" />
         </div>
       ) : (
-        <div className="p-3 rounded-md border border-amber-500/40 bg-amber-950/20 text-[11px] text-amber-200 w-full sm:w-36 flex-shrink-0">
+        <div className="p-3 rounded-md border border-amber-500/40 bg-amber-950/20 text-[11px] text-amber-200 w-full sm:w-36 shrink-0">
           Payload exceeds QR capacity ({QR_MAX_BYTES} bytes). Use the deep link or request_uri by reference.
         </div>
       )}
@@ -226,7 +226,7 @@ export const FlowControls: React.FC<FlowControlsProps> = ({
               type="checkbox"
               checked={tamperOptions.forceExpired}
               onChange={(e) => setTamperOptions(prev => ({ ...prev, forceExpired: e.target.checked }))}
-              className="rounded bg-slate-900 border-rose-600 text-rose-500 focus:ring-0"
+              className="rounded-sm bg-slate-900 border-rose-600 text-rose-500 focus:ring-0"
             />
             Expire Timestamp (Negative Path)
           </label>
@@ -235,7 +235,7 @@ export const FlowControls: React.FC<FlowControlsProps> = ({
               type="checkbox"
               checked={tamperOptions.corruptSignature}
               onChange={(e) => setTamperOptions(prev => ({ ...prev, corruptSignature: e.target.checked }))}
-              className="rounded bg-slate-900 border-rose-600 text-rose-500 focus:ring-0"
+              className="rounded-sm bg-slate-900 border-rose-600 text-rose-500 focus:ring-0"
             />
             Corrupt Cryptographic Signature
           </label>
@@ -317,7 +317,7 @@ export const FlowControls: React.FC<FlowControlsProps> = ({
           <button
             onClick={() => onIssue(subjectData)}
             disabled={busy}
-            className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-semibold text-xs transition-all shadow-lg shadow-sky-600/20 disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-2.5 px-4 rounded-xl bg-linear-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-semibold text-xs transition-all shadow-lg shadow-sky-600/20 disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {phase === 'issuing' ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4 fill-white" />}
             Trigger "Issue Credential" Flow
@@ -357,14 +357,14 @@ export const FlowControls: React.FC<FlowControlsProps> = ({
               >
                 <div className="flex items-center gap-3">
                   {isValid ? (
-                    <CheckCircle className="h-6 w-6 text-emerald-400 flex-shrink-0" />
+                    <CheckCircle className="h-6 w-6 text-emerald-400 shrink-0" />
                   ) : (
-                    <AlertTriangle className="h-6 w-6 text-rose-400 flex-shrink-0" />
+                    <AlertTriangle className="h-6 w-6 text-rose-400 shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-bold uppercase">Result:</span>
-                      <span className="text-xs font-extrabold font-mono px-2 py-0.5 rounded bg-slate-900 border">
+                      <span className="text-xs font-extrabold font-mono px-2 py-0.5 rounded-sm bg-slate-900 border">
                         {verificationResult.status}
                       </span>
                       <span className="text-[11px]">
@@ -395,7 +395,7 @@ export const FlowControls: React.FC<FlowControlsProps> = ({
             className={`w-full py-2.5 px-4 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-2 ${
               !issuedCredential
                 ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-600/20 disabled:opacity-50'
+                : 'bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-600/20 disabled:opacity-50'
             }`}
           >
             {phase === 'verifying' ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}

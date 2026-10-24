@@ -25,5 +25,8 @@
     "sd-jwt"
   ],
   "author": "Yug & Team Larpers",
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=26"
+  }
 }

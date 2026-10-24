@@ -59,13 +59,13 @@ export const App: React.FC = () => {
 
             {run.error && (
               <div role="alert" className="mb-6 p-3 rounded-xl border border-rose-500/40 bg-rose-950/30 text-rose-200 text-xs flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-rose-400 flex-shrink-0" />
+                <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
                 {run.error}
               </div>
             )}
             {run.sandboxFallback && run.notices.length > 0 && (
               <div className="mb-6 p-3 rounded-xl border border-amber-500/40 bg-amber-950/20 text-amber-200 text-xs flex items-center gap-2">
-                <Info className="h-4 w-4 text-amber-400 flex-shrink-0" />
+                <Info className="h-4 w-4 text-amber-400 shrink-0" />
                 Sandbox unreachable — showing emulated responses. {run.notices.join(' ')}
               </div>
             )}

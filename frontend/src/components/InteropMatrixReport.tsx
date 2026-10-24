@@ -28,7 +28,7 @@ const OutcomeBadge: React.FC<{ outcome: Outcome }> = ({ outcome }) => {
 };
 
 const FormatChip: React.FC<{ format: CredentialFormat }> = ({ format }) => (
-  <span className={`px-2 py-0.5 rounded text-[11px] font-sans whitespace-nowrap ${
+  <span className={`px-2 py-0.5 rounded-sm text-[11px] font-sans whitespace-nowrap ${
     format === 'sd-jwt' ? 'bg-indigo-500/20 text-indigo-300' : 'bg-sky-500/20 text-sky-300'
   }`}>
     {formatLabel(format)}
@@ -113,7 +113,7 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-bold text-white">Ecosystem Interoperability Certification Matrix</h2>
             {passRate !== null && (
-              <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${
+              <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-sm border ${
                 passRate === 100 ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
               }`}>
                 {passRate}% Pass Rate

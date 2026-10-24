@@ -139,7 +139,7 @@ function RoleColumn<Id extends string>({ role, nodes, selectedId, onPick, status
                   <NodeIcon className={`h-4 w-4 ${node.isMosip ? ACCENT_TEXT[role] : 'text-amber-400'}`} />
                   {node.label}
                 </div>
-                <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-sm ${
                   node.isMosip ? 'bg-slate-800 text-slate-200' : 'bg-amber-500/20 text-amber-300'
                 }`}>
                   {selected && node.isMosip && sandboxFallback ? 'Emulated' : node.badge}
@@ -213,7 +213,7 @@ export const MatrixSelector: React.FC<MatrixSelectorProps> = ({
                 disabled={locked || !supported}
                 onClick={() => onSelect({ format: f.id })}
                 className={`px-3 py-1.5 rounded-lg transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
-                  active ? 'bg-sky-600 text-white font-semibold shadow' : 'text-slate-400 hover:text-slate-200'
+                  active ? 'bg-sky-600 text-white font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 {f.label} <span className="font-mono opacity-70">{f.wireFormat}</span>

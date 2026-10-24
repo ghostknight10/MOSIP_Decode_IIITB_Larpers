@@ -11,11 +11,11 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ serverConnected, activeTab, setActiveTab, runCount }) => {
   return (
-    <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50 px-4 sm:px-6 py-4 print:hidden">
+    <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur-sm sticky top-0 z-50 px-4 sm:px-6 py-4 print:hidden">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
         {/* Brand */}
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
+          <div className="h-10 w-10 rounded-xl bg-linear-to-tr from-sky-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
             <ShieldCheck className="h-6 w-6 text-white" />
           </div>
           <div>
@@ -36,7 +36,7 @@ export const Header: React.FC<HeaderProps> = ({ serverConnected, activeTab, setA
             onClick={() => setActiveTab('playground')}
             className={`px-4 py-1.5 rounded-md font-medium transition-all flex items-center gap-2 ${
               activeTab === 'playground'
-                ? 'bg-sky-600 text-white shadow-sm'
+                ? 'bg-sky-600 text-white shadow-xs'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -48,7 +48,7 @@ export const Header: React.FC<HeaderProps> = ({ serverConnected, activeTab, setA
             onClick={() => setActiveTab('matrix')}
             className={`px-4 py-1.5 rounded-md font-medium transition-all flex items-center gap-2 ${
               activeTab === 'matrix'
-                ? 'bg-sky-600 text-white shadow-sm'
+                ? 'bg-sky-600 text-white shadow-xs'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >

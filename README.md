@@ -2,8 +2,8 @@
 
 [![Topic](https://img.shields.io/badge/Topic-02%20VC%20Interoperability%20Playground-0284c7.svg)](#)
 [![Docker](https://img.shields.io/badge/Docker-Compose%20Ready-2496ED.svg?logo=docker)](#)
-[![Node](https://img.shields.io/badge/Node.js-v22-339933.svg?logo=node.js)](#)
-[![React](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react)](#)
+[![Node](https://img.shields.io/badge/Node.js-v26-339933.svg?logo=node.js)](#)
+[![React](https://img.shields.io/badge/React-19-61DAFB.svg?logo=react)](#)
 [![Standards](https://img.shields.io/badge/Protocols-OpenID4VCI%20%7C%20OpenID4VP-indigo.svg)](#)
 
 A developer-first workbench and visual testing harness for validating cross-ecosystem interoperability across **MOSIP reference implementations** (Inji Certify, Inji Web/Mobile Wallet via Mimoto, and Inji Verify) and independent **OpenID4VCI (Draft 13)** and **OpenID4VP (Draft 21)** standards-compliant engines.
@@ -53,7 +53,7 @@ A developer-first workbench and visual testing harness for validating cross-ecos
 
 ### Prerequisites
 * [Docker](https://docs.docker.com/get-docker/) & [Docker Compose](https://docs.docker.com/compose/)
-* Or locally: Node.js >= 20.x, npm >= 10.x
+* Or locally: Node.js >= 26.x and npm
 
 ### 1. One-Command Execution (Docker Compose)
 Run the entire stack (Frontend + Backend BFF) with a single command:
