@@ -80,4 +80,20 @@ describe('ProtocolInspector', () => {
     renderInspector();
     expect(screen.queryByRole('button', { name: 'Clear History' })).not.toBeInTheDocument();
   });
+
+  it('renders request and response HTTP headers when present', () => {
+    const logWithHeaders = makeLog({
+      response: {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'x-trace-id': 'tr-1234' },
+        body: { ok: true }
+      }
+    });
+    renderInspector({ logs: [logWithHeaders] });
+    expect(screen.getByText('Response Headers')).toBeInTheDocument();
+    expect(screen.getByText('content-type:')).toBeInTheDocument();
+    expect(screen.getByText('application/json')).toBeInTheDocument();
+    expect(screen.getByText('x-trace-id:')).toBeInTheDocument();
+    expect(screen.getByText('tr-1234')).toBeInTheDocument();
+  });
 });

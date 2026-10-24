@@ -82,4 +82,15 @@ describe('SequenceDiagram', () => {
     render(<SequenceDiagram logs={logs} />);
     await waitFor(() => expect(screen.getByText('Failed to render sequence graph')).toBeInTheDocument());
   });
+
+  it('identifies emulated Inji Verify participant correctly (Bug F-1)', () => {
+    const emulatedLog = makeLog({
+      step: 3,
+      sender: 'Inji Verify (Collab Sandbox Emulated)',
+      receiver: 'Wallet',
+      action: 'Authorization Request'
+    });
+    render(<SequenceDiagram logs={[emulatedLog]} />);
+    expect(lastDiagram()).toContain('  Verifier->>Wallet: Authorization Request [✓ SUCCESS]');
+  });
 });

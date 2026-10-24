@@ -1,4 +1,9 @@
 @import 'tailwindcss';
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
+}
 
 /*
   Tailwind v4 compatibility: keep v3's default gray border colour and pointer
@@ -27,7 +32,11 @@ body {
   margin: 0;
   min-height: 100vh;
   background-color: #020617;
+  background: radial-gradient(ellipse at 20% 50%, #0c1a3a 0%, #020617 60%),
+              radial-gradient(ellipse at 80% 20%, #0a1628 0%, transparent 50%);
+  background-attachment: fixed;
   color: #f8fafc;
+  font-family: var(--font-sans);
 }
 
 /* Custom scrollbar for raw payload inspectors */
@@ -47,4 +56,14 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #475569;
+}
+
+::selection {
+  background: #0284c7;
+  color: #f8fafc;
+}
+
+:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
 }
