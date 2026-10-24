@@ -1,5 +1,5 @@
 import React from 'react';
-import { IssuerType, WalletType, VerifierType, CredentialFormat } from '../types';
+import { IssuerType, WalletType, VerifierType, CredentialFormat, RunPhase } from '../types';
 import { Landmark, Wallet as WalletIcon, CheckCircle2, ShieldAlert, Sparkles, FileCode2 } from 'lucide-react';
 
 interface MatrixSelectorProps {
@@ -11,7 +11,7 @@ interface MatrixSelectorProps {
   setVerifier: (val: VerifierType) => void;
   format: CredentialFormat;
   setFormat: (val: CredentialFormat) => void;
-  flowState: 'idle' | 'issuing' | 'issued' | 'verifying' | 'verified';
+  flowState: RunPhase;
 }
 
 export const MatrixSelector: React.FC<MatrixSelectorProps> = ({

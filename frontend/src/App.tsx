@@ -5,103 +5,23 @@ import { FlowControls } from './components/FlowControls';
 import { ProtocolInspector } from './components/ProtocolInspector';
 import { SequenceDiagram } from './components/SequenceDiagram';
 import { InteropMatrixReport } from './components/InteropMatrixReport';
-import { IssuerType, WalletType, VerifierType, CredentialFormat, ProtocolLog, VerificationResult } from './types';
+import { usePlaygroundRun } from './hooks/usePlaygroundRun';
+import { api } from './api/client';
+import { AlertTriangle, Info } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'playground' | 'matrix'>('playground');
   const [serverConnected, setServerConnected] = useState<boolean>(false);
+  const run = usePlaygroundRun();
+  const { selection } = run;
 
-  // Matrix selection states
-  const [issuer, setIssuer] = useState<IssuerType>('inji-certify');
-  const [wallet, setWallet] = useState<WalletType>('inji-wallet');
-  const [verifier, setVerifier] = useState<VerifierType>('inji-verify');
-  const [format, setFormat] = useState<CredentialFormat>('w3c-vc');
-  const [flowState, setFlowState] = useState<'idle' | 'issuing' | 'issued' | 'verifying' | 'verified'>('idle');
-
-  // Transaction payloads & logs
-  const [loading, setLoading] = useState<boolean>(false);
-  const [credentialOffer, setCredentialOffer] = useState<any>(null);
-  const [issuedCredential, setIssuedCredential] = useState<any>(null);
-  const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
-  const [logs, setLogs] = useState<ProtocolLog[]>([]);
-
-  // Check BFF health on load
+  // Check BFF health on load and every 15s so the header reflects backend restarts
   useEffect(() => {
-    fetch('/api/health')
-      .then(res => res.json())
-      .then(() => setServerConnected(true))
-      .catch(() => setServerConnected(false));
+    const check = () => api.health().then(() => setServerConnected(true)).catch(() => setServerConnected(false));
+    check();
+    const id = setInterval(check, 15000);
+    return () => clearInterval(id);
   }, []);
-
-  const handleIssue = async (subjectData: any, tamperPayload?: any) => {
-    setLoading(true);
-    setFlowState('issuing');
-    try {
-      const res = await fetch('/api/playground/issue', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          issuer,
-          wallet,
-          format,
-          credentialSubject: subjectData,
-          tamperPayload
-        })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setCredentialOffer(data.credentialOffer);
-        setIssuedCredential(data.issuedCredential);
-        setFlowState('issued');
-        if (data.protocolLogs) {
-          setLogs(prev => [...data.protocolLogs, ...prev]);
-        }
-      }
-    } catch (err) {
-      console.error('Issuance flow error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerify = async (tamperPayload?: any) => {
-    setLoading(true);
-    setFlowState('verifying');
-    try {
-      const res = await fetch('/api/playground/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          verifier,
-          wallet,
-          format,
-          credentialOrToken: issuedCredential,
-          tamperPayload
-        })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setVerificationResult(data.verificationResult);
-        setFlowState('verified');
-        if (data.protocolLogs) {
-          setLogs(prev => [...data.protocolLogs, ...prev]);
-        }
-      }
-    } catch (err) {
-      console.error('Verification flow error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleClearLogs = async () => {
-    try {
-      await fetch('/api/playground/logs', { method: 'DELETE' });
-      setLogs([]);
-    } catch (err) {
-      console.error('Clear logs error:', err);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif]">
@@ -116,32 +36,45 @@ export const App: React.FC = () => {
           <div>
             {/* 3-Column Matrix Configurator */}
             <MatrixSelector
-              issuer={issuer}
-              setIssuer={setIssuer}
-              wallet={wallet}
-              setWallet={setWallet}
-              verifier={verifier}
-              setVerifier={setVerifier}
-              format={format}
-              setFormat={setFormat}
-              flowState={flowState}
+              issuer={selection.issuer}
+              setIssuer={issuer => run.select({ issuer })}
+              wallet={selection.wallet}
+              setWallet={wallet => run.select({ wallet })}
+              verifier={selection.verifier}
+              setVerifier={verifier => run.select({ verifier })}
+              format={selection.format}
+              setFormat={format => run.select({ format })}
+              flowState={run.phase}
             />
+
+            {run.error && (
+              <div role="alert" className="mb-6 p-3 rounded-xl border border-rose-500/40 bg-rose-950/30 text-rose-200 text-xs flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-rose-400 flex-shrink-0" />
+                {run.error}
+              </div>
+            )}
+            {run.sandboxFallback && run.notices.length > 0 && (
+              <div className="mb-6 p-3 rounded-xl border border-amber-500/40 bg-amber-950/20 text-amber-200 text-xs flex items-center gap-2">
+                <Info className="h-4 w-4 text-amber-400 flex-shrink-0" />
+                Sandbox unreachable — showing emulated responses. {run.notices.join(' ')}
+              </div>
+            )}
 
             {/* Workflow Execution Pipeline */}
             <FlowControls
-              onIssue={handleIssue}
-              onVerify={handleVerify}
-              loading={loading}
-              issuedCredential={issuedCredential}
-              credentialOffer={credentialOffer}
-              verificationResult={verificationResult}
-              format={format}
+              onIssue={run.issue}
+              onVerify={run.verify}
+              loading={run.busy}
+              issuedCredential={run.issuedCredential}
+              credentialOffer={run.credentialOffer}
+              verificationResult={run.verificationResult}
+              format={selection.format}
             />
 
             {/* Live Visualizations (Ayaan's Sequence + Inspector) */}
             <div className="grid grid-cols-1 gap-6">
-              <SequenceDiagram logs={logs} />
-              <ProtocolInspector logs={logs} onClearLogs={handleClearLogs} />
+              <SequenceDiagram logs={run.logs} />
+              <ProtocolInspector logs={run.logs} onClearLogs={run.clearLogs} />
             </div>
           </div>
         ) : (

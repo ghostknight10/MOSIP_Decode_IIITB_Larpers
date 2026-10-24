@@ -1,0 +1,283 @@
+import { useCallback, useEffect, useReducer } from 'react';
+import { api, newTransactionId } from '../api/client';
+import {
+  CredentialFormat,
+  CredentialSubjectInput,
+  IssuerType,
+  ProtocolLog,
+  RunPhase,
+  RunRecord,
+  TamperOptions,
+  VerificationResult,
+  VerifierType,
+  WalletType
+} from '../types';
+
+/**
+ * Single source of truth for the playground run: matrix selection, flow phase,
+ * payloads, logs and run history. Components only render this state and call
+ * the returned actions.
+ */
+
+const HISTORY_KEY = 'mosip-playground-runs';
+const HISTORY_LIMIT = 200;
+
+export interface Selection {
+  issuer: IssuerType;
+  wallet: WalletType;
+  verifier: VerifierType;
+  format: CredentialFormat;
+}
+
+interface PlaygroundState {
+  selection: Selection;
+  phase: RunPhase;
+  transactionId: string | null;
+  startedAt: string | null;
+  credentialOffer: any;
+  issuedCredential: any;
+  presentationDefinition: any;
+  verificationResult: VerificationResult | null;
+  sandboxFallback: boolean;
+  notices: string[];
+  error: string | null;
+  logs: ProtocolLog[];
+  history: RunRecord[];
+}
+
+type Action =
+  | { type: 'select'; patch: Partial<Selection> }
+  | { type: 'issueStart'; transactionId: string }
+  | { type: 'issueDone'; credentialOffer: any; issuedCredential: any; logs?: ProtocolLog[]; fallback?: boolean; notice?: string }
+  | { type: 'verifyStart' }
+  | { type: 'verifyDone'; verificationResult: VerificationResult; presentationDefinition: any; logs?: ProtocolLog[]; fallback?: boolean; notice?: string }
+  | { type: 'fail'; error: string }
+  | { type: 'record'; record: RunRecord }
+  | { type: 'clearLogs' }
+  | { type: 'clearHistory' }
+  | { type: 'reset' };
+
+const emptyRun = {
+  phase: 'idle' as RunPhase,
+  transactionId: null,
+  startedAt: null,
+  credentialOffer: null,
+  issuedCredential: null,
+  presentationDefinition: null,
+  verificationResult: null,
+  sandboxFallback: false,
+  notices: [],
+  error: null
+};
+
+const loadHistory = (): RunRecord[] => {
+  try {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+  } catch {
+    return [];
+  }
+};
+
+/** The BFF returns every frame for the transaction, so replace rather than append. */
+const mergeLogs = (existing: ProtocolLog[], incoming: ProtocolLog[] | undefined, txId: string | null) => {
+  if (!incoming?.length) return existing;
+  return [...incoming, ...existing.filter(l => l.transactionId !== txId)];
+};
+
+const isBusy = (phase: RunPhase) => phase === 'issuing' || phase === 'verifying';
+
+function reducer(state: PlaygroundState, action: Action): PlaygroundState {
+  switch (action.type) {
+    case 'select': {
+      if (isBusy(state.phase)) return state;
+      const selection = { ...state.selection, ...action.patch };
+      // A new verifier can re-verify the credential already held by the wallet;
+      // any other change invalidates it.
+      const onlyVerifierChanged = Object.keys(action.patch).every(k => k === 'verifier');
+      if (onlyVerifierChanged && state.issuedCredential) {
+        return { ...state, selection, phase: 'issued', verificationResult: null, presentationDefinition: null, error: null };
+      }
+      return { ...state, ...emptyRun, selection };
+    }
+    case 'issueStart':
+      return { ...state, ...emptyRun, phase: 'issuing', transactionId: action.transactionId, startedAt: new Date().toISOString() };
+    case 'issueDone':
+      return {
+        ...state,
+        phase: 'issued',
+        credentialOffer: action.credentialOffer ?? null,
+        issuedCredential: action.issuedCredential,
+        sandboxFallback: Boolean(action.fallback),
+        notices: action.notice ? [action.notice] : [],
+        logs: mergeLogs(state.logs, action.logs, state.transactionId)
+      };
+    case 'verifyStart':
+      return { ...state, phase: 'verifying', verificationResult: null, error: null };
+    case 'verifyDone':
+      return {
+        ...state,
+        phase: action.verificationResult.status === 'VALID' ? 'verified' : 'failed',
+        verificationResult: action.verificationResult,
+        presentationDefinition: action.presentationDefinition ?? null,
+        sandboxFallback: state.sandboxFallback || Boolean(action.fallback),
+        notices: action.notice ? [...state.notices, action.notice] : state.notices,
+        logs: mergeLogs(state.logs, action.logs, state.transactionId)
+      };
+    case 'fail':
+      return { ...state, phase: 'failed', error: action.error };
+    case 'record':
+      return { ...state, history: [action.record, ...state.history].slice(0, HISTORY_LIMIT) };
+    case 'clearLogs':
+      return { ...state, logs: [] };
+    case 'clearHistory':
+      return { ...state, history: [] };
+    case 'reset':
+      return { ...state, ...emptyRun };
+  }
+}
+
+/** Best-effort proof type label from either credential shape the BFF returns. */
+export const getProofType = (credential: any, format: CredentialFormat): string => {
+  if (!credential) return 'unknown';
+  if (format === 'sd-jwt') {
+    const alg = credential.decoded?.header?.alg;
+    return alg ? `JWT (${alg})` : 'JWT';
+  }
+  return credential.proof?.type || 'unknown';
+};
+
+export function usePlaygroundRun() {
+  const [state, dispatch] = useReducer(reducer, undefined, () => ({
+    selection: { issuer: 'inji-certify', wallet: 'inji-wallet', verifier: 'inji-verify', format: 'w3c-vc' },
+    ...emptyRun,
+    logs: [],
+    history: loadHistory()
+  }) as PlaygroundState);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(state.history));
+    } catch {
+      // Storage unavailable (private mode); history stays in memory.
+    }
+  }, [state.history]);
+
+  const record = (
+    sel: Selection,
+    transactionId: string,
+    startedAt: string,
+    credential: any,
+    tamper: TamperOptions | undefined,
+    fallback: boolean,
+    result?: VerificationResult,
+    errorDetail?: string
+  ) => {
+    const tampered = Boolean(tamper && (tamper.forceExpired || tamper.corruptSignature));
+    // PASS means the verifier behaved as expected: accept a clean credential,
+    // reject a tampered one.
+    const passed = !errorDetail && !!result && (tampered ? result.status !== 'VALID' : result.status === 'VALID');
+    dispatch({
+      type: 'record',
+      record: {
+        id: `${transactionId}-${Date.now()}`,
+        transactionId,
+        startedAt,
+        finishedAt: new Date().toISOString(),
+        ...sel,
+        proofType: getProofType(credential, sel.format),
+        tampered,
+        outcome: passed ? 'PASS' : 'FAIL',
+        verificationStatus: result?.status,
+        errorDetail: errorDetail ?? (passed ? undefined : result?.details),
+        sandboxFallback: fallback
+      }
+    });
+  };
+
+  const issue = useCallback(async (subject: CredentialSubjectInput, sel: Selection = state.selection) => {
+    const transactionId = newTransactionId();
+    const startedAt = new Date().toISOString();
+    dispatch({ type: 'issueStart', transactionId });
+    try {
+      // Tamper flags are deliberately not sent here: the mock issuer merges
+      // tamperPayload into the credential subject. Tampering happens at presentation.
+      const data = await api.issue({ issuer: sel.issuer, wallet: sel.wallet, format: sel.format, credentialSubject: subject }, transactionId);
+      dispatch({
+        type: 'issueDone',
+        credentialOffer: data.credentialOffer,
+        issuedCredential: data.issuedCredential,
+        logs: data.protocolLogs,
+        fallback: data.isSandboxFallback,
+        notice: data.notice
+      });
+      return { transactionId, startedAt, credential: data.issuedCredential, fallback: Boolean(data.isSandboxFallback) };
+    } catch (err: any) {
+      dispatch({ type: 'fail', error: err.message });
+      record(sel, transactionId, startedAt, null, undefined, false, undefined, `Issuance failed: ${err.message}`);
+      return null;
+    }
+  }, [state.selection]);
+
+  const verify = useCallback(async (
+    tamper?: TamperOptions,
+    run = {
+      transactionId: state.transactionId ?? newTransactionId(),
+      startedAt: state.startedAt ?? new Date().toISOString(),
+      credential: state.issuedCredential,
+      fallback: state.sandboxFallback
+    },
+    sel: Selection = state.selection
+  ) => {
+    dispatch({ type: 'verifyStart' });
+    try {
+      const data = await api.verify({
+        verifier: sel.verifier,
+        wallet: sel.wallet,
+        format: sel.format,
+        credentialOrToken: run.credential,
+        tamperPayload: tamper
+      }, run.transactionId);
+      dispatch({
+        type: 'verifyDone',
+        verificationResult: data.verificationResult,
+        presentationDefinition: data.presentationDefinition,
+        logs: data.protocolLogs,
+        fallback: data.isSandboxFallback,
+        notice: data.notice
+      });
+      record(sel, run.transactionId, run.startedAt, run.credential, tamper, run.fallback || Boolean(data.isSandboxFallback), data.verificationResult);
+      return data.verificationResult;
+    } catch (err: any) {
+      dispatch({ type: 'fail', error: err.message });
+      record(sel, run.transactionId, run.startedAt, run.credential, tamper, run.fallback, undefined, `Verification failed: ${err.message}`);
+      return null;
+    }
+  }, [state.selection, state.transactionId, state.startedAt, state.issuedCredential, state.sandboxFallback]);
+
+  /** Issue then immediately present & verify, optionally for an explicit matrix combination. */
+  const runFullFlow = useCallback(async (subject: CredentialSubjectInput, tamper?: TamperOptions, sel: Selection = state.selection) => {
+    const issued = await issue(subject, sel);
+    if (!issued) return null;
+    return verify(tamper, issued, sel);
+  }, [issue, verify, state.selection]);
+
+  const clearLogs = useCallback(async () => {
+    try {
+      await api.clearLogs();
+    } finally {
+      dispatch({ type: 'clearLogs' });
+    }
+  }, []);
+
+  return {
+    ...state,
+    busy: isBusy(state.phase),
+    select: (patch: Partial<Selection>) => dispatch({ type: 'select', patch }),
+    issue,
+    verify,
+    runFullFlow,
+    reset: () => dispatch({ type: 'reset' }),
+    clearLogs,
+    clearHistory: () => dispatch({ type: 'clearHistory' })
+  };
+}

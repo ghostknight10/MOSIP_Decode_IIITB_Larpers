@@ -26,6 +26,7 @@ export interface ProtocolLog {
   };
   durationMs: number;
   tampered?: boolean;
+  transactionId?: string;
 }
 
 export interface VerificationResult {
@@ -38,4 +39,72 @@ export interface VerificationResult {
   };
   details: string;
   verifiedClaims: any;
+}
+
+export type NodeRole = 'issuer' | 'wallet' | 'verifier';
+
+export type VerificationStatus = VerificationResult['status'];
+
+/**
+ * Lifecycle of a single playground run (issue → hold → present → verify).
+ * 'failed' covers both transport errors and negative verification outcomes.
+ */
+export type RunPhase = 'idle' | 'issuing' | 'issued' | 'verifying' | 'verified' | 'failed';
+
+export interface IssueResponse {
+  success: boolean;
+  issuer: IssuerType;
+  wallet: WalletType;
+  format: CredentialFormat;
+  credentialOffer?: any;
+  issuedCredential: any;
+  protocolLogs?: ProtocolLog[];
+  isSandboxFallback?: boolean;
+  notice?: string;
+  error?: string;
+}
+
+export interface VerifyResponse {
+  success: boolean;
+  verifier: VerifierType;
+  wallet: WalletType;
+  format: CredentialFormat;
+  isValid?: boolean;
+  verificationResult: VerificationResult;
+  presentationDefinition?: any;
+  protocolLogs?: ProtocolLog[];
+  isSandboxFallback?: boolean;
+  notice?: string;
+  error?: string;
+}
+
+export interface TamperOptions {
+  forceExpired: boolean;
+  corruptSignature: boolean;
+}
+
+export interface CredentialSubjectInput {
+  fullName: string;
+  dob: string;
+  nationalId: string;
+  email: string;
+  country: string;
+}
+
+/** One row of the interoperability report (mandatory task 7). */
+export interface RunRecord {
+  id: string;
+  transactionId: string;
+  startedAt: string;
+  finishedAt: string;
+  issuer: IssuerType;
+  wallet: WalletType;
+  verifier: VerifierType;
+  format: CredentialFormat;
+  proofType: string;
+  tampered: boolean;
+  outcome: 'PASS' | 'FAIL';
+  verificationStatus?: VerificationStatus;
+  errorDetail?: string;
+  sandboxFallback: boolean;
 }

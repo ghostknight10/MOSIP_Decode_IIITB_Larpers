@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Play, ArrowRight, CheckCircle, AlertTriangle, QrCode, RefreshCw, Bug } from 'lucide-react';
-import { CredentialFormat, VerificationResult } from '../types';
+import { CredentialFormat, CredentialSubjectInput, TamperOptions, VerificationResult } from '../types';
 
 interface FlowControlsProps {
-  onIssue: (subjectData: any, tamperPayload?: any) => Promise<void>;
-  onVerify: (tamperPayload?: any) => Promise<void>;
+  onIssue: (subjectData: CredentialSubjectInput) => Promise<unknown>;
+  onVerify: (tamperPayload?: TamperOptions) => Promise<unknown>;
   loading: boolean;
   issuedCredential: any;
   credentialOffer: any;
@@ -36,7 +36,7 @@ export const FlowControls: React.FC<FlowControlsProps> = ({
   });
 
   const handleIssueClick = () => {
-    onIssue(subjectData, tamperMode ? tamperOptions : undefined);
+    onIssue(subjectData);
   };
 
   const handleVerifyClick = () => {
