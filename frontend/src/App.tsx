@@ -61,11 +61,16 @@ export const App: React.FC = () => {
             <FlowControls
               onIssue={run.issue}
               onVerify={run.verify}
-              loading={run.busy}
+              onRunFullFlow={run.runFullFlow}
+              onReset={run.reset}
+              phase={run.phase}
+              transactionId={run.transactionId}
               issuedCredential={run.issuedCredential}
               credentialOffer={run.credentialOffer}
+              presentationDefinition={run.presentationDefinition}
               verificationResult={run.verificationResult}
               format={selection.format}
+              verifier={selection.verifier}
             />
 
             {/* Live Visualizations (Ayaan's Sequence + Inspector) */}
