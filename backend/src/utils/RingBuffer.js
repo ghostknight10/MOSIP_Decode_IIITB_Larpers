@@ -36,6 +36,28 @@ class AuditRingBuffer {
     }
     return results;
   }
+
+  /**
+   * Retrieves the most recent frames (for initial UI load or SSE streams)
+   */
+  getLogs(limit = 50) {
+    const results = [];
+    let idx = (this.head - 1 + this.capacity) % this.capacity;
+    
+    while (results.length < limit && this.buffer[idx] !== null) {
+      results.push(this.buffer[idx]);
+      idx = (idx - 1 + this.capacity) % this.capacity;
+    }
+    return results;
+  }
+
+  /**
+   * Wipes the memory cache completely
+   */
+  clearLogs() {
+    this.buffer = new Array(this.capacity).fill(null);
+    this.head = 0;
+  }
 }
 
 // Export a singleton instance for the entire Express app to share

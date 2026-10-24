@@ -1,8 +1,9 @@
 import { Router, Request, Response } from 'express';
-import { auditLogger } from '../middleware/logger.js';
+import globalAuditBuffer from '../utils/RingBuffer.js';
 import { MockProtocolService } from '../mocks/mockService.js';
 import { IssueCredentialRequest, VerifyCredentialRequest } from '../types/index.js';
 import axios from 'axios';
+import { v4 as uuidv4 } from 'uuid';
 
 export const playgroundRouter = Router();
 
@@ -11,12 +12,18 @@ export const playgroundRouter = Router();
  */
 playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialRequest>, res: Response) => {
   const { issuer, wallet, format, credentialSubject, tamperPayload } = req.body;
+  const transactionId = (req.headers['x-transaction-id'] as string) || `tx-${uuidv4().substring(0, 8)}`;
 
   try {
     if (issuer === 'mock-openid4vci') {
       // Use standard-compliant mock issuer
       const result = MockProtocolService.issueCredential(format, credentialSubject, tamperPayload);
-      result.logs.forEach(log => auditLogger.addLog(log));
+      
+      // Inject transactionId and push to our new RingBuffer
+      result.logs.forEach((log: any) => {
+        log.transactionId = transactionId;
+        globalAuditBuffer.add(log);
+      });
 
       return res.json({
         success: true,
@@ -25,16 +32,16 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
         format,
         credentialOffer: result.credentialOffer,
         issuedCredential: result.issuedCredential,
-        protocolLogs: result.logs
+        protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
       });
     }
 
     // Target: Inji Certify (MOSIP Collab Sandbox)
     const certifyUrl = process.env.MOSIP_INJI_CERTIFY_URL || 'https://certify.collab.mosip.net';
-    const startTime = Date.now();
 
     try {
-      // Attempt proxying to live sandbox endpoint
+      // NOTE: In a full implementation, use createAuditClient here 
+      // instead of raw axios so the interceptor catches the outbound HTTP call.
       const response = await axios.post(
         `${certifyUrl}/v1/certify/credentials/issue`,
         {
@@ -50,17 +57,18 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
         wallet,
         format,
         issuedCredential: response.data,
-        protocolLogs: auditLogger.getLogs(5)
+        protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
       });
     } catch (apiError: any) {
-      // Graceful fallback to sandbox mock mode when sandbox is unreachable or credentials are not yet entered
+      // Graceful fallback to sandbox mock mode when sandbox is unreachable
       console.warn(`[Proxy Warning] Inji Certify call unreachable (${apiError.message}). Falling back to emulated Collab response.`);
       const mockResult = MockProtocolService.issueCredential(format, credentialSubject, tamperPayload);
       
       // Customize sender/receiver to indicate sandbox emulation
-      mockResult.logs.forEach(log => {
+      mockResult.logs.forEach((log: any) => {
+        log.transactionId = transactionId;
         log.receiver = 'Inji Certify (Collab Sandbox Emulated)';
-        auditLogger.addLog(log);
+        globalAuditBuffer.add(log);
       });
 
       return res.json({
@@ -72,7 +80,7 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
         notice: 'MOSIP Collab Sandbox reached via emulated gateway response',
         credentialOffer: mockResult.credentialOffer,
         issuedCredential: mockResult.issuedCredential,
-        protocolLogs: mockResult.logs
+        protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
       });
     }
   } catch (err: any) {
@@ -88,11 +96,16 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
  */
 playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialRequest>, res: Response) => {
   const { verifier, wallet, format, credentialOrToken, tamperPayload } = req.body;
+  const transactionId = (req.headers['x-transaction-id'] as string) || `tx-${uuidv4().substring(0, 8)}`;
 
   try {
     if (verifier === 'mock-openid4vp') {
       const result = MockProtocolService.verifyPresentation(format, credentialOrToken, tamperPayload);
-      result.logs.forEach(log => auditLogger.addLog(log));
+      
+      result.logs.forEach((log: any) => {
+        log.transactionId = transactionId;
+        globalAuditBuffer.add(log);
+      });
 
       return res.json({
         success: true,
@@ -102,7 +115,7 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
         isValid: result.isValid,
         verificationResult: result.verificationResult,
         presentationDefinition: result.presentationDefinition,
-        protocolLogs: result.logs
+        protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
       });
     }
 
@@ -121,15 +134,16 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
         wallet,
         format,
         verificationResult: response.data,
-        protocolLogs: auditLogger.getLogs(5)
+        protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
       });
     } catch (apiError: any) {
       console.warn(`[Proxy Warning] Inji Verify call unreachable (${apiError.message}). Falling back to emulated Collab response.`);
       const mockResult = MockProtocolService.verifyPresentation(format, credentialOrToken, tamperPayload);
 
-      mockResult.logs.forEach(log => {
+      mockResult.logs.forEach((log: any) => {
+        log.transactionId = transactionId;
         log.sender = 'Inji Verify (Collab Sandbox Emulated)';
-        auditLogger.addLog(log);
+        globalAuditBuffer.add(log);
       });
 
       return res.json({
@@ -142,7 +156,7 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
         isValid: mockResult.isValid,
         verificationResult: mockResult.verificationResult,
         presentationDefinition: mockResult.presentationDefinition,
-        protocolLogs: mockResult.logs
+        protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
       });
     }
   } catch (err: any) {
@@ -155,9 +169,10 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
 
 /**
  * Retrieve In-Memory Protocol Audit Logs
+ * (Refactored to fetch the last 100 frames from the Ring Buffer)
  */
 playgroundRouter.get('/logs', (_req: Request, res: Response) => {
-  const logs = auditLogger.getLogs(100);
+  const logs = globalAuditBuffer.getLogs(100);
   res.json({ count: logs.length, logs });
 });
 
@@ -165,7 +180,7 @@ playgroundRouter.get('/logs', (_req: Request, res: Response) => {
  * Clear Logs
  */
 playgroundRouter.delete('/logs', (_req: Request, res: Response) => {
-  auditLogger.clearLogs();
+  globalAuditBuffer.clearLogs();
   res.json({ success: true, message: 'Protocol logs cleared.' });
 });
 
