@@ -80,6 +80,12 @@ npm install
 npm run dev
 ```
 
+### 3. Automated Protocol Test Suite (TC-01 through TC-05)
+Validate protocol conformance across OpenID4VCI and OpenID4VP with a single command:
+```bash
+npm run test:interop
+```
+
 ---
 
 ## Key Features

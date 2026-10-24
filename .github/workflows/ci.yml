@@ -1,0 +1,44 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install backend dependencies & Build
+        run: |
+          cd backend
+          npm ci
+          npm run build
+
+      - name: Install frontend dependencies & Build
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Verify Docker Compose Configuration
+        run: |
+          docker compose config
+
+      - name: Execute Protocol Interoperability Test Suite (TC-01 - TC-05)
+        run: |
+          npm run test:interop
