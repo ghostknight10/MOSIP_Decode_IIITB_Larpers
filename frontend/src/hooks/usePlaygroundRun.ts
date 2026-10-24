@@ -78,10 +78,15 @@ const loadHistory = (): RunRecord[] => {
   }
 };
 
-/** The BFF returns every frame for the transaction, so replace rather than append. */
-const mergeLogs = (existing: ProtocolLog[], incoming: ProtocolLog[] | undefined, txId: string | null) => {
+/**
+ * Logs are kept newest-first (the inspector lists them that way and the
+ * sequence diagram reverses them). The BFF returns every frame for the
+ * transaction oldest-first, so replace that transaction's frames rather than
+ * appending, and flip their order.
+ */
+export const mergeLogs = (existing: ProtocolLog[], incoming: ProtocolLog[] | undefined, txId: string | null) => {
   if (!incoming?.length) return existing;
-  return [...incoming, ...existing.filter(l => l.transactionId !== txId)];
+  return [...incoming].reverse().concat(existing.filter(l => l.transactionId !== txId));
 };
 
 const isBusy = (phase: RunPhase) => phase === 'issuing' || phase === 'verifying';
@@ -277,9 +282,10 @@ export function usePlaygroundRun() {
   const clearLogs = useCallback(async () => {
     try {
       await api.clearLogs();
-    } finally {
-      dispatch({ type: 'clearLogs' });
+    } catch {
+      // The BFF buffer may survive, but the UI view is cleared either way.
     }
+    dispatch({ type: 'clearLogs' });
   }, []);
 
   return {
