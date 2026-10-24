@@ -186,4 +186,30 @@ describe('App', () => {
     await user.click(screen.getByRole('radio', { name: 'All runs (2)' }));
     expect(screen.getByText('8 Transactions Logged')).toBeInTheDocument();
   });
+
+  it('runs a tampered preset end to end and shows the attack it applied', async () => {
+    const fetchFn = stubBff();
+    const { user } = setup();
+    await user.click(screen.getByRole('button', { name: 'TC-04 Corrupted signature' }));
+
+    await waitFor(() => expect(screen.getAllByRole('status').some(s => s.textContent?.includes('SIGNATURE_MISMATCH'))).toBe(true));
+    expect(screen.getByRole('button', { name: /Tamper \/ Chaos Mode: ACTIVE/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByLabelText('Corrupt Cryptographic Signature')).toBeChecked();
+    expect(screen.getByLabelText('Expire Timestamp (Negative Path)')).not.toBeChecked();
+
+    const verifyBody = JSON.parse(fetchFn.mock.calls.find(([url]) => url === '/api/playground/verify')![1]!.body as string);
+    expect(verifyBody.tamperPayload).toEqual({ forceExpired: false, corruptSignature: true });
+  });
+
+  it('switches the matrix to the preset combination', async () => {
+    const fetchFn = stubBff();
+    const { user } = setup();
+    await user.click(screen.getByRole('button', { name: 'TC-02 Happy path · SD-JWT' }));
+    await waitFor(() => expect(screen.getByRole('radio', { name: /SD-JWT VC/ })).toHaveAttribute('aria-checked', 'true'));
+    expect(screen.getByRole('radio', { name: /Mock OpenID4VCI/ })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: /Mock OpenID4VP/ })).toHaveAttribute('aria-checked', 'true');
+
+    const issueBody = JSON.parse(fetchFn.mock.calls.find(([url]) => url === '/api/playground/issue')![1]!.body as string);
+    expect(issueBody).toMatchObject({ issuer: 'mock-openid4vci', wallet: 'inji-wallet', format: 'sd-jwt' });
+  });
 });

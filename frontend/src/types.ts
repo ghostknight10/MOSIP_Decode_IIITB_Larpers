@@ -108,3 +108,10 @@ export interface RunRecord {
   errorDetail?: string;
   sandboxFallback: boolean;
 }
+
+/** User-controlled inputs for the next run (lifted so presets can set them). */
+export interface RunInputs {
+  subject: CredentialSubjectInput;
+  tamperMode: boolean;
+  tamperOptions: TamperOptions;
+}

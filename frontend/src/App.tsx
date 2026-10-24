@@ -9,6 +9,8 @@ import { RunTimeline } from './components/RunTimeline';
 import { usePlaygroundRun } from './hooks/usePlaygroundRun';
 import { api } from './api/client';
 import { allCombinations, DEFAULT_SUBJECT } from './config/nodes';
+import { Scenario } from './config/scenarios';
+import { RunInputs } from './types';
 import { fallbackNotice } from './lib/fallback';
 import { AlertTriangle, Info } from 'lucide-react';
 
@@ -20,6 +22,22 @@ export const App: React.FC = () => {
   const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
   const emulatedNotice = fallbackNotice(selection, run.issueFallback, run.verifyFallback);
   const [logScope, setLogScope] = useState<'run' | 'all'>('run');
+  const [inputs, setInputs] = useState<RunInputs>({
+    subject: DEFAULT_SUBJECT,
+    tamperMode: false,
+    tamperOptions: { forceExpired: false, corruptSignature: false }
+  });
+
+  // A preset sets the matrix and tamper options the user can see, then runs.
+  const runScenario = (scenario: Scenario) => {
+    setInputs(prev => ({
+      ...prev,
+      tamperMode: Boolean(scenario.tamper),
+      tamperOptions: scenario.tamper ?? { forceExpired: false, corruptSignature: false }
+    }));
+    run.select(scenario.selection);
+    void run.runFullFlow(inputs.subject, scenario.tamper ?? undefined, scenario.selection);
+  };
   const txCount = new Set(run.logs.map(l => l.transactionId)).size;
   const visibleLogs = logScope === 'all' ? run.logs : run.logs.filter(l => l.transactionId && l.transactionId === run.transactionId);
 
@@ -91,6 +109,9 @@ export const App: React.FC = () => {
                 verificationResult={run.verificationResult}
                 format={selection.format}
                 verifier={selection.verifier}
+                inputs={inputs}
+                onInputsChange={setInputs}
+                onRunScenario={runScenario}
               />
 
               {/* Effects: live protocol view, kept beside the actions on wide screens */}

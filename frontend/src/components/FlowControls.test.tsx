@@ -1,9 +1,11 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { buildOfferUri, buildVpRequestUri, FlowControls, QR_MAX_BYTES, summarise } from './FlowControls';
+import { activeTamper, buildOfferUri, buildVpRequestUri, FlowControls, QR_MAX_BYTES, summarise } from './FlowControls';
 import { DEFAULT_SUBJECT } from '../config/nodes';
-import { VerificationResult } from '../types';
+import { SCENARIOS } from '../config/scenarios';
+import { RunInputs, VerificationResult } from '../types';
 
 const OFFER = {
   credential_issuer: 'https://issuer.mock.mosip.net',
@@ -33,16 +35,27 @@ const verdict = (status: VerificationResult['status'], checks: Partial<Verificat
   verifiedClaims: {}
 });
 
-const renderControls = (props: Partial<React.ComponentProps<typeof FlowControls>> = {}) => {
+const INITIAL_INPUTS: RunInputs = { subject: DEFAULT_SUBJECT, tamperMode: false, tamperOptions: { forceExpired: false, corruptSignature: false } };
+
+type Props = React.ComponentProps<typeof FlowControls>;
+
+/** FlowControls is controlled; the harness owns its inputs like App does. */
+const Harness: React.FC<Omit<Props, 'inputs' | 'onInputsChange'>> = props => {
+  const [inputs, setInputs] = useState<RunInputs>(INITIAL_INPUTS);
+  return <FlowControls {...props} inputs={inputs} onInputsChange={setInputs} />;
+};
+
+const renderControls = (props: Partial<Props> = {}) => {
   const handlers = {
     onIssue: vi.fn().mockResolvedValue(undefined),
     onVerify: vi.fn().mockResolvedValue(undefined),
     onRunFullFlow: vi.fn().mockResolvedValue(undefined),
-    onReset: vi.fn()
+    onReset: vi.fn(),
+    onRunScenario: vi.fn()
   };
   const user = userEvent.setup();
   render(
-    <FlowControls
+    <Harness
       {...handlers}
       phase="idle"
       transactionId={null}
@@ -259,5 +272,37 @@ describe('helpers', () => {
 
   it('handles a string issuer and string type on W3C credentials', () => {
     expect(summarise({ issuer: 'did:example:1', type: 'X' }, 'w3c-vc')).toMatchObject({ issuer: 'did:example:1', type: 'X' });
+  });
+});
+
+describe('FlowControls scenarios', () => {
+  it('offers one button per documented scenario', () => {
+    renderControls();
+    const group = screen.getByRole('region', { name: 'Quick scenarios' });
+    expect(within(group).getAllByRole('button')).toHaveLength(SCENARIOS.length);
+    expect(within(group).getByRole('button', { name: /TC-03 Expired credential/ })).toHaveAccessibleDescription(/should reject it/);
+  });
+
+  it('runs the chosen scenario', async () => {
+    const { onRunScenario, user } = renderControls();
+    await user.click(screen.getByRole('button', { name: /TC-04/ }));
+    expect(onRunScenario).toHaveBeenCalledWith(SCENARIOS.find(s => s.testCase === 'TC-04'));
+  });
+
+  it('disables scenarios while a run is in progress', () => {
+    renderControls({ phase: 'issuing' });
+    for (const b of within(screen.getByRole('region', { name: 'Quick scenarios' })).getAllByRole('button')) expect(b).toBeDisabled();
+  });
+});
+
+describe('activeTamper', () => {
+  const opts = (forceExpired: boolean, corruptSignature: boolean) => ({ forceExpired, corruptSignature });
+  it.each([
+    [false, opts(true, false), undefined],
+    [true, opts(false, false), undefined],
+    [true, opts(true, false), opts(true, false)],
+    [true, opts(false, true), opts(false, true)]
+  ])('tamperMode=%s %o -> %o', (tamperMode, tamperOptions, expected) => {
+    expect(activeTamper({ subject: DEFAULT_SUBJECT, tamperMode, tamperOptions })).toEqual(expected);
   });
 });

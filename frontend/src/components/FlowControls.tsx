@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Bug, FastForward, Play, RotateCcw } from 'lucide-react';
-import { CredentialFormat, CredentialSubjectInput, RunPhase, TamperOptions as TamperOptionsValue, VerificationResult, VerifierType } from '../types';
-import { DEFAULT_SUBJECT } from '../config/nodes';
+import { CredentialFormat, CredentialSubjectInput, RunInputs, RunPhase, TamperOptions as TamperOptionsValue, VerificationResult, VerifierType } from '../types';
+import { Scenario } from '../config/scenarios';
 import { IssuePhase } from './flow/IssuePhase';
 import { PresentPhase } from './flow/PresentPhase';
 import { TamperOptions } from './flow/TamperOptions';
+import { ScenarioBar } from './flow/ScenarioBar';
 
 // Re-exported for existing imports; the implementations live in lib/credential.
 export { QR_MAX_BYTES, buildOfferUri, buildVpRequestUri, summarise } from '../lib/credential';
@@ -22,7 +23,18 @@ interface FlowControlsProps {
   verificationResult: VerificationResult | null;
   format: CredentialFormat;
   verifier: VerifierType;
+  inputs: RunInputs;
+  onInputsChange: (inputs: RunInputs) => void;
+  onRunScenario: (scenario: Scenario) => void;
 }
+
+/**
+ * The tamper payload to send, if any. Nothing is sent unless an attack is
+ * actually ticked: the mock verifier treats any tamperPayload object as
+ * tampered, even with every flag false.
+ */
+export const activeTamper = ({ tamperMode, tamperOptions }: RunInputs): TamperOptionsValue | undefined =>
+  tamperMode && (tamperOptions.forceExpired || tamperOptions.corruptSignature) ? tamperOptions : undefined;
 
 export const FlowControls: React.FC<FlowControlsProps> = ({
   onIssue,
@@ -36,16 +48,14 @@ export const FlowControls: React.FC<FlowControlsProps> = ({
   presentationDefinition,
   verificationResult,
   format,
-  verifier
+  verifier,
+  inputs,
+  onInputsChange,
+  onRunScenario
 }) => {
-  const [tamperMode, setTamperMode] = useState(false);
-  const [tamperOptions, setTamperOptions] = useState<TamperOptionsValue>({ forceExpired: false, corruptSignature: false });
-  const [subjectData, setSubjectData] = useState<CredentialSubjectInput>(DEFAULT_SUBJECT);
-
+  const { subject: subjectData, tamperMode, tamperOptions } = inputs;
   const busy = phase === 'issuing' || phase === 'verifying';
-  // Send nothing unless an attack is actually selected: the mock verifier
-  // treats any tamperPayload object as tampered, even with every flag false.
-  const tamper = tamperMode && (tamperOptions.forceExpired || tamperOptions.corruptSignature) ? tamperOptions : undefined;
+  const tamper = activeTamper(inputs);
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl mb-6">
@@ -81,7 +91,7 @@ export const FlowControls: React.FC<FlowControlsProps> = ({
           <button
             type="button"
             aria-pressed={tamperMode}
-            onClick={() => setTamperMode(!tamperMode)}
+            onClick={() => onInputsChange({ ...inputs, tamperMode: !tamperMode })}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all border ${
               tamperMode ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : 'bg-slate-800/80 text-slate-400 border-slate-700 hover:text-slate-300'
             }`}
@@ -92,7 +102,9 @@ export const FlowControls: React.FC<FlowControlsProps> = ({
         </div>
       </div>
 
-      {tamperMode && <TamperOptions value={tamperOptions} onChange={setTamperOptions} />}
+      {tamperMode && <TamperOptions value={tamperOptions} onChange={tamperOptions => onInputsChange({ ...inputs, tamperOptions })} />}
+
+      <ScenarioBar onRun={onRunScenario} disabled={busy} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-6 items-start">
         <IssuePhase
@@ -101,7 +113,7 @@ export const FlowControls: React.FC<FlowControlsProps> = ({
           credentialOffer={credentialOffer}
           issuedCredential={issuedCredential}
           subject={subjectData}
-          onSubjectChange={setSubjectData}
+          onSubjectChange={subject => onInputsChange({ ...inputs, subject })}
           onIssue={() => onIssue(subjectData)}
         />
         <PresentPhase
