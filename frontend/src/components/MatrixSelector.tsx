@@ -2,19 +2,7 @@ import React from 'react';
 import { CredentialFormat, NodeRole, RunPhase, VerificationStatus } from '../types';
 import { Selection } from '../hooks/usePlaygroundRun';
 import { FORMATS, ISSUERS, NodeDescriptor, VERIFIERS, WALLETS } from '../config/nodes';
-import {
-  Landmark,
-  Wallet as WalletIcon,
-  CheckCircle2,
-  ShieldAlert,
-  Sparkles,
-  FileCode2,
-  ChevronRight,
-  Loader2,
-  XCircle,
-  Circle,
-  LucideIcon
-} from 'lucide-react';
+import { BadgeCheck, Check, CheckCircle2, ChevronRight, Circle, Landmark, Loader2, LucideIcon, ShieldAlert, Wallet as WalletIcon, XCircle } from 'lucide-react';
 
 interface MatrixSelectorProps {
   selection: Selection;
@@ -28,13 +16,14 @@ interface MatrixSelectorProps {
 
 export type ColumnStatus = 'standby' | 'active' | 'holding' | 'done' | 'rejected' | 'failed';
 
+const NEUTRAL = 'bg-surface-muted text-ink-muted border-line';
 const STATUS_STYLE: Record<ColumnStatus, { label: string; className: string; Icon: LucideIcon; spin?: boolean }> = {
-  standby: { label: 'Standby', className: 'text-slate-400 bg-slate-800/60 border-slate-700', Icon: Circle },
-  active: { label: 'In progress', className: 'text-sky-300 bg-sky-500/10 border-sky-500/40', Icon: Loader2, spin: true },
-  holding: { label: 'Holding VC', className: 'text-indigo-300 bg-indigo-500/10 border-indigo-500/40', Icon: WalletIcon },
-  done: { label: 'Done', className: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/40', Icon: CheckCircle2 },
-  rejected: { label: 'Rejected', className: 'text-rose-300 bg-rose-500/10 border-rose-500/40', Icon: ShieldAlert },
-  failed: { label: 'Error', className: 'text-rose-300 bg-rose-500/10 border-rose-500/40', Icon: XCircle }
+  standby: { label: 'Standby', className: NEUTRAL, Icon: Circle },
+  active: { label: 'In progress', className: NEUTRAL, Icon: Loader2, spin: true },
+  holding: { label: 'Holding VC', className: NEUTRAL, Icon: WalletIcon },
+  done: { label: 'Done', className: 'bg-success-soft text-success-ink border-success-line', Icon: CheckCircle2 },
+  rejected: { label: 'Rejected', className: 'bg-danger-soft text-danger-ink border-danger-line', Icon: ShieldAlert },
+  failed: { label: 'Error', className: 'bg-danger-soft text-danger-ink border-danger-line', Icon: XCircle }
 };
 
 /** Derive each role's live status from the run phase. */
@@ -60,29 +49,16 @@ export const columnStatus = (role: NodeRole, phase: RunPhase, hasCredential: boo
 };
 
 const ROLE_META: Record<NodeRole, { step: number; title: string; protocol: string; Icon: LucideIcon }> = {
-  issuer: { step: 1, title: 'Issuer Node', protocol: 'OpenID4VCI', Icon: Landmark },
-  wallet: { step: 2, title: 'Identity Wallet', protocol: 'Holder Agent', Icon: WalletIcon },
-  verifier: { step: 3, title: 'Verifier Node', protocol: 'OpenID4VP', Icon: CheckCircle2 }
-};
-
-// Tailwind needs literal class names, so accent colours are spelled out per role.
-const ACCENT_TEXT: Record<NodeRole, string> = { issuer: 'text-sky-400', wallet: 'text-indigo-400', verifier: 'text-emerald-400' };
-const ACCENT_CHIP: Record<NodeRole, string> = {
-  issuer: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
-  wallet: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
-  verifier: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-};
-const ACCENT_RING: Record<NodeRole, string> = {
-  issuer: 'border-sky-500 bg-sky-500/10 ring-1 ring-sky-500',
-  wallet: 'border-indigo-500 bg-indigo-500/10 ring-1 ring-indigo-500',
-  verifier: 'border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500'
+  issuer: { step: 1, title: 'Issuer', protocol: 'OpenID4VCI', Icon: Landmark },
+  wallet: { step: 2, title: 'Wallet', protocol: 'Holder', Icon: WalletIcon },
+  verifier: { step: 3, title: 'Verifier', protocol: 'OpenID4VP', Icon: BadgeCheck }
 };
 
 const StatusBadge: React.FC<{ status: ColumnStatus; detail?: string }> = ({ status, detail }) => {
   const { label, className, Icon, spin } = STATUS_STYLE[status];
   return (
-    <span aria-live="polite" className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-semibold ${className}`}>
-      <Icon className={`h-3 w-3 ${spin ? 'animate-spin' : ''}`} />
+    <span aria-live="polite" className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium ${className}`}>
+      <Icon className={`h-3 w-3 ${spin ? 'animate-spin' : ''}`} aria-hidden="true" />
       {detail ?? label}
     </span>
   );
@@ -103,26 +79,19 @@ interface RoleColumnProps<Id extends string> {
 function RoleColumn<Id extends string>({ role, nodes, selectedId, onPick, status, statusDetail, locked, format, emulated }: RoleColumnProps<Id>) {
   const meta = ROLE_META[role];
   return (
-    <div className="flex flex-col rounded-xl border border-slate-800 bg-slate-950/60 p-3 md:p-4 transition-all hover:border-slate-700">
-      <div className="flex items-center justify-between gap-2 mb-3">
-        <div className="flex items-center gap-2">
-          <div className={`h-8 w-8 rounded-lg bg-slate-800/60 ${ACCENT_TEXT[role]} flex items-center justify-center font-bold`}>
-            {meta.step}
-          </div>
-          <span className="text-sm font-semibold text-slate-200 uppercase tracking-wider">{meta.title}</span>
-        </div>
-        <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${ACCENT_CHIP[role]}`}>{meta.protocol}</span>
-      </div>
-
-      <div className="mb-3">
+    <div className="flex flex-col">
+      <div className="flex items-baseline justify-between gap-2 mb-2">
+        <h3 className="text-sm font-semibold text-ink">
+          {meta.step}. {meta.title} <span className="font-normal text-ink-subtle">· {meta.protocol}</span>
+        </h3>
         <StatusBadge status={status} detail={statusDetail} />
       </div>
 
-      <div role="radiogroup" aria-label={meta.title} className="grid grid-cols-2 md:grid-cols-1 gap-2 md:gap-3 flex-1">
+      <div role="radiogroup" aria-label={meta.title} className="grid grid-cols-2 md:grid-cols-1 gap-2 flex-1">
         {nodes.map(node => {
           const selected = node.id === selectedId;
           const unsupported = !node.supportedFormats.includes(format);
-          const NodeIcon = node.isMosip ? meta.Icon : ShieldAlert;
+          const showEmulated = selected && node.isMosip && emulated;
           return (
             <button
               key={node.id}
@@ -131,24 +100,26 @@ function RoleColumn<Id extends string>({ role, nodes, selectedId, onPick, status
               aria-checked={selected}
               disabled={locked || unsupported}
               onClick={() => onPick(node.id)}
-              className={`w-full text-left p-3 rounded-xl border transition-all disabled:cursor-not-allowed ${
-                selected ? ACCENT_RING[role] : 'border-slate-800 bg-slate-900/50 hover:bg-slate-800/40 text-slate-400'
-              } ${unsupported ? 'opacity-40' : ''} ${locked && !selected ? 'opacity-60' : ''}`}
+              className={`w-full text-left p-3 rounded-md border transition-colors disabled:cursor-not-allowed ${
+                selected ? 'border-accent bg-accent-soft' : 'border-line bg-surface hover:bg-surface-muted'
+              } ${unsupported ? 'opacity-50' : ''}`}
             >
-              <div className="flex flex-wrap items-center justify-between gap-1 md:gap-2">
-                <div className="font-semibold text-white text-sm flex items-center gap-2">
-                  <NodeIcon className={`h-4 w-4 ${node.isMosip ? ACCENT_TEXT[role] : 'text-amber-400'}`} />
+              <div className="flex flex-wrap items-center justify-between gap-1">
+                <span className="text-sm font-medium text-ink inline-flex items-center gap-2">
+                  {selected ? <Check className="h-4 w-4 text-accent" aria-hidden="true" /> : <meta.Icon className="h-4 w-4 text-ink-subtle" aria-hidden="true" />}
                   {node.label}
-                </div>
-                <span className={`text-xs uppercase font-bold px-1.5 py-0.5 rounded-sm ${
-                  node.isMosip ? 'bg-slate-800 text-slate-200' : 'bg-amber-500/20 text-amber-300'
-                }`}>
-                  {selected && node.isMosip && emulated ? 'Emulated' : node.badge}
+                </span>
+                <span
+                  className={`text-xs px-1.5 py-0.5 rounded border ${
+                    showEmulated ? 'bg-warning-soft text-warning-ink border-warning-line' : 'bg-surface-muted text-ink-muted border-line'
+                  }`}
+                >
+                  {showEmulated ? 'Emulated' : node.badge}
                 </span>
               </div>
               {/* Descriptions only for the chosen node, and only where there is room. */}
-              {selected && <p className="hidden md:block text-xs text-slate-400 mt-1.5">{node.description}</p>}
-              {unsupported && <p className="text-xs text-amber-300 mt-1">Does not support the selected format</p>}
+              {selected && <p className="hidden md:block text-xs text-ink-muted mt-1.5">{node.description}</p>}
+              {unsupported && <p className="text-xs text-warning-ink mt-1">Does not support the selected format</p>}
             </button>
           );
         })}
@@ -158,8 +129,8 @@ function RoleColumn<Id extends string>({ role, nodes, selectedId, onPick, status
 }
 
 const Connector: React.FC<{ lit: boolean }> = ({ lit }) => (
-  <div className="hidden md:flex items-center justify-center" aria-hidden="true">
-    <ChevronRight className={`h-6 w-6 transition-colors ${lit ? 'text-emerald-400' : 'text-slate-700'}`} />
+  <div className="hidden md:flex items-center justify-center pt-7" aria-hidden="true">
+    <ChevronRight className={`h-5 w-5 transition-colors ${lit ? 'text-success-ink' : 'text-line-strong'}`} />
   </div>
 );
 
@@ -186,23 +157,14 @@ export const MatrixSelector: React.FC<MatrixSelectorProps> = ({
   ];
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl mb-6">
-      {/* Credential Format Toggle Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 mb-4 md:pb-6 md:mb-6 border-b border-slate-800">
+    <section aria-labelledby="matrix-heading" className="bg-surface border border-line rounded-md p-4 sm:p-5 mb-5">
+      <div className="flex flex-wrap items-end justify-between gap-3 pb-4 mb-4 border-b border-line">
         <div>
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-sky-400" />
-            Interoperability Matrix Configurator
-          </h2>
-          <p className="text-xs text-slate-400">
-            Select standards endpoints and verifiable credential format to test cross-ecosystem behavior.
-          </p>
+          <h2 id="matrix-heading" className="text-base font-semibold text-ink">Interoperability matrix</h2>
+          <p className="text-sm text-ink-muted">Choose who issues, holds and verifies the credential, and in which format.</p>
         </div>
 
-        <div role="radiogroup" aria-label="Credential format" className="w-full sm:w-auto flex flex-wrap items-center gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-medium">
-          <span className="text-slate-400 px-2 flex items-center gap-1.5">
-            <FileCode2 className="h-3.5 w-3.5" /> Spec Format:
-          </span>
+        <div role="radiogroup" aria-label="Credential format" className="w-full sm:w-auto inline-flex rounded border border-line-strong overflow-hidden text-sm">
           {FORMATS.map(f => {
             const active = selection.format === f.id;
             const supported = selectedNodes.every(n => n?.supportedFormats.includes(f.id));
@@ -214,19 +176,18 @@ export const MatrixSelector: React.FC<MatrixSelectorProps> = ({
                 aria-checked={active}
                 disabled={locked || !supported}
                 onClick={() => onSelect({ format: f.id })}
-                className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
-                  active ? 'bg-sky-600 text-white font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                className={`flex-1 sm:flex-none px-3 py-1.5 transition-colors disabled:cursor-not-allowed disabled:opacity-50 not-first:border-l not-first:border-line-strong ${
+                  active ? 'bg-accent text-white' : 'bg-surface text-ink hover:bg-surface-muted'
                 }`}
               >
-                {f.label} <span className="font-mono opacity-70">{f.wireFormat}</span>
+                {f.label} <span className={`font-mono text-xs ${active ? 'text-white' : 'text-ink-subtle'}`}>{f.wireFormat}</span>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* 3-Column Matrix */}
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr_auto_1fr] gap-4 md:gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr_auto_1fr] gap-4 md:gap-3">
         <RoleColumn
           role="issuer"
           nodes={ISSUERS}
@@ -261,6 +222,6 @@ export const MatrixSelector: React.FC<MatrixSelectorProps> = ({
           emulated={emulated.verifier}
         />
       </div>
-    </div>
+    </section>
   );
 };

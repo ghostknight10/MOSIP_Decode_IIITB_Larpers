@@ -69,7 +69,7 @@ export const App: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif]">
+    <div className="min-h-screen bg-canvas text-ink flex flex-col">
       <Header
         serverConnected={serverConnected}
         activeTab={activeTab}
@@ -91,19 +91,19 @@ export const App: React.FC = () => {
             />
 
             {run.error && (
-              <div role="alert" className="mb-6 p-3 rounded-xl border border-rose-500/40 bg-rose-950/30 text-rose-200 text-xs flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
+              <div role="alert" className="mb-5 p-3 rounded-md border border-danger-line border-l-4 bg-danger-soft text-danger-ink text-sm flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
                 {run.error}
               </div>
             )}
             {emulatedNotice && (
-              <div role="note" className="mb-6 p-3 rounded-xl border border-amber-500/40 bg-amber-950/20 text-amber-200 text-xs flex items-center gap-2">
-                <Info className="h-4 w-4 text-amber-400 shrink-0" />
+              <div role="note" className="mb-5 p-3 rounded-md border border-warning-line border-l-4 bg-warning-soft text-warning-ink text-sm flex items-center gap-2">
+                <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
                 {emulatedNotice}
               </div>
             )}
 
-            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-6 items-start">
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-5 items-start">
               {/* Actions: workflow execution pipeline */}
               <FlowControls
                 onIssue={run.issue}
@@ -124,11 +124,11 @@ export const App: React.FC = () => {
               />
 
               {/* Effects: live protocol view, kept beside the actions on wide screens */}
-              <aside aria-label="Live protocol view" className="space-y-4 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto xl:pr-1">
+              <aside aria-label="Live protocol view" className="space-y-4 xl:sticky xl:top-28 xl:max-h-[calc(100vh-8rem)] xl:overflow-y-auto xl:pr-1">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="text-sm font-bold text-white">Live protocol view</h2>
+                  <h2 className="text-base font-semibold text-ink">Live protocol view</h2>
                   {txCount > 1 && (
-                    <div role="radiogroup" aria-label="Log scope" className="flex gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs">
+                    <div role="radiogroup" aria-label="Log scope" className="inline-flex rounded border border-line-strong overflow-hidden text-xs">
                       {(['run', 'all'] as const).map(scope => (
                         <button
                           key={scope}
@@ -136,7 +136,7 @@ export const App: React.FC = () => {
                           role="radio"
                           aria-checked={logScope === scope}
                           onClick={() => setLogScope(scope)}
-                          className={`px-2.5 py-1 rounded-md ${logScope === scope ? 'bg-sky-600 text-white font-semibold' : 'text-slate-400 hover:text-slate-200'}`}
+                          className={`px-2.5 py-1 transition-colors not-first:border-l not-first:border-line-strong ${logScope === scope ? 'bg-accent text-white' : 'bg-surface text-ink hover:bg-surface-muted'}`}
                         >
                           {scope === 'run' ? 'This run' : `All runs (${txCount})`}
                         </button>
@@ -146,14 +146,14 @@ export const App: React.FC = () => {
                 </div>
 
                 {visibleLogs.length === 0 ? (
-                  <div className="p-6 rounded-2xl border border-dashed border-slate-800 text-center text-sm text-slate-400">
+                  <div className="p-6 rounded-md border border-dashed border-line-strong bg-surface text-center text-sm text-ink-muted">
                     {run.logs.length === 0
                       ? 'No run yet. Press Run Full Flow, or issue a credential, to see every protocol message here.'
                       : 'No messages for the current run yet. Switch to All runs to see earlier traffic.'}
                   </div>
                 ) : (
                   <>
-                    <section aria-label="Run progress" className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+                    <section aria-label="Run progress" className="bg-surface border border-line rounded-md p-4">
                       <RunPlayer logs={visibleLogs} revealed={revealed} onChange={setRevealed} />
                       <RunTimeline logs={visibleLogs} revealed={revealed ?? undefined} />
                     </section>
@@ -165,7 +165,7 @@ export const App: React.FC = () => {
                       type="button"
                       aria-expanded={rawOpen}
                       onClick={() => setRawOpen(!rawOpen)}
-                      className="md:hidden w-full py-2 rounded-lg border border-slate-800 bg-slate-900 text-xs text-slate-200"
+                      className="md:hidden w-full py-2 rounded border border-line-strong bg-surface text-sm text-ink hover:bg-surface-muted transition-colors"
                     >
                       {rawOpen ? 'Hide raw protocol messages' : 'Show raw protocol messages'}
                     </button>
@@ -188,7 +188,7 @@ export const App: React.FC = () => {
         )}
       </main>
 
-      <footer className="print:hidden border-t border-slate-900 bg-slate-950/80 py-4 px-6 text-center text-xs text-slate-500">
+      <footer className="print:hidden border-t border-line bg-surface py-4 px-6 text-center text-xs text-ink-subtle">
         MOSIP VC Interoperability Playground &bull; OpenID4VCI (Draft 13) &bull; OpenID4VP (Draft 21) &bull; W3C VC JSON-LD &bull; SD-JWT VC
       </footer>
     </div>

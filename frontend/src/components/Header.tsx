@@ -1,5 +1,4 @@
 import React from 'react';
-import { ShieldCheck, Activity, Layers, Server } from 'lucide-react';
 
 interface HeaderProps {
   /** null until the first health check completes */
@@ -9,72 +8,54 @@ interface HeaderProps {
   runCount: number;
 }
 
+const TABS = [
+  { id: 'playground', label: 'Playground & Inspector' },
+  { id: 'matrix', label: 'Interop Matrix Report' }
+] as const;
+
 export const Header: React.FC<HeaderProps> = ({ serverConnected, activeTab, setActiveTab, runCount }) => {
+  const status =
+    serverConnected === null
+      ? { label: 'Connecting...', dot: 'bg-ink-subtle', text: 'text-ink-muted' }
+      : serverConnected
+        ? { label: 'Online (Collab/Mock)', dot: 'bg-success-line', text: 'text-success-ink' }
+        : { label: 'Offline', dot: 'bg-danger-line', text: 'text-danger-ink' };
+
   return (
-    <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur-sm sticky top-0 z-50 px-4 sm:px-6 py-4 print:hidden">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-        {/* Brand */}
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-linear-to-tr from-sky-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
-            <ShieldCheck className="h-6 w-6 text-white" />
-          </div>
+    <header className="bg-surface border-b border-line sticky top-0 z-50 print:hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-3 flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white">MOSIP VC Interoperability Playground</h1>
-              <span className="text-xs font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">
-                Topic 02
-              </span>
-            </div>
-            <p className="text-xs text-slate-400">OpenID4VCI & OpenID4VP Cross-Ecosystem Testbed</p>
+            <h1 className="text-base sm:text-lg font-semibold text-ink">MOSIP VC Interoperability Playground</h1>
+            <p className="text-xs text-ink-muted">OpenID4VCI and OpenID4VP across Inji and independent implementations</p>
           </div>
+          <p className="text-xs text-ink-muted inline-flex items-center gap-1.5">
+            <span className={`h-2 w-2 rounded-full ${status.dot}`} aria-hidden="true" />
+            BFF: <span className={`font-medium ${status.text}`}>{status.label}</span>
+          </p>
         </div>
 
-        {/* Navigation Tabs */}
-        <nav aria-label="Views" className="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800 text-sm">
-          <button
-            aria-current={activeTab === 'playground' ? 'page' : undefined}
-            onClick={() => setActiveTab('playground')}
-            className={`px-4 py-1.5 rounded-md font-medium transition-all flex items-center gap-2 ${
-              activeTab === 'playground'
-                ? 'bg-sky-600 text-white shadow-xs'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Activity className="h-4 w-4" />
-            Playground & Inspector
-          </button>
-          <button
-            aria-current={activeTab === 'matrix' ? 'page' : undefined}
-            onClick={() => setActiveTab('matrix')}
-            className={`px-4 py-1.5 rounded-md font-medium transition-all flex items-center gap-2 ${
-              activeTab === 'matrix'
-                ? 'bg-sky-600 text-white shadow-xs'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Layers className="h-4 w-4" />
-            Interop Matrix Report
-            {runCount > 0 && (
-              <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-300">{runCount}</span>
-            )}
-          </button>
+        <nav aria-label="Views" className="flex gap-4 text-sm -mb-px">
+          {TABS.map(tab => {
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                aria-current={active ? 'page' : undefined}
+                onClick={() => setActiveTab(tab.id)}
+                className={`py-2 border-b-2 inline-flex items-center gap-1.5 transition-colors ${
+                  active ? 'border-accent text-ink font-medium' : 'border-transparent text-ink-muted hover:text-ink'
+                }`}
+              >
+                {tab.label}
+                {tab.id === 'matrix' && runCount > 0 && (
+                  <span className="text-xs px-1.5 rounded-full bg-surface-muted border border-line text-ink-muted">{runCount}</span>
+                )}
+              </button>
+            );
+          })}
         </nav>
-
-        {/* Status Indicators */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700 text-xs">
-            <Server className="h-3.5 w-3.5 text-slate-400" />
-            <span className="text-slate-300">BFF Proxy:</span>
-            <span className={`inline-flex items-center gap-1 font-semibold ${
-              serverConnected ? 'text-emerald-400' : serverConnected === false ? 'text-rose-400' : 'text-amber-400'
-            }`}>
-              <span className={`h-2 w-2 rounded-full ${
-                serverConnected ? 'bg-emerald-500 animate-pulse' : serverConnected === false ? 'bg-rose-500' : 'bg-amber-500'
-              }`} />
-              {serverConnected ? 'Online (Collab/Mock)' : serverConnected === false ? 'Offline' : 'Connecting...'}
-            </span>
-          </div>
-        </div>
       </div>
     </header>
   );

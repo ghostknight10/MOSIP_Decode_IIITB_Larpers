@@ -27,12 +27,12 @@ const column = (name: string) => screen.getByRole('radiogroup', { name });
 describe('MatrixSelector', () => {
   it('renders every registry node as a radio in its role column', () => {
     renderSelector();
-    expect(within(column('Issuer Node')).getAllByRole('radio').map(r => r.textContent)).toEqual([
+    expect(within(column('Issuer')).getAllByRole('radio').map(r => r.textContent)).toEqual([
       expect.stringContaining('Inji Certify'),
       expect.stringContaining('Mock OpenID4VCI')
     ]);
-    expect(within(column('Identity Wallet')).getAllByRole('radio')).toHaveLength(2);
-    expect(within(column('Verifier Node')).getAllByRole('radio')).toHaveLength(2);
+    expect(within(column('Wallet')).getAllByRole('radio')).toHaveLength(2);
+    expect(within(column('Verifier')).getAllByRole('radio')).toHaveLength(2);
     expect(within(column('Credential format')).getAllByRole('radio')).toHaveLength(2);
   });
 
@@ -63,14 +63,14 @@ describe('MatrixSelector', () => {
 
   it('shows the live status of each role', () => {
     renderSelector({ phase: 'issued', hasCredential: true });
-    expect(within(column('Issuer Node').parentElement!).getByText('Done')).toBeInTheDocument();
-    expect(within(column('Identity Wallet').parentElement!).getByText('Holding VC')).toBeInTheDocument();
-    expect(within(column('Verifier Node').parentElement!).getByText('Standby')).toBeInTheDocument();
+    expect(within(column('Issuer').parentElement!).getByText('Done')).toBeInTheDocument();
+    expect(within(column('Wallet').parentElement!).getByText('Holding VC')).toBeInTheDocument();
+    expect(within(column('Verifier').parentElement!).getByText('Standby')).toBeInTheDocument();
   });
 
   it('shows the verifier verdict once verification finishes', () => {
     renderSelector({ phase: 'failed', hasCredential: true, verificationStatus: 'SIGNATURE_MISMATCH' });
-    expect(within(column('Verifier Node').parentElement!).getByText('SIGNATURE_MISMATCH')).toBeInTheDocument();
+    expect(within(column('Verifier').parentElement!).getByText('SIGNATURE_MISMATCH')).toBeInTheDocument();
   });
 
   it('labels selected MOSIP nodes as Emulated when the sandbox fell back', () => {
