@@ -1,69 +1,94 @@
 @import 'tailwindcss';
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-
-@theme {
-  --font-sans: 'Plus Jakarta Sans', sans-serif;
-}
 
 /*
-  Tailwind v4 compatibility: keep v3's default gray border colour and pointer
-  cursor on buttons (see the official v4 upgrade guide).
+  Design tokens. Every colour in the UI comes from here; see
+  docs/design-tokens.md for the rules and src/test/design.test.ts for the
+  contrast checks. Palette follows MOSIP Inji Verify's default theme.
 */
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Surfaces and lines */
+  --color-canvas: #fafbfd;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f4f5f7;
+  --color-line: #e1e4ea;
+  --color-line-strong: #c4c9d2;
+
+  /* Text */
+  --color-ink: #1b1e24;
+  --color-ink-muted: #454b57;
+  --color-ink-subtle: #626977;
+
+  /* The single interaction colour (MOSIP plum) */
+  --color-accent: #951f6f;
+  --color-accent-hover: #7a1959;
+  --color-accent-soft: #f8eef4;
+
+  /* Status: *-ink for text and icons, *-soft for fills, *-line for borders */
+  --color-success-ink: #2f6b27;
+  --color-success-soft: #eef8ec;
+  --color-success-line: #57a04b;
+  --color-warning-ink: #7a4f00;
+  --color-warning-soft: #fff5e3;
+  --color-warning-line: #d98c00;
+  --color-danger-ink: #a32d2c;
+  --color-danger-soft: #fdeeee;
+  --color-danger-line: #cb4241;
+}
+
 @layer base {
+  /* Default border colour and pointer cursor (Tailwind v4 compatibility layer). */
   *,
   ::after,
   ::before,
   ::backdrop,
   ::file-selector-button {
-    border-color: var(--color-gray-200, currentColor);
+    border-color: var(--color-line);
   }
 
   button:not(:disabled),
   [role='button']:not(:disabled) {
     cursor: pointer;
   }
-}
 
-:root {
-  color-scheme: dark;
-}
+  html {
+    color-scheme: light;
+  }
 
-body {
-  margin: 0;
-  min-height: 100vh;
-  background-color: #020617;
-  background: radial-gradient(ellipse at 20% 50%, #0c1a3a 0%, #020617 60%),
-              radial-gradient(ellipse at 80% 20%, #0a1628 0%, transparent 50%);
-  background-attachment: fixed;
-  color: #f8fafc;
-  font-family: var(--font-sans);
-}
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
 
-/* Custom scrollbar for raw payload inspectors */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
+  /* Focus colour is reserved for keyboard focus (GOV.UK, Carbon: >= 3:1). */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
 
-::-webkit-scrollbar-track {
-  background: #0f172a;
-}
+  ::selection {
+    background: var(--color-accent-soft);
+    color: var(--color-ink);
+  }
 
-::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 3px;
-}
+  input[type='range'] {
+    accent-color: var(--color-accent);
+  }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #475569;
-}
-
-::selection {
-  background: #0284c7;
-  color: #f8fafc;
-}
-
-:focus-visible {
-  outline: 2px solid #38bdf8;
-  outline-offset: 2px;
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }

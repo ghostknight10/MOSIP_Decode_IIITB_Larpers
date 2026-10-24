@@ -20,6 +20,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    // Let src/test/design.test.ts read the design tokens from index.css.
+    css: { include: [/index\.css/] },
     restoreMocks: true
   }
 });
