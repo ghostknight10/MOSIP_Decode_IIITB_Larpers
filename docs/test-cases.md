@@ -4,6 +4,8 @@ These scenarios validate cross-ecosystem interoperability and protocol conforman
 
 **Setup:** run `docker compose up --build` (or `npm run dev:backend` + `npm run dev:frontend`) and open <http://localhost:5173>. The header should show **BFF Proxy: Online (Collab/Mock)**.
 
+**Shortcut:** each test case below has a **Quick scenario** button (TC-01, TC-02, TC-03, TC-04, TC-05a, TC-05b) that selects the nodes, sets the tamper options and runs the full flow. The manual steps remain the reference.
+
 **Reading results:**
 
 - The verdict card shows the verifier status (`VALID`, `INVALID`, `EXPIRED`, `SIGNATURE_MISMATCH`) and the four checks.
@@ -26,7 +28,8 @@ These scenarios validate cross-ecosystem interoperability and protocol conforman
   - The verdict is `VALID` and all four checks are green. The verifier badge shows `VALID`.
   - The Authorization Request QR (`openid4vp://authorize?…`) is shown.
   - The Protocol Inspector lists **4** frames for the run (newest first): `POST /vp-response`, `openid4vp://authorize`, `POST /credential`, `GET /.well-known/openid-credential-issuer`.
-  - The sequence diagram draws them in chronological order.
+  - The sequence diagram draws them in chronological order, and the replay controls step through them.
+  - **What was shared** lists `fullName` and `nationalId` as requested. With the current mock, it also lists over-shared claims (G-6 in [known-issues.md](./known-issues.md)).
   - Run History records a **PASS** row.
 
 ---
@@ -41,6 +44,7 @@ These scenarios validate cross-ecosystem interoperability and protocol conforman
 - **Expected result:**
   - The credential summary shows proof `JWT (ES256)` and a selective disclosure count. In the inspector, the raw token is `header.payload.signature~disclosure~`.
   - The verdict is `VALID`, and the run is **PASS** with format `SD-JWT VC`.
+  - **Inspect credential** splits the token into header, payload, signature and disclosures. With the current mock, "Digest in _sd" reads **No** (G-5 in [known-issues.md](./known-issues.md)).
 
 ---
 
@@ -84,8 +88,8 @@ These scenarios validate cross-ecosystem interoperability and protocol conforman
   2. When it finishes, check **Combinations Tested** reads **16 / 16**.
   3. Click **Markdown** to export the report.
 - **Expected result:**
-  - Every combination has an outcome. The pass rate is computed from these runs, not hard-coded.
-  - Any FAIL row shows its error detail. Rows marked **emulated sandbox** did not reach the real Collab services.
+  - The heatmap has an outcome in every cell. Scores are shown separately for **Real** and **Emulated** runs; cells marked † did not reach the real Collab services.
+  - Any FAIL cell shows its failure layer (TECH / SYN / SEM / ORG). Selecting a cell filters Run History to that combination.
   - The exported Markdown contains the matrix table and the full run history (the submission's interoperability report).
 
 ---

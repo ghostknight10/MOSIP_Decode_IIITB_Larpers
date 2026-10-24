@@ -66,27 +66,31 @@ The design (protocols, frontend state model and data flow) is in [docs/architect
    - **Issuer:** Inji Certify or Mock OpenID4VCI. **Wallet:** Inji Web / Mobile or Simulated Holder. **Verifier:** Inji Verify or Mock OpenID4VP.
    - The nodes come from one registry (`frontend/src/config/nodes.ts`), so adding an implementation is a single entry.
    - Each column shows a live status badge: Standby → In progress → Holding VC / Done / Rejected / Error.
-   - Inji nodes show **Emulated** when the BFF served a fallback response.
-2. **Two credential formats, clearly labelled per run**
+   - Only the roles that were actually answered by the fallback show **Emulated**, and a banner names them in plain language.
+2. **One-click scenarios**
+   - Presets for TC-01 to TC-05: the happy paths for both formats, an expired credential, a corrupted signature, and both cross-ecosystem directions. A preset sets the matrix and the attack it applies, so you can see exactly what it ran.
+3. **Two credential formats, clearly labelled per run**
    - **W3C VC (JSON-LD)** with an `Ed25519Signature2020` linked-data proof (`ldp_vc`).
    - **IETF SD-JWT VC** with salted selective disclosures (`vc+sd-jwt`).
-3. **Live issue and present flows**
-   - A scannable `openid-credential-offer://` QR code and same-device deep link for the credential offer.
-   - A scannable `openid4vp://authorize` QR code for the presentation request, with a warning when a payload exceeds QR capacity.
-   - Issued credential summary: wire format, proof type, issuer, type, expiry and SD-JWT disclosure count.
+4. **Live issue and present flows**
+   - Scannable `openid-credential-offer://` and `openid4vp://authorize` QR codes, with plain wording on which device does what. Phones lead with the same-device link, and a warning appears when a payload exceeds QR capacity.
+   - **Inspect credential:** SD-JWTs are split into labelled header, payload, signature and disclosure parts, with a per-disclosure check that its SHA-256 digest is in `_sd`. W3C credentials show subject claims and the proof.
    - Verification card showing **Valid**, **Invalid**, **Expired** or **Signature mismatch**, plus **Valid but Expired** when only the expiry check failed, and the four individual checks.
-   - **Run Full Flow** (issue + verify in one click) and **Reset**.
-4. **Protocol transparency**
-   - Each run carries one `x-transaction-id`, so the inspector and the diagram show its frames together.
-   - The Mermaid sequence diagram is generated from the wire logs and marks tampered steps.
-   - The Protocol Inspector shows raw requests and responses, with one-click JSON copy.
-5. **Tamper / chaos mode (negative paths)**
+   - **What was shared:** the claims the verifier asked for, received and never saw, including any over-disclosure.
+5. **Protocol transparency, beside the controls**
+   - On wide screens the live protocol view stays next to the buttons. It shows the current run by default, with an "All runs" toggle.
+   - A step timeline (also the phone view), the Mermaid sequence diagram, and the raw-message inspector. Every run carries one `x-transaction-id`.
+   - **Replay:** step through a run, or play it back, and the timeline, diagram and inspector follow.
+6. **Tamper / chaos mode (negative paths)**
    - Expire the timestamp or corrupt the signature at presentation time to show that the verifier rejects the credential.
-6. **Interoperability report**
-   - A matrix of all **16** combinations (2 issuers × 2 wallets × 2 verifiers × 2 formats), built from real runs. Combinations never run show **UNTESTED**.
-   - Columns: issuer, wallet, verifier, format, proof type, outcome and error detail.
-   - **Run All Combinations** batch runner, a filterable run history, and **Markdown / JSON export** (the Markdown is the submission's interop matrix).
+7. **Interoperability report**
+   - A heatmap of all **16** combinations (issuer × wallet rows, verifier × format columns), built from real runs. Untested cells say **UNTESTED**, and clicking a cell filters the run history. A list view is also available.
+   - Real and emulated results are scored separately ("Real: x/y pass · Emulated: x/y pass"), so a pass against the mock engine is never presented as an Inji result.
+   - Failures are tagged with the interoperability layer they broke at: Technical, Syntactical, Semantic or Organizational, after Schumm et al. (2025).
+   - **Run All Combinations**, filters (format, outcome, mode, layer), and **Markdown / JSON export** (the Markdown is the submission's interop matrix).
    - A run **passes** when the verifier behaves as expected: it accepts a clean credential, or rejects a tampered one.
+
+The UI choices are grounded in published research and in comparable tools. See [docs/ui-design.md](docs/ui-design.md).
 
 ---
 
@@ -114,10 +118,10 @@ npm run dev:frontend   # terminal 2, Vite on :5173, proxies /api to the BFF
 Copy `.env.example` to `.env` to point the BFF at other MOSIP endpoints (`MOSIP_INJI_CERTIFY_URL`, `MOSIP_MIMOTO_URL`, `MOSIP_INJI_VERIFY_URL`).
 
 ### 3. Try it
-1. Keep the default all-Inji selection, or pick other nodes and a format.
-2. Click **Run Full Flow**, or run **Trigger "Issue Credential" Flow** followed by **Trigger "Present & Verify" Flow**.
-3. Turn on **Enable Tamper Mode**, tick an attack and run again to see the rejection.
-4. Open **Interop Matrix Report**, click **Run All Combinations**, then export the report as **Markdown**.
+1. Click a **Quick scenario** (e.g. **TC-01 Happy path · W3C VC**), or pick nodes yourself and press **Run Full Flow**.
+2. Open **Inspect credential** and **What was shared**, then use the replay controls in the live protocol view to step through the exchange.
+3. Run **TC-03** or **TC-04** (or turn on **Enable Tamper Mode** yourself) to see the verifier reject a bad credential.
+4. Open **Interop Matrix Report**, click **Run All Combinations**, select heatmap cells to drill in, then export the report as **Markdown**.
 
 ---
 
@@ -209,12 +213,17 @@ A static list of 8 pre-wired combinations, kept for compatibility. The UI comput
 │   └── tests/                   Vitest unit + HTTP tests
 ├── frontend/                    React 19 + Vite 8 + Tailwind 4
 │   └── src/
-│       ├── App.tsx              layout; wires the run hook into the panels
+│       ├── App.tsx              layout: matrix, actions beside the live view, report tab
 │       ├── api/client.ts        typed BFF client (x-transaction-id, error mapping)
 │       ├── hooks/usePlaygroundRun.ts  run state machine, logs, history
-│       ├── config/nodes.ts      node/format registry, combination builder
-│       ├── components/          MatrixSelector, FlowControls, InteropMatrixReport,
-│       │                        Header, SequenceDiagram, ProtocolInspector (+ *.test.tsx)
+│       ├── config/              nodes.ts (registry), scenarios.ts (TC presets)
+│       ├── lib/                 credential, sdjwt, claims, failureLayer, participants,
+│       │                        fallback, jsonHighlight (pure, unit-tested)
+│       ├── components/          MatrixSelector, FlowControls, RunTimeline, RunPlayer,
+│       │   │                    InteropMatrixReport, Header, SequenceDiagram, ProtocolInspector
+│       │   ├── flow/            IssuePhase, PresentPhase, QrPanel, ScenarioBar, VerdictCard,
+│       │   │                    CredentialInspector, SharedClaimsPanel, …
+│       │   └── report/          InteropHeatmap
 │       └── test/                Vitest setup and fixtures
 ├── docs/                        architecture, audit logger, tests, demo script, known issues
 ├── docker-compose.yml           frontend + BFF (node:26-alpine)
@@ -242,6 +251,7 @@ A static list of 8 pre-wired combinations, kept for compatibility. The UI comput
 | [docs/testing.md](docs/testing.md) | Automated test suites, conventions, known-bug tests |
 | [docs/test-cases.md](docs/test-cases.md) | Manual scenarios TC-01 to TC-06 |
 | [docs/known-issues.md](docs/known-issues.md) | Open bugs and interoperability gaps found during testing |
+| [docs/ui-design.md](docs/ui-design.md) | UI research: comparable tools, papers, and the design decisions they led to |
 | [docs/video-demo-script.md](docs/video-demo-script.md) | 3–5 minute demo script |
 
 Licensed under Apache-2.0.

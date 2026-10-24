@@ -91,10 +91,21 @@ When a Collab call fails, the BFF answers from the mock engine instead, relabels
 | `config/nodes.ts` | **Registry** of issuers, wallets, verifiers and formats (labels, badges, supported formats, OpenID4VP `client_id`). `allCombinations()` builds the issuer × wallet × verifier × format product used by the report and the batch runner. |
 | `api/client.ts` | Typed BFF client. Sends `x-transaction-id`, turns `success:false` or non-2xx responses into `ApiError` carrying the backend message, and explains when the BFF is unreachable. |
 | `hooks/usePlaygroundRun.ts` | **Single source of truth** for a run: selection, phase, payloads, logs and run history. Components only render this state and call its actions. |
-| `components/MatrixSelector.tsx` | Role columns built from the registry, live status badges, format toggle. |
-| `components/FlowControls.tsx` | Issue / present / full-flow / reset actions, subject editor, tamper options, QR codes, credential summary, verdict card. |
-| `components/InteropMatrixReport.tsx` | Coverage matrix, run history, filters, batch runner, exports. |
-| `components/SequenceDiagram.tsx`, `ProtocolInspector.tsx` | Visualise the run's logs (Ayaan). |
+| `config/scenarios.ts` | One-click presets for TC-01 to TC-05: each sets a matrix selection and the tamper options it applies. |
+| `components/MatrixSelector.tsx` | Role columns built from the registry, live status badges, per-role **Emulated** badges, format toggle. |
+| `components/FlowControls.tsx` + `components/flow/*` | Composition of `ScenarioBar`, `TamperOptions`, `IssuePhase` (subject editor, offer QR, `CredentialSummary`, `CredentialInspector`) and `PresentPhase` (request QR, `VerdictCard`, `SharedClaimsPanel`). Controlled by `RunInputs` held in `App.tsx`. |
+| `components/RunTimeline.tsx`, `RunPlayer.tsx` | Accessible step list (also the phone view) and replay controls; the replay slice feeds the diagram and inspector. |
+| `components/InteropMatrixReport.tsx`, `report/InteropHeatmap.tsx` | Heatmap / list matrix, real vs emulated scores, run history with filters (including layer and combination), batch runner, exports. |
+| `components/SequenceDiagram.tsx`, `ProtocolInspector.tsx` | Visualise the run's logs (Ayaan). They receive the current run's (possibly replayed) logs from `App.tsx`. |
+| `lib/*` | Pure, unit-tested helpers: `credential` (URIs, summaries), `sdjwt` (parse SD-JWT, check `_sd` digests), `claims` (requested / held / shared classification), `failureLayer`, `participants` (role mapping, chronological order, replay slice), `fallback` (emulation notice), `jsonHighlight`. |
+
+### Page layout
+
+- The **matrix** is full width at the top.
+- Below it, on wide screens (`xl`), the **actions** (scenarios, issue and present phases) sit on the left (5/12). The sticky **live protocol view** sits on the right (7/12): replay controls, step timeline, sequence diagram, raw-message inspector.
+- The live view shows the current run's messages (`transactionId` filter), with an "All runs" toggle once several transactions exist. Before the first run, one sentence replaces the empty panels.
+- On phones the columns stack, the timeline replaces the sequence diagram, raw messages are collapsed behind a button, and matrix options sit side by side.
+- The design rationale and research are in [ui-design.md](./ui-design.md).
 
 ### Run state machine
 
@@ -149,7 +160,7 @@ sequenceDiagram
 
 ### Run records and the report
 
-Every completed or failed run appends a `RunRecord`: issuer, wallet, verifier, format, proof type, tampered flag, outcome, verifier status, error detail, sandbox fallback, transaction ID and timestamps. History is kept newest-first and capped at 200 runs. It is persisted in the browser's `localStorage` (`mosip-playground-runs`).
+Every completed or failed run appends a `RunRecord`: issuer, wallet, verifier, format, proof type, tampered flag, outcome, verifier status, failed checks, error detail, sandbox fallback, transaction ID and timestamps. History is kept newest-first and capped at 200 runs. It is persisted in the browser's `localStorage` (`mosip-playground-runs`).
 
 **Outcome semantics:** a run is **PASS** when the verifier behaves as expected:
 
@@ -161,7 +172,20 @@ Every completed or failed run appends a `RunRecord`: issuer, wallet, verifier, f
 | Tampered | `VALID` | FAIL (tampering not caught) |
 | Any | transport / backend error | FAIL (`Issuance failed: …` / `Verification failed: …`) |
 
-The **matrix** shows the latest *clean* run per combination (tampered runs are counted separately as negative-path runs). The pass rate is computed over tested combinations only, and untested combinations show **UNTESTED**.
+The **matrix** shows the latest *clean* run per combination (tampered runs are counted separately as negative-path runs). Untested combinations show **UNTESTED**. Scores are computed over tested combinations and reported **separately for real and emulated** runs (`scoreMatrix`), so a pass against the emulated sandbox is never presented as an Inji result.
+
+**Failure layers.** Each failing run is tagged (`lib/failureLayer.ts`) with the lowest interoperability layer it broke at, after Schumm, Müller & Stiller (2025):
+
+| Layer | Assigned when |
+| --- | --- |
+| Technical | Transport/backend error, `signatureValid` false, or a tampered credential accepted as `VALID` |
+| Syntactical | `formatCheck` false |
+| Semantic | `schemaCompliant` false |
+| Organizational | `notExpired` false (validity policy) |
+| Legal | Not assessed by automated runs |
+| Unclassified | Failed with no failing check reported |
+
+`RunRecord.failedChecks` stores the names of the failed verifier checks so the layer can be derived later.
 
 ---
 

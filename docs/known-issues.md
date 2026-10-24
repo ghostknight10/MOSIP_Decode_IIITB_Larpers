@@ -15,6 +15,12 @@ Last updated: 2026-10-25.
 - **Impact:** mandatory task 1 (a real Inji stack end to end) isn't met yet. Inji results in the report are flagged *emulated sandbox*.
 - **Fix:** take the correct hostnames from the MOSIP Collab Environment Guide and use the same values for every route.
 
+### E-2 · The wallet role is never exercised (high)
+
+- **Where:** `backend/src/routes/playground.ts`
+- **What:** no route calls Mimoto or Inji Web. Choosing **Inji Web / Mobile** versus **Simulated Holder** changes the labels, not the traffic, so wallet interoperability is not actually tested yet.
+- **Fix:** route the holder steps through Mimoto (credential download and presentation) when the Inji wallet is selected, once E-1 is resolved.
+
 ---
 
 ## Backend bugs
@@ -68,6 +74,24 @@ Last updated: 2026-10-25.
 
 ---
 
+### B-9 · Fallback relabels the wrong participant (medium)
+
+- **Where:** `backend/src/routes/playground.ts` (fallback branches of `/issue` and `/verify`)
+- **What:** on fallback the BFF overwrites `receiver` on every issuance log and `sender` on every verification log with "Inji … (Collab Sandbox Emulated)". The wallet's own `vp_token` submission therefore appears to come from the verifier ("Verifier → Verifier" in the step timeline).
+- **Fix:** relabel only the participant that is the emulated service, matching on the original name.
+
+---
+
+## Frontend bugs
+
+### F-1 · Sequence diagram draws a self-arrow for emulated Inji Verify (medium, Ayaan)
+
+- **Where:** `frontend/src/components/SequenceDiagram.tsx`
+- **What:** participants are matched with `includes('verifier')`. The sender "Inji Verify (Collab Sandbox Emulated)" doesn't match, so it defaults to Wallet and step 3 is drawn Wallet → Wallet. The step timeline uses `lib/participants.participantOf`, which handles product names.
+- **Fix:** reuse `participantOf`. Also set `mirrorActors: false`, drop the unused `User` actor, and enable `sequence.wrap` to stop labels overlapping lifelines.
+
+---
+
 ## Interoperability gaps (candidates for upstream issues)
 
 | ID | Gap | Observed in | Notes |
@@ -76,5 +100,7 @@ Last updated: 2026-10-25.
 | G-2 | **mDoc / ISO 18013-5 not supported.** The audit logger coerces `mso_mdoc` to "W3C VC (JSON-LD)". | `auditInterceptor.js` `enforceCredentialFormat` | Needed for the good-to-have third format. Without it, mDoc traffic is mislabelled. |
 | G-3 | **Presentation request fields.** The verifier doesn't return `nonce` / `client_id`, so the UI uses the transaction ID and the registry `client_id`. | `/verify` response | Wallets must bind the `vp_token` to the verifier's nonce. Needed for replay protection. |
 | G-4 | **Proof type not reported by the issuer.** The UI infers it from `proof.type` (LD) or the JWT `alg`. | `/issue` response | Report columns depend on this inference. |
+| G-5 | **Mock SD-JWT is not selectively disclosable.** The disclosure's SHA-256 digest is not in `_sd` (the `_sd` values are placeholders), and every subject claim is also in clear in the payload. | **Inspect credential** → "Digest in _sd: No" | Mock engine (Aryan). A strict verifier must reject this token. Fix before comparing against real Inji SD-JWTs. |
+| G-6 | **Over-disclosure.** The mock verifier receives the whole credential subject although the presentation definition asks only for `fullName` and `nationalId`. | **What was shared** → "Shared without being requested" | Mock engine (Aryan). Return only the requested (or disclosed) claims in `verifiedClaims`. |
 
 Once E-1 is fixed and real Collab traffic flows, re-run **Run All Combinations** and record any real Inji ↔ mock incompatibilities here.

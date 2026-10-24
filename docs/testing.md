@@ -4,7 +4,7 @@ The playground has three layers of tests:
 
 | Layer | Tool | Command | Count |
 | --- | --- | --- | --- |
-| Frontend unit, component and integration | Vitest 5 + Testing Library + jsdom | `npm --prefix frontend test` | 163 |
+| Frontend unit, component and integration | Vitest 5 + Testing Library + jsdom | `npm --prefix frontend test` | 285 |
 | Backend unit and HTTP | Vitest 5 (node) | `npm --prefix backend test` | 85 (77 + 8 known-bug) |
 | Protocol scenarios TC-01 to TC-05 | `backend/scripts/test-interop.ts` | `npm run test:interop` | 5 |
 
@@ -19,15 +19,27 @@ Configured in `frontend/vite.config.ts` (`test.environment: 'jsdom'`, setup file
 | File | Tests | Covers |
 | --- | --- | --- |
 | `config/nodes.test.ts` | 10 | Registry integrity (roles, unique IDs, MOSIP and non-MOSIP per role, verifier `client_id`s), wire formats, lookups, `allCombinations()` product and keys |
+| `config/scenarios.test.ts` | 4 | Presets: unique IDs, valid combinations, TC-01 to TC-05 coverage, both cross-ecosystem directions |
 | `api/client.test.ts` | 11 | Request shape, `x-transaction-id` header, `ApiError` mapping for `success:false` / non-2xx / non-JSON, unreachable BFF message, transaction ID format |
-| `hooks/usePlaygroundRun.test.ts` | 39 | Issue/verify success and failure, PASS/FAIL semantics (clean vs tampered), transaction ID reuse, log de-duplication and newest-first order, sandbox fallback, selection reset rules, busy locking, full flow, batch runs, history persistence and 200-run cap, clear/reset, `getProofType`, `mergeLogs` |
-| `components/MatrixSelector.test.tsx` | 20 | Registry-driven radios and `aria-checked`, selection callbacks, locking while running, per-role status (table-driven `columnStatus`), verifier verdict, Emulated badge |
-| `components/FlowControls.test.tsx` | 28 | Action wiring, edited subject, tamper options (including "tamper mode on, nothing ticked" → no payload), offer and OpenID4VP QR/deep links, clipboard, oversize-QR warning, W3C and SD-JWT summaries, verdict card with "Valid but Expired", URI builders |
-| `components/InteropMatrixReport.test.tsx` | 23 | UNTESTED coverage, latest clean run per combination, pass rate and negative-path stats, emulated flag, filters, batch progress, Markdown/JSON export, confirm-before-clear, `toMarkdown` escaping |
+| `hooks/usePlaygroundRun.test.ts` | 43 | Issue/verify success and failure, PASS/FAIL semantics (clean vs tampered), transaction ID reuse, log de-duplication and newest-first order, per-phase sandbox fallback, failed checks, selection reset rules, busy locking, full flow, batch runs, history persistence and 200-run cap, clear/reset, `getProofType`, `mergeLogs` |
+| `lib/credential.test.ts` | 4 | JWT payload decoding (base64url, disclosures ignored, malformed input) |
+| `lib/sdjwt.test.ts` | 9 | SD-JWT parsing (the mock token's real disclosure, array-element and malformed disclosures, key-binding JWT), `_sd` digest checks via WebCrypto, unavailable WebCrypto |
+| `lib/claims.test.ts` | 13 | JSONPath claim names, requested / held / shared claims (W3C and SD-JWT), four-way classification |
+| `lib/failureLayer.test.ts` | 11 | Layer per failure cause, lowest broken layer wins, legend |
+| `lib/participants.test.ts` | 12 | Role mapping for generic and MOSIP product names, chronological order, replay slice |
+| `lib/fallback.test.ts` | 4 | Plain-language emulation notice per phase |
+| `lib/jsonHighlight.test.tsx` | 11 | Token kinds, exact text preserved, escaped quotes, primitives |
+| `components/MatrixSelector.test.tsx` | 22 | Registry-driven radios and `aria-checked`, selection callbacks, locking while running, per-role status (table-driven `columnStatus`), verifier verdict, per-role Emulated badge |
+| `components/FlowControls.test.tsx` | 35 | Action wiring, edited subject, tamper options (including "tamper mode on, nothing ticked" → no payload), scenarios, offer and OpenID4VP QR/deep links, clipboard, oversize-QR warning, W3C and SD-JWT summaries, verdict card with "Valid but Expired", URI builders, `activeTamper` |
+| `components/flow/CredentialInspector.test.tsx` | 6 | Collapsed by default, W3C claims and proof, labelled SD-JWT parts, decoded disclosures with digest result, unavailable WebCrypto, undecodable token |
+| `components/flow/SharedClaimsPanel.test.tsx` | 5 | Custody summary, minimal sharing, over-disclosure warning, missing claims, labelled groups |
+| `components/RunTimeline.test.tsx` | 5 | Protocol order, role mapping for emulated services, status and tamper in text, current/not-yet steps |
+| `components/RunPlayer.test.tsx` | 8 | Live state, stepping, slider, back to live, autoplay with fake timers, pause, reduced motion |
+| `components/InteropMatrixReport.test.tsx` | 33 | Heatmap (cells, accessible names, combination filter), list view, UNTESTED coverage, latest clean run per combination, real vs emulated scores and warning, negative-path stats, filters including layer, batch progress, Markdown/JSON export with layers, confirm-before-clear, `scoreMatrix`, `toMarkdown` escaping |
 | `components/Header.test.tsx` | 7 | Connecting / Online / Offline, view tabs and `aria-current`, run count |
 | `components/SequenceDiagram.test.tsx` | 9 | (mermaid mocked) placeholder, chronological arrows from newest-first logs, participant mapping, tamper note, action sanitising, re-render, render error |
 | `components/ProtocolInspector.test.tsx` | 8 | Empty state, list contents, default newest selection, switching logs, request tab, copy JSON, clear callback |
-| `App.test.tsx` | 8 | Whole app against a stubbed BFF (`fetch`): health states, issue → verify with one transaction ID, report recording clean and tampered runs, error and emulated banners, run-all, clearing logs |
+| `App.test.tsx` | 15 | Whole app against a stubbed BFF (`fetch`): health states, issue → verify with one transaction ID, report recording clean and tampered runs, error and emulation banners, run-all, compact empty state, current-run vs all-runs scope, presets (tamper and matrix), replay, phone raw-message toggle |
 
 Conventions:
 

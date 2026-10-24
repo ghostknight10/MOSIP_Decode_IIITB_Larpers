@@ -28,38 +28,37 @@ This script covers the problem, live matrix execution, the wire inspector, negat
 ## Segment 3: Live issue → hold → present → verify (1:20 – 2:40)
 
 - **Visual:**
-  1. Click **Trigger "Issue Credential" Flow**. The issuer badge turns **Done** and the wallet badge shows **Holding VC**.
-  2. Show the **Credential Offer QR** and scan it with the phone to show the `openid-credential-offer://` link. Point out the credential summary (format, proof type, expiry).
-  3. Click **Trigger "Present & Verify" Flow**. Show the green **VALID** card with its four checks and the Authorization Request QR.
-  4. Scroll to the **sequence diagram**, then click through frames in the **Protocol Inspector** (request/response tabs, Copy JSON).
+  1. Click the **TC-02 Happy path · SD-JWT** quick scenario. The matrix switches nodes and format, the badges move Standby → Done → VALID, and the live protocol view on the right fills with four steps.
+  2. Point at the **Credential Offer QR** ("scan with the wallet app on your phone") and scan it with the phone to show the `openid-credential-offer://` link.
+  3. Open **Inspect credential**: header, payload, signature and disclosures, each labelled, with the "Digest in _sd" column.
+  4. Show the green **VALID** card, then **What was shared**: the custody line and the four groups.
+  5. In the live view, press **First step**, then **Play**. The timeline, sequence diagram and raw inspector replay the exchange step by step.
 - **Speaker:**
-  > "We issue a credential. The issuer produces a standard pre-authorized-code credential offer, which is this QR code. A mobile wallet can scan it, or a browser wallet can open it as a deep link. The wallet now holds the credential.
-  > Now the wallet presents it. The verifier sends a presentation definition, and the wallet answers with a vp_token. Format, signature, expiry and schema all check out, so it's valid.
-  > Below, the sequence diagram is generated from the actual wire logs of this one transaction, and the inspector shows every raw request and response, ready to copy."
+  > "One click runs a documented scenario. The issuer produces a pre-authorized credential offer, the QR code a phone wallet scans. Inspect credential splits the SD-JWT into its parts and checks every disclosure against the issuer's signed digests.
+  > The verifier accepts it, and What was shared answers the question users ask most: who got which of my data? It asked for two claims and received five. That's the over-disclosure a real deployment must not have, and the playground makes it visible.
+  > On the right, the same transaction replays step by step: timeline, sequence diagram and every raw request and response."
 - **If Inji nodes show Emulated:**
-  > "The Inji nodes are marked Emulated because the Collab sandbox wasn't reachable during recording. The playground falls back to a standards-compliant emulation and tells you so, and the report flags those runs as well."
+  > "Where the Inji services weren't reachable, the playground says so by name and marks those results as emulated rather than pretending they passed against MOSIP."
 
-## Segment 4: Tamper mode & negative paths (2:40 – 3:30)
+## Segment 4: Negative paths (2:40 – 3:20)
+
+- **Visual:** click **TC-03 Expired credential**. Show the red **EXPIRED** card labelled **Valid but Expired**. Then click **TC-04 Corrupted signature** and show **SIGNATURE_MISMATCH**, the tampered step in the timeline, and the **⚠️ Tampered Payload Detected!** note in the diagram.
+- **Speaker:**
+  > "Interoperability also means rejecting bad data. An expired credential is rejected, and the signature still checks out, so it's 'valid but expired'. A corrupted signature is caught, and the timeline and diagram mark exactly which message was tampered with. Both count as passes, because the verifier did the right thing."
+
+## Segment 5: The interoperability report (3:20 – 4:30)
 
 - **Visual:**
-  1. Click **Enable Tamper Mode** and tick **Expire Timestamp**, then **Run Full Flow**. Show the red **EXPIRED** card labelled **Valid but Expired**.
-  2. Untick it, tick **Corrupt Cryptographic Signature** and run again. Show **SIGNATURE_MISMATCH** and the **⚠️ Tampered Payload Detected!** note in the diagram.
+  1. Open **Interop Matrix Report** and click **Run All Combinations**. Let the counter reach 16 / 16.
+  2. Show the **heatmap** (issuer × wallet by verifier × format) and the separate **Real** and **Emulated** scores.
+  3. Open **Failure layers** to show the Technical / Syntactical / Semantic / Organizational legend.
+  4. Click a cell to filter Run History to that combination, then click **Markdown** and open the export.
 - **Speaker:**
-  > "Interoperability also means rejecting bad data. We expire the credential at presentation time, and the verifier rejects it. The signature is still fine, which is why it reads 'valid but expired'.
-  > Now we corrupt the signature, and the verifier catches the mismatch. The sequence diagram marks exactly which step was tampered with. In the report, both count as passes, because the verifier did the right thing."
-
-## Segment 5: The interoperability report (3:30 – 4:30)
-
-- **Visual:**
-  1. Open **Interop Matrix Report**, click **Run All Combinations** and let the progress counter run to 16 / 16.
-  2. Show the matrix (issuer, wallet, verifier, format, proof type, status, error detail), the pass rate and the negative-path count.
-  3. Filter the history by **Tampered only**, then click **Markdown** and open the exported file.
-- **Speaker:**
-  > "One click runs every combination: two issuers, two wallets, two verifiers, two formats, sixteen in all. The report is built from those real runs. Anything not yet run shows as untested, and anything that fails shows why.
-  > We export it as Markdown, and that file is our interoperability report: what was tested, with what, and the outcome."
+  > "Run All Combinations exercises every issuer, wallet, verifier and format: sixteen in all. The heatmap shows where things work, and when something fails it says at which interoperability layer: transport and crypto, format, schema, or policy. Real MOSIP results and emulated ones are scored separately, so the numbers are honest.
+  > Click a cell to drill into its runs, and export everything as Markdown: that's our interoperability report."
 
 ## Segment 6: Close (4:30 – 4:50)
 
 - **Visual:** terminal running `npm test`, then `docker compose up`.
 - **Speaker:**
-  > "Everything runs with one Docker Compose command. Around 250 automated tests run in CI on every push, and the interoperability gaps we found are documented for the Inji teams. Thank you."
+  > "Everything runs with one Docker Compose command, with over 350 automated tests in CI. The design choices are grounded in usability research on identity wallets, and the gaps we found are documented for the Inji teams. Thank you."
