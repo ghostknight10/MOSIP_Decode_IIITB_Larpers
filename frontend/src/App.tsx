@@ -44,6 +44,8 @@ export const App: React.FC = () => {
   const visibleLogs = logScope === 'all' ? run.logs : run.logs.filter(l => l.transactionId && l.transactionId === run.transactionId);
   // Replay position over the visible logs; null follows the live run.
   const [revealed, setRevealed] = useState<number | null>(null);
+  // Phones: raw messages are collapsed by default; the timeline gives the overview.
+  const [rawOpen, setRawOpen] = useState(false);
   const shownLogs = replaySlice(visibleLogs, revealed);
   // New traffic or a different view snaps back to live.
   useEffect(() => setRevealed(null), [visibleLogs.length, logScope, run.transactionId]);
@@ -159,7 +161,17 @@ export const App: React.FC = () => {
                     <div className="hidden md:block">
                       <SequenceDiagram logs={shownLogs} />
                     </div>
-                    <ProtocolInspector logs={shownLogs} onClearLogs={run.clearLogs} />
+                    <button
+                      type="button"
+                      aria-expanded={rawOpen}
+                      onClick={() => setRawOpen(!rawOpen)}
+                      className="md:hidden w-full py-2 rounded-lg border border-slate-800 bg-slate-900 text-xs text-slate-200"
+                    >
+                      {rawOpen ? 'Hide raw protocol messages' : 'Show raw protocol messages'}
+                    </button>
+                    <div className={rawOpen ? '' : 'hidden md:block'}>
+                      <ProtocolInspector logs={shownLogs} onClearLogs={run.clearLogs} />
+                    </div>
                   </>
                 )}
               </aside>

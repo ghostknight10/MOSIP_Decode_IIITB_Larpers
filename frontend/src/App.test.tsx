@@ -239,4 +239,16 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /Run Full Flow/ }));
     await waitFor(() => expect(screen.getByText(/^Live · 4 steps/)).toBeInTheDocument());
   });
+
+  it('lets phone users expand the raw protocol messages', async () => {
+    stubBff();
+    const { user } = setup();
+    await user.click(screen.getByRole('button', { name: /Run Full Flow/ }));
+    const toggle = await screen.findByRole('button', { name: 'Show raw protocol messages' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByText('4 Transactions Logged').closest('.hidden')).not.toBeNull();
+    await user.click(toggle);
+    expect(screen.getByRole('button', { name: 'Hide raw protocol messages' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('4 Transactions Logged').closest('.hidden')).toBeNull();
+  });
 });

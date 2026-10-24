@@ -8,7 +8,7 @@ export const ScenarioBar: React.FC<{ onRun: (scenario: Scenario) => void; disabl
     <h4 id="scenario-heading" className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
       Quick scenarios
     </h4>
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+    <div className="grid grid-cols-2 gap-2">
       {SCENARIOS.map(sc => (
         <button
           key={sc.id}
@@ -24,7 +24,8 @@ export const ScenarioBar: React.FC<{ onRun: (scenario: Scenario) => void; disabl
             {sc.tamper ? <Bug className="h-3.5 w-3.5 text-rose-300" aria-hidden="true" /> : <Play className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />}
             {sc.label}
           </span>
-          <span id={`scenario-${sc.id}-desc`} className="block mt-1 text-xs text-slate-400">
+          {/* Still the button's accessible description when visually hidden on phones. */}
+          <span id={`scenario-${sc.id}-desc`} className="hidden sm:block mt-1 text-xs text-slate-400">
             {sc.description}
           </span>
         </button>

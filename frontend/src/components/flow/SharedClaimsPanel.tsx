@@ -44,14 +44,14 @@ export const SharedClaimsPanel: React.FC<SharedClaimsPanelProps> = ({ presentati
         Issuer signed <strong>{held.length}</strong> claims → wallet holds <strong>{held.length}</strong> → verifier asked for{' '}
         <strong>{requested.length}</strong> and received <strong>{shared.length}</strong>.
       </p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
+      <div className="grid grid-cols-2 gap-2 mt-3">
         {groups.map(g => (
           <div key={g.key} role="group" aria-label={g.title} className="p-2 rounded-md bg-slate-950/60 border border-slate-800">
             <div className={`flex items-center gap-1.5 text-xs font-semibold ${g.cls}`}>
               <g.Icon className="h-3.5 w-3.5" aria-hidden="true" />
               {g.title} ({g.claims.length})
             </div>
-            <p className="text-xs text-slate-400">{g.hint}</p>
+            <p className="hidden sm:block text-xs text-slate-400">{g.hint}</p>
             {g.claims.length > 0 ? (
               <ul className="flex flex-wrap gap-1 mt-1.5">
                 {g.claims.map(name => (
