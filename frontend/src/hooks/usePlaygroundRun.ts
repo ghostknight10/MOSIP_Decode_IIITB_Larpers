@@ -261,6 +261,19 @@ export function usePlaygroundRun() {
     return verify(tamper, issued, sel);
   }, [issue, verify, state.selection]);
 
+  /** Run the full flow for each combination in sequence (report "Run all combinations"). */
+  const runBatch = useCallback(async (
+    combos: Selection[],
+    subject: CredentialSubjectInput,
+    onProgress?: (done: number, total: number) => void
+  ) => {
+    for (let i = 0; i < combos.length; i++) {
+      dispatch({ type: 'select', patch: combos[i] });
+      await runFullFlow(subject, undefined, combos[i]);
+      onProgress?.(i + 1, combos.length);
+    }
+  }, [runFullFlow]);
+
   const clearLogs = useCallback(async () => {
     try {
       await api.clearLogs();
@@ -276,6 +289,7 @@ export function usePlaygroundRun() {
     issue,
     verify,
     runFullFlow,
+    runBatch,
     reset: () => dispatch({ type: 'reset' }),
     clearLogs,
     clearHistory: () => dispatch({ type: 'clearHistory' })

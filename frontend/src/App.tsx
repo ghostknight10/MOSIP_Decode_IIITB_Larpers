@@ -7,6 +7,7 @@ import { SequenceDiagram } from './components/SequenceDiagram';
 import { InteropMatrixReport } from './components/InteropMatrixReport';
 import { usePlaygroundRun } from './hooks/usePlaygroundRun';
 import { api } from './api/client';
+import { allCombinations, DEFAULT_SUBJECT } from './config/nodes';
 import { AlertTriangle, Info } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -14,6 +15,17 @@ export const App: React.FC = () => {
   const [serverConnected, setServerConnected] = useState<boolean>(false);
   const run = usePlaygroundRun();
   const { selection } = run;
+  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
+
+  const handleRunAll = async () => {
+    const combos = allCombinations();
+    setBatchProgress({ done: 0, total: combos.length });
+    try {
+      await run.runBatch(combos, DEFAULT_SUBJECT, (done, total) => setBatchProgress({ done, total }));
+    } finally {
+      setBatchProgress(null);
+    }
+  };
 
   // Check BFF health on load and every 15s so the header reflects backend restarts
   useEffect(() => {
@@ -80,7 +92,13 @@ export const App: React.FC = () => {
             </div>
           </div>
         ) : (
-          <InteropMatrixReport />
+          <InteropMatrixReport
+            history={run.history}
+            onRunAll={handleRunAll}
+            batchProgress={batchProgress}
+            busy={run.busy}
+            onClearHistory={run.clearHistory}
+          />
         )}
       </main>
 
