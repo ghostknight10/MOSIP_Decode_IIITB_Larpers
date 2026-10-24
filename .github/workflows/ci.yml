@@ -19,26 +19,19 @@ jobs:
         with:
           node-version: 22.x
           cache: 'npm'
-          cache-dependency-path: |
-            backend/package-lock.json
-            frontend/package-lock.json
+          cache-dependency-path: package-lock.json
 
-      - name: Install backend dependencies & Build
-        run: |
-          cd backend
-          npm ci
-          npm run build
+      - name: Install dependencies (Workspaces)
+        run: npm ci
 
-      - name: Install frontend dependencies & Build
-        run: |
-          cd frontend
-          npm ci
-          npm run build
+      - name: Build Backend BFF
+        run: npm run build:backend
+
+      - name: Build Frontend UI
+        run: npm run build:frontend
 
       - name: Verify Docker Compose Configuration
-        run: |
-          docker compose config
+        run: docker compose config
 
       - name: Execute Protocol Interoperability Test Suite (TC-01 - TC-05)
-        run: |
-          npm run test:interop
+        run: npm run test:interop
