@@ -55,30 +55,12 @@ Last updated: 2026-10-25.
 - **What:** on a full buffer, the backwards walk wraps around and repeats frames. `/logs` uses 100 of 350, so the route isn't affected today.
 - **Fix:** stop after `capacity` steps.
 
-### B-6 · Tamper flags leak into the credential subject (medium)
-
-- **Where:** `backend/src/mocks/mockService.ts` (`issueCredential`)
-- **What:** `...(tamperPayload || {})` is spread into `credentialSubject`, so `forceExpired` appears as a claim. The frontend works around this by sending tamper options only at presentation time.
-- **Fix:** don't merge `tamperPayload` into the subject.
-
-### B-7 · All-false tamper payload counted as tampered (low)
-
-- **Where:** `backend/src/mocks/mockService.ts` (`verifyPresentation`)
-- **What:** `tampered` is set for any non-empty `tamperPayload` object, even `{ forceExpired: false, corruptSignature: false }`, so the diagram shows a tamper warning on a clean run. The frontend no longer sends such payloads.
-- **Fix:** derive `tampered` from the individual flags.
-
 ### B-8 · Proxy gateway not mounted (low)
 
 - **Where:** `backend/src/index.ts`
 - **What:** `proxyGateway.js` is implemented and tested but never registered with the app, so `/api/proxy/*` returns 404.
 
 ---
-
-### B-9 · Fallback relabels the wrong participant (medium)
-
-- **Where:** `backend/src/routes/playground.ts` (fallback branches of `/issue` and `/verify`)
-- **What:** on fallback the BFF overwrites `receiver` on every issuance log and `sender` on every verification log with "Inji … (Collab Sandbox Emulated)". The wallet's own `vp_token` submission therefore appears to come from the verifier ("Verifier → Verifier" in the step timeline).
-- **Fix:** relabel only the participant that is the emulated service, matching on the original name.
 
 ---
 
@@ -98,9 +80,4 @@ Last updated: 2026-10-25.
 | --- | --- | --- | --- |
 | G-1 | **QR capacity.** A by-value `openid-credential-offer` or `openid4vp://authorize` with a full presentation definition can exceed QR capacity (~2.9 KB at level L). | Playground QR panel | The UI warns and offers the deep link. Real flows should use `credential_offer_uri` / `request_uri` by reference. |
 | G-2 | **mDoc / ISO 18013-5 not supported.** The audit logger coerces `mso_mdoc` to "W3C VC (JSON-LD)". | `auditInterceptor.js` `enforceCredentialFormat` | Needed for the good-to-have third format. Without it, mDoc traffic is mislabelled. |
-| G-3 | **Presentation request fields.** The verifier doesn't return `nonce` / `client_id`, so the UI uses the transaction ID and the registry `client_id`. | `/verify` response | Wallets must bind the `vp_token` to the verifier's nonce. Needed for replay protection. |
-| G-4 | **Proof type not reported by the issuer.** The UI infers it from `proof.type` (LD) or the JWT `alg`. | `/issue` response | Report columns depend on this inference. |
-| G-5 | **Mock SD-JWT is not selectively disclosable.** The disclosure's SHA-256 digest is not in `_sd` (the `_sd` values are placeholders), and every subject claim is also in clear in the payload. | **Inspect credential** → "Digest in _sd: No" | Mock engine (Aryan). A strict verifier must reject this token. Fix before comparing against real Inji SD-JWTs. |
-| G-6 | **Over-disclosure.** The mock verifier receives the whole credential subject although the presentation definition asks only for `fullName` and `nationalId`. | **What was shared** → "Shared without being requested" | Mock engine (Aryan). Return only the requested (or disclosed) claims in `verifiedClaims`. |
-
 Once E-1 is fixed and real Collab traffic flows, re-run **Run All Combinations** and record any real Inji ↔ mock incompatibilities here.

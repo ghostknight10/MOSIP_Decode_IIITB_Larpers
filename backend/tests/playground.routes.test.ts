@@ -50,6 +50,7 @@ describe('POST /issue', () => {
     expect(body).toMatchObject({ success: true, issuer: 'mock-openid4vci', wallet: 'mock-wallet', format: 'w3c-vc' });
     expect(body.credentialOffer.credential_issuer).toBe('https://issuer.mock.mosip.net');
     expect(body.issuedCredential.credentialSubject.fullName).toBe('Priya Rao');
+    expect(body.proofType).toBe('Ed25519Signature2020');
     expect(body.isSandboxFallback).toBeUndefined();
     expect(postMock).not.toHaveBeenCalled();
   });
@@ -85,6 +86,7 @@ describe('POST /issue', () => {
     expect(body.credentialOffer).toBeDefined();
     // FIX: Using .some() instead of .every() to respect the preserved wallet hops
     expect(body.protocolLogs.some((l: any) => l.receiver === 'Inji Certify (Collab Sandbox Emulated)')).toBe(true);
+    expect(body.protocolLogs.every((l: any) => l.sender === 'Wallet')).toBe(true);
   });
 
   it('returns a credential offer for real Inji Certify issuance', async () => {
@@ -114,6 +116,8 @@ describe('POST /verify', () => {
     const { body } = await post('/verify', verifyBody, 'tx-v1');
     expect(body).toMatchObject({ success: true, isValid: true, verificationResult: { status: 'VALID' } });
     expect(body.presentationDefinition.input_descriptors).toHaveLength(1);
+    expect(body.client_id).toBe('https://verify.mock.mosip.net');
+    expect(body.nonce).toMatch(/^[0-9a-f-]{36}$/);
     expect(body.protocolLogs.map((l: any) => l.step)).toEqual([3, 4]);
   });
 
@@ -142,6 +146,10 @@ describe('POST /verify', () => {
     const { body } = await post('/verify', { ...verifyBody, verifier: 'inji-verify' });
     expect(body).toMatchObject({ isSandboxFallback: true, isValid: true });
     expect(body.protocolLogs.some((l: any) => l.sender === 'Inji Verify (Collab Sandbox Emulated)')).toBe(true);
+    expect(body.protocolLogs.find((l: any) => l.step === 4)).toMatchObject({
+      sender: 'Wallet',
+      receiver: 'Inji Verify (Collab Sandbox Emulated)'
+    });
   });
 
   it('normalises real Inji Verify responses to the playground shape', async () => {

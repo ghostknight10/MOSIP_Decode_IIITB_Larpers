@@ -36,7 +36,9 @@ interface PlaygroundState {
   startedAt: string | null;
   credentialOffer: any;
   issuedCredential: any;
+  issuedProofType: string | null;
   presentationDefinition: any;
+  presentationRequest: { clientId: string; nonce: string } | null;
   verificationResult: VerificationResult | null;
   /** Inji Certify / Inji Verify answered from the emulated sandbox in this run. */
   issueFallback: boolean;
@@ -52,9 +54,9 @@ interface PlaygroundState {
 type Action =
   | { type: 'select'; patch: Partial<Selection> }
   | { type: 'issueStart'; transactionId: string }
-  | { type: 'issueDone'; credentialOffer: any; issuedCredential: any; logs?: ProtocolLog[]; fallback?: boolean; notice?: string }
+  | { type: 'issueDone'; credentialOffer: any; issuedCredential: any; proofType?: string; logs?: ProtocolLog[]; fallback?: boolean; notice?: string }
   | { type: 'verifyStart' }
-  | { type: 'verifyDone'; verificationResult: VerificationResult; presentationDefinition: any; logs?: ProtocolLog[]; fallback?: boolean; notice?: string }
+  | { type: 'verifyDone'; verificationResult: VerificationResult; presentationDefinition: any; client_id?: string; nonce?: string; logs?: ProtocolLog[]; fallback?: boolean; notice?: string }
   | { type: 'fail'; error: string }
   | { type: 'record'; record: RunRecord }
   | { type: 'clearLogs' }
@@ -67,7 +69,9 @@ const emptyRun = {
   startedAt: null,
   credentialOffer: null,
   issuedCredential: null,
+  issuedProofType: null,
   presentationDefinition: null,
+  presentationRequest: null,
   verificationResult: null,
   issueFallback: false,
   verifyFallback: false,
@@ -112,6 +116,7 @@ function reducer(state: PlaygroundState, action: Action): PlaygroundState {
           phase: 'issued',
           verificationResult: null,
           presentationDefinition: null,
+          presentationRequest: null,
           error: null,
           verifyFallback: false,
           sandboxFallback: state.issueFallback
@@ -127,6 +132,7 @@ function reducer(state: PlaygroundState, action: Action): PlaygroundState {
         phase: 'issued',
         credentialOffer: action.credentialOffer ?? null,
         issuedCredential: action.issuedCredential,
+        issuedProofType: action.proofType ?? null,
         issueFallback: Boolean(action.fallback),
         verifyFallback: false,
         sandboxFallback: Boolean(action.fallback),
@@ -141,6 +147,9 @@ function reducer(state: PlaygroundState, action: Action): PlaygroundState {
         phase: action.verificationResult.status === 'VALID' ? 'verified' : 'failed',
         verificationResult: action.verificationResult,
         presentationDefinition: action.presentationDefinition ?? null,
+        presentationRequest: action.client_id && action.nonce
+          ? { clientId: action.client_id, nonce: action.nonce }
+          : null,
         verifyFallback: Boolean(action.fallback),
         sandboxFallback: state.issueFallback || Boolean(action.fallback),
         notices: action.notice ? [...state.notices, action.notice] : state.notices,
@@ -193,9 +202,10 @@ export function usePlaygroundRun() {
     tamper: TamperOptions | undefined,
     fallback: boolean,
     result?: VerificationResult,
-    errorDetail?: string
+    errorDetail?: string,
+    proofType?: string
   ) => {
-    const tampered = Boolean(tamper && (tamper.forceExpired || tamper.corruptSignature));
+    const tampered = Boolean(tamper && (tamper.forceExpired || tamper.corruptSignature || tamper.wrongCredentialType));
     // PASS means the verifier behaved as expected: accept a clean credential,
     // reject a tampered one.
     const passed = !errorDetail && !!result && (tampered ? result.status !== 'VALID' : result.status === 'VALID');
@@ -207,7 +217,7 @@ export function usePlaygroundRun() {
         startedAt,
         finishedAt: new Date().toISOString(),
         ...sel,
-        proofType: getProofType(credential, sel.format),
+        proofType: proofType ?? getProofType(credential, sel.format),
         tampered,
         outcome: passed ? 'PASS' : 'FAIL',
         verificationStatus: result?.status,
@@ -223,18 +233,23 @@ export function usePlaygroundRun() {
     const startedAt = new Date().toISOString();
     dispatch({ type: 'issueStart', transactionId });
     try {
-      // Tamper flags are deliberately not sent here: the mock issuer merges
-      // tamperPayload into the credential subject. Tampering happens at presentation.
       const data = await api.issue({ issuer: sel.issuer, wallet: sel.wallet, format: sel.format, credentialSubject: subject }, transactionId);
       dispatch({
         type: 'issueDone',
         credentialOffer: data.credentialOffer,
         issuedCredential: data.issuedCredential,
+        proofType: data.proofType,
         logs: data.protocolLogs,
         fallback: data.isSandboxFallback,
         notice: data.notice
       });
-      return { transactionId, startedAt, credential: data.issuedCredential, fallback: Boolean(data.isSandboxFallback) };
+      return {
+        transactionId,
+        startedAt,
+        credential: data.issuedCredential,
+        proofType: data.proofType,
+        fallback: Boolean(data.isSandboxFallback)
+      };
     } catch (err: any) {
       dispatch({ type: 'fail', error: err.message });
       record(sel, transactionId, startedAt, null, undefined, false, undefined, `Issuance failed: ${err.message}`);
@@ -248,6 +263,7 @@ export function usePlaygroundRun() {
       transactionId: state.transactionId ?? newTransactionId(),
       startedAt: state.startedAt ?? new Date().toISOString(),
       credential: state.issuedCredential,
+      proofType: state.issuedProofType ?? undefined,
       // Only issuance carries over: a re-verification decides its own fallback.
       fallback: state.issueFallback
     },
@@ -266,18 +282,30 @@ export function usePlaygroundRun() {
         type: 'verifyDone',
         verificationResult: data.verificationResult,
         presentationDefinition: data.presentationDefinition,
+        client_id: data.client_id,
+        nonce: data.nonce,
         logs: data.protocolLogs,
         fallback: data.isSandboxFallback,
         notice: data.notice
       });
-      record(sel, run.transactionId, run.startedAt, run.credential, tamper, run.fallback || Boolean(data.isSandboxFallback), data.verificationResult);
+      record(
+        sel,
+        run.transactionId,
+        run.startedAt,
+        run.credential,
+        tamper,
+        run.fallback || Boolean(data.isSandboxFallback),
+        data.verificationResult,
+        undefined,
+        run.proofType
+      );
       return data.verificationResult;
     } catch (err: any) {
       dispatch({ type: 'fail', error: err.message });
       record(sel, run.transactionId, run.startedAt, run.credential, tamper, run.fallback, undefined, `Verification failed: ${err.message}`);
       return null;
     }
-  }, [state.selection, state.transactionId, state.startedAt, state.issuedCredential, state.issueFallback]);
+  }, [state.selection, state.transactionId, state.startedAt, state.issuedCredential, state.issuedProofType, state.issueFallback]);
 
   /** Issue then immediately present & verify, optionally for an explicit matrix combination. */
   const runFullFlow = useCallback(async (subject: CredentialSubjectInput, tamper?: TamperOptions, sel: Selection = state.selection) => {

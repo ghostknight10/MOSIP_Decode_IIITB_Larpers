@@ -331,6 +331,23 @@ describe('runFullFlow and runBatch', () => {
     expect(h.current.history).toHaveLength(1);
   });
 
+  it('uses proof type and presentation request metadata returned by the BFF', async () => {
+    issueMock.mockImplementation(async (_p, txId) => issueOk(txId, { proofType: 'IssuerProofType' }));
+    verifyMock.mockImplementation(async (_p, txId) => verifyOk(txId, 'VALID', {
+      client_id: 'https://verify.mock.mosip.net',
+      nonce: 'server-generated-nonce'
+    }));
+    const { result: h } = setup();
+
+    await act(() => h.current.runFullFlow(DEFAULT_SUBJECT));
+
+    expect(h.current.history[0].proofType).toBe('IssuerProofType');
+    expect(h.current.presentationRequest).toEqual({
+      clientId: 'https://verify.mock.mosip.net',
+      nonce: 'server-generated-nonce'
+    });
+  });
+
   it('runs an explicit combination without changing the stored selection', async () => {
     const { result: h } = setup();
     const sel: Selection = { issuer: 'mock-openid4vci', wallet: 'mock-wallet', verifier: 'mock-openid4vp', format: 'sd-jwt' };

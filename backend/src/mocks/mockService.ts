@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { CredentialFormat, ProtocolLog } from '../types/index.js';
 
@@ -12,6 +13,7 @@ export class MockProtocolService {
   ): {
     credentialOffer: any;
     issuedCredential: any;
+    proofType: string;
     logs: ProtocolLog[];
   } {
     const offerId = `urn:uuid:${uuidv4()}`;
@@ -24,8 +26,7 @@ export class MockProtocolService {
       fullName: subjectData.fullName || 'Aaditya Sharma',
       dob: subjectData.dob || '1995-08-15',
       country: subjectData.country || 'IND',
-      email: subjectData.email || 'aaditya.sharma@example.org',
-      ...(tamperPayload || {})
+      email: subjectData.email || 'aaditya.sharma@example.org'
     };
 
     // OpenID4VCI Draft 13 Credential Offer format
@@ -45,7 +46,12 @@ export class MockProtocolService {
     let issuedCredential: any;
 
     if (format === 'sd-jwt') {
-      // SD-JWT VC representation (Header.Payload~Disclosure1~Disclosure2.Signature)
+      const disclosures = Object.entries(baseSubject)
+        .filter(([claim]) => claim !== 'id')
+        .map(([claim, value]) => Buffer.from(JSON.stringify([uuidv4(), claim, value])).toString('base64url'));
+      const digests = disclosures.map(disclosure =>
+        createHash('sha256').update(disclosure).digest('base64url')
+      );
       const fakeHeader = Buffer.from(JSON.stringify({ alg: 'ES256', typ: 'vc+sd-jwt' })).toString('base64url');
       const fakePayload = Buffer.from(
         JSON.stringify({
@@ -55,17 +61,13 @@ export class MockProtocolService {
           exp: Math.floor(Date.now() / 1000) + 3600 * 24 * 365,
           vct: 'https://schema.mosip.net/credentials/national-id/v1',
           _sd_alg: 'sha-256',
-          _sd: [
-            'W2E4dHJhX2Rpc2Nsb3N1cmVfMV0=',
-            'W2E4dHJhX2Rpc2Nsb3N1cmVfMl0='
-          ],
-          ...baseSubject
+          _sd: digests
         })
       ).toString('base64url');
       const fakeSig = Buffer.from('mock_crypto_signature_es256_valid').toString('base64url');
       issuedCredential = {
         format: 'vc+sd-jwt',
-        rawToken: `${fakeHeader}.${fakePayload}.${fakeSig}~WyJzYWx0MSIsICJuYXRpb25hbElkIiwgIk1PU0lQLUlORC05ODc2LTU0MzItMTA5OCJd~`,
+        rawToken: `${fakeHeader}.${fakePayload}.${fakeSig}~${disclosures.join('~')}~`,
         decoded: {
           header: { alg: 'ES256', typ: 'vc+sd-jwt' },
           payload: {
@@ -149,6 +151,7 @@ export class MockProtocolService {
     return {
       credentialOffer,
       issuedCredential,
+      proofType: format === 'sd-jwt' ? 'JWT (ES256)' : issuedCredential.proof.type,
       logs: [log1, log2]
     };
   }
@@ -174,6 +177,8 @@ export class MockProtocolService {
       verifiedClaims: any;
     };
     presentationDefinition: any;
+    client_id: string;
+    nonce: string;
     logs: ProtocolLog[];
   } {
     // OpenID4VP Draft 21 Presentation Definition
@@ -204,17 +209,20 @@ export class MockProtocolService {
         }
       ]
     };
+    const clientId = 'https://verify.mock.mosip.net';
+    const nonce = uuidv4();
 
     // Check tampering simulation
     let isExpired = false;
     let signatureMismatch = false;
+    const wrongCredentialType = Boolean(tamperPayload?.wrongCredentialType);
 
     if (tamperPayload) {
       if (tamperPayload.forceExpired) isExpired = true;
       if (tamperPayload.corruptSignature) signatureMismatch = true;
     }
 
-    const isValid = !isExpired && !signatureMismatch;
+    const isValid = !isExpired && !signatureMismatch && !wrongCredentialType;
     let statusText: 'VALID' | 'INVALID' | 'EXPIRED' | 'SIGNATURE_MISMATCH' = 'VALID';
     let details = 'All cryptographic signatures, schemas, and trust anchors verified successfully against MOSIP root.';
 
@@ -224,22 +232,47 @@ export class MockProtocolService {
     } else if (signatureMismatch) {
       statusText = 'SIGNATURE_MISMATCH';
       details = 'Cryptographic verification failed: Proof signature does not match issuer public key.';
+    } else if (wrongCredentialType) {
+      statusText = 'INVALID';
+      details = 'Credential type check failed: the presented credential is not a National Identity credential.';
     }
 
+    const sampleClaims = {
+      fullName: 'Aaditya Sharma',
+      nationalId: 'MOSIP-IND-9876-5432-1098',
+      country: 'IND'
+    };
+    let presentedClaims: Record<string, unknown> | undefined;
+    if (format === 'sd-jwt' && typeof presentedTokenOrVC?.rawToken === 'string') {
+      presentedClaims = {};
+      for (const encoded of presentedTokenOrVC.rawToken.split('~').slice(1).filter(Boolean)) {
+        const disclosure = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
+        if (Array.isArray(disclosure) && disclosure.length === 3 && typeof disclosure[1] === 'string') {
+          presentedClaims[disclosure[1]] = disclosure[2];
+        }
+      }
+    } else {
+      presentedClaims = presentedTokenOrVC?.credentialSubject ??
+        presentedTokenOrVC?.decoded?.payload?.claims ??
+        sampleClaims;
+    }
+    const requestedClaimNames = presentationDefinition.input_descriptors[0].constraints.fields
+      .map((field: { path: string[] }) => field.path[0].split('.').pop());
+    const verifiedClaims = Object.fromEntries(
+      requestedClaimNames
+        .filter((claim): claim is string => typeof claim === 'string' && claim in (presentedClaims ?? {}))
+        .map(claim => [claim, presentedClaims![claim]])
+    );
     const verificationResult = {
       status: statusText,
       checks: {
-        formatCheck: true,
+        formatCheck: !wrongCredentialType,
         signatureValid: !signatureMismatch,
         notExpired: !isExpired,
         schemaCompliant: true
       },
       details,
-      verifiedClaims: presentedTokenOrVC?.credentialSubject || presentedTokenOrVC?.decoded?.payload?.claims || {
-        fullName: 'Aaditya Sharma',
-        nationalId: 'MOSIP-IND-9876-5432-1098',
-        country: 'IND'
-      }
+      verifiedClaims
     };
 
     const vpLog1: ProtocolLog = {
@@ -253,7 +286,11 @@ export class MockProtocolService {
       status: 'SUCCESS',
       request: {
         method: 'GET',
-        url: 'openid4vp://authorize?client_id=https://verify.mock.mosip.net&response_type=vp_token'
+        url: `openid4vp://authorize?${new URLSearchParams({
+          client_id: clientId,
+          nonce,
+          response_type: 'vp_token'
+        }).toString()}`
       },
       response: {
         status: 200,
@@ -284,13 +321,19 @@ export class MockProtocolService {
         body: verificationResult
       },
       durationMs: 110,
-      tampered: Boolean(tamperPayload && Object.keys(tamperPayload).length > 0)
+      tampered: Boolean(
+        tamperPayload?.forceExpired ||
+        tamperPayload?.corruptSignature ||
+        tamperPayload?.wrongCredentialType
+      )
     };
 
     return {
       isValid,
       verificationResult,
       presentationDefinition,
+      client_id: clientId,
+      nonce,
       logs: [vpLog1, vpLog2]
     };
   }

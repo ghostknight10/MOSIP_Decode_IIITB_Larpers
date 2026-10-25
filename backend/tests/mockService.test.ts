@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { MockProtocolService } from '../src/mocks/mockService.js';
 
-const decodeSegment = (s: string) => JSON.parse(Buffer.from(s, 'base64url').toString('utf8'));
+const decodeSegment = (s: string) =>
+  JSON.parse(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (s.length % 4)) % 4)));
+const base64UrlEncode = (bytes: Uint8Array) =>
+  btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
 describe('MockProtocolService.issueCredential (OpenID4VCI Draft 13)', () => {
   it('builds a pre-authorized_code credential offer', () => {
@@ -29,7 +32,7 @@ describe('MockProtocolService.issueCredential (OpenID4VCI Draft 13)', () => {
   });
 
   it('issues an SD-JWT VC with header, payload, signature and disclosures', () => {
-    const { issuedCredential, credentialOffer } = MockProtocolService.issueCredential('sd-jwt', { fullName: 'Priya Rao' });
+    const { issuedCredential, credentialOffer, proofType } = MockProtocolService.issueCredential('sd-jwt', { fullName: 'Priya Rao' });
     expect(credentialOffer.credential_configuration_ids).toEqual(['NationalId_SD_JWT']);
     expect(issuedCredential.format).toBe('vc+sd-jwt');
 
@@ -37,11 +40,18 @@ describe('MockProtocolService.issueCredential (OpenID4VCI Draft 13)', () => {
     const [header, payload, signature] = jwt.split('.');
     expect(decodeSegment(header)).toEqual({ alg: 'ES256', typ: 'vc+sd-jwt' });
     const claims = decodeSegment(payload);
-    expect(claims).toMatchObject({ iss: 'https://issuer.mock.mosip.net', _sd_alg: 'sha-256', fullName: 'Priya Rao' });
+    expect(claims).toMatchObject({ iss: 'https://issuer.mock.mosip.net', _sd_alg: 'sha-256' });
+    expect(claims).not.toHaveProperty('fullName');
     expect(claims.exp).toBeGreaterThan(claims.iat);
     expect(signature.length).toBeGreaterThan(0);
-    expect(disclosures.filter(Boolean)).toHaveLength(1);
+    expect(disclosures.filter(Boolean)).toHaveLength(5);
+    expect(decodeSegment(disclosures[0])).toEqual([
+      expect.any(String),
+      'nationalId',
+      'MOSIP-IND-9876-5432-1098'
+    ]);
     expect(issuedCredential.decoded.payload.claims.fullName).toBe('Priya Rao');
+    expect(proofType).toBe('JWT (ES256)');
   });
 
   it.each([
@@ -62,11 +72,33 @@ describe('MockProtocolService.issueCredential (OpenID4VCI Draft 13)', () => {
     expect(a).not.toBe(b);
   });
 
-  // Known bug: tamperPayload is spread into the credential subject, so the
-  // tamper switches show up as claims. Flip to `it` once fixed.
-  it.fails('does not leak tamper flags into the credential subject', () => {
+  it('does not leak tamper flags into the credential subject', () => {
     const { issuedCredential } = MockProtocolService.issueCredential('w3c-vc', {}, { forceExpired: true });
     expect(issuedCredential.credentialSubject).not.toHaveProperty('forceExpired');
+  });
+
+  it('returns the issued proof type with the credential', () => {
+    expect(MockProtocolService.issueCredential('w3c-vc').proofType).toBe('Ed25519Signature2020');
+    expect(MockProtocolService.issueCredential('sd-jwt').proofType).toBe('JWT (ES256)');
+  });
+
+  it('places valid disclosure digests in _sd without cleartext subject claims', async () => {
+    const { issuedCredential, proofType } = MockProtocolService.issueCredential('sd-jwt', { fullName: 'Priya Rao' });
+    const [jwt, ...encodedDisclosures] = issuedCredential.rawToken.split('~');
+    const [, payload] = jwt.split('.');
+    const claims = decodeSegment(payload);
+    const disclosures: string[] = encodedDisclosures.filter((disclosure: string) => disclosure.length > 0);
+    const expectedDigests = await Promise.all(disclosures.map(async disclosure =>
+      base64UrlEncode(new Uint8Array(await crypto.subtle.digest(
+        'SHA-256',
+        new Uint8Array(Array.from(disclosure, char => char.charCodeAt(0)))
+      )))
+    ));
+
+    expect(claims._sd).toEqual(expectedDigests);
+    expect(claims).not.toHaveProperty('fullName');
+    expect(claims).not.toHaveProperty('nationalId');
+    expect(proofType).toBe('JWT (ES256)');
   });
 });
 
@@ -78,7 +110,10 @@ describe('MockProtocolService.verifyPresentation (OpenID4VP Draft 21)', () => {
     expect(r.isValid).toBe(true);
     expect(r.verificationResult.status).toBe('VALID');
     expect(Object.values(r.verificationResult.checks).every(Boolean)).toBe(true);
-    expect(r.verificationResult.verifiedClaims).toBe(vc.credentialSubject);
+    expect(r.verificationResult.verifiedClaims).toEqual({
+      fullName: vc.credentialSubject.fullName,
+      nationalId: vc.credentialSubject.nationalId
+    });
   });
 
   it('rejects an expired credential but keeps the signature check green', () => {
@@ -116,9 +151,14 @@ describe('MockProtocolService.verifyPresentation (OpenID4VP Draft 21)', () => {
   });
 
   it('logs the authorization request and the vp_token submission', () => {
-    const { logs, presentationDefinition } = MockProtocolService.verifyPresentation('w3c-vc', vc);
+    const { logs, presentationDefinition, client_id, nonce } = MockProtocolService.verifyPresentation('w3c-vc', vc);
     expect(logs.map(l => [l.step, l.protocol, l.status])).toEqual([[3, 'OpenID4VP', 'SUCCESS'], [4, 'OpenID4VP', 'SUCCESS']]);
-    expect(logs[0].request.url).toMatch(/^openid4vp:\/\/authorize\?.*response_type=vp_token/);
+    const authorizationUrl = new URL(logs[0].request.url.replace('openid4vp://', 'https://'));
+    expect(authorizationUrl.searchParams.get('response_type')).toBe('vp_token');
+    expect(authorizationUrl.searchParams.get('client_id')).toBe(client_id);
+    expect(authorizationUrl.searchParams.get('nonce')).toBe(nonce);
+    expect(client_id).toBe('https://verify.mock.mosip.net');
+    expect(nonce).toMatch(/^[0-9a-f-]{36}$/);
     expect(logs[0].response.body).toBe(presentationDefinition);
     expect(logs[1].request.body.vp_token).toBe(vc);
     expect(logs[1].tampered).toBe(false);
@@ -131,17 +171,41 @@ describe('MockProtocolService.verifyPresentation (OpenID4VP Draft 21)', () => {
 
   it('reads verified claims from SD-JWT decoded payloads', () => {
     const sd = MockProtocolService.issueCredential('sd-jwt', { fullName: 'Priya Rao' }).issuedCredential;
-    expect(MockProtocolService.verifyPresentation('sd-jwt', sd).verificationResult.verifiedClaims.fullName).toBe('Priya Rao');
+    expect(MockProtocolService.verifyPresentation('sd-jwt', sd).verificationResult.verifiedClaims).toEqual({
+      fullName: 'Priya Rao',
+      nationalId: 'MOSIP-IND-9876-5432-1098'
+    });
   });
 
   it('falls back to sample claims when nothing is presented', () => {
-    expect(MockProtocolService.verifyPresentation('w3c-vc', undefined).verificationResult.verifiedClaims).toMatchObject({ country: 'IND' });
+    expect(MockProtocolService.verifyPresentation('w3c-vc', undefined).verificationResult.verifiedClaims).toEqual({
+      fullName: 'Aaditya Sharma',
+      nationalId: 'MOSIP-IND-9876-5432-1098'
+    });
   });
 
-  // Known bug: any tamperPayload object counts as tampering, even with every
-  // option false, so the diagram shows a tamper warning for a clean run.
-  it.fails('does not flag all-false tamper options as tampered', () => {
+  it('does not flag all-false tamper options as tampered', () => {
     const [, submission] = MockProtocolService.verifyPresentation('w3c-vc', vc, { forceExpired: false, corruptSignature: false }).logs;
     expect(submission.tampered).toBe(false);
+  });
+
+  it('shares only requested claims from the credential subject', () => {
+    const { verificationResult } = MockProtocolService.verifyPresentation('w3c-vc', vc);
+    expect(verificationResult.verifiedClaims).toEqual({
+      fullName: vc.credentialSubject.fullName,
+      nationalId: vc.credentialSubject.nationalId
+    });
+    expect(verificationResult.verifiedClaims).not.toHaveProperty('country');
+  });
+
+  it('rejects a credential with the wrong credential type', () => {
+    const result = MockProtocolService.verifyPresentation('w3c-vc', vc, { wrongCredentialType: true });
+    expect(result.isValid).toBe(false);
+    expect(result.verificationResult).toMatchObject({
+      status: 'INVALID',
+      checks: { formatCheck: false },
+      details: expect.stringContaining('Credential type check failed')
+    });
+    expect(result.logs[1].tampered).toBe(true);
   });
 });

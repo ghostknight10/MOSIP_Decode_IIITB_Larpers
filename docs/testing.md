@@ -4,8 +4,8 @@ The playground has three layers of tests:
 
 | Layer | Tool | Command | Count |
 | --- | --- | --- | --- |
-| Frontend unit, component and integration | Vitest 5 + Testing Library + jsdom | `npm --prefix frontend test` | 328 |
-| Backend unit and HTTP | Vitest 5 (node) | `npm --prefix backend test` | 85 (77 + 8 known-bug) |
+| Frontend unit, component and integration | Vitest 5 + Testing Library + jsdom | `npm --prefix frontend test` | 331 |
+| Backend unit and HTTP | Vitest 5 (node) | `npm --prefix backend test` | 89 (83 + 6 known-bug) |
 | Protocol scenarios TC-01 to TC-05 | `backend/scripts/test-interop.ts` | `npm run test:interop` | 5 |
 
 `npm test` at the repo root runs the frontend suite, then the backend suite. CI runs it on every push and pull request to `main`, after both builds and before the interop scenarios. Manual UI procedures are in [test-cases.md](./test-cases.md).
@@ -21,7 +21,7 @@ Configured in `frontend/vite.config.ts` (`test.environment: 'jsdom'`, setup file
 | `config/nodes.test.ts` | 10 | Registry integrity (roles, unique IDs, MOSIP and non-MOSIP per role, verifier `client_id`s), wire formats, lookups, `allCombinations()` product and keys |
 | `config/scenarios.test.ts` | 4 | Presets: unique IDs, valid combinations, TC-01 to TC-05 coverage, both cross-ecosystem directions |
 | `api/client.test.ts` | 11 | Request shape, `x-transaction-id` header, `ApiError` mapping for `success:false` / non-2xx / non-JSON, unreachable BFF message, transaction ID format |
-| `hooks/usePlaygroundRun.test.ts` | 43 | Issue/verify success and failure, PASS/FAIL semantics (clean vs tampered), transaction ID reuse, log de-duplication and newest-first order, per-phase sandbox fallback, failed checks, selection reset rules, busy locking, full flow, batch runs, history persistence and 200-run cap, clear/reset, `getProofType`, `mergeLogs` |
+| `hooks/usePlaygroundRun.test.ts` | 44 | Issue/verify success and failure, PASS/FAIL semantics (clean vs tampered), transaction ID reuse, log de-duplication and newest-first order, per-phase sandbox fallback, failed checks, selection reset rules, busy locking, full flow, batch runs, history persistence and 200-run cap, clear/reset, `getProofType`, `mergeLogs` |
 | `lib/credential.test.ts` | 4 | JWT payload decoding (base64url, disclosures ignored, malformed input) |
 | `lib/sdjwt.test.ts` | 9 | SD-JWT parsing (the mock token's real disclosure, array-element and malformed disclosures, key-binding JWT), `_sd` digest checks via WebCrypto, unavailable WebCrypto |
 | `lib/claims.test.ts` | 13 | JSONPath claim names, requested / held / shared claims (W3C and SD-JWT), four-way classification |
@@ -30,7 +30,7 @@ Configured in `frontend/vite.config.ts` (`test.environment: 'jsdom'`, setup file
 | `lib/fallback.test.ts` | 4 | Plain-language emulation notice per phase |
 | `lib/jsonHighlight.test.tsx` | 11 | Token kinds, exact text preserved, escaped quotes, primitives |
 | `components/MatrixSelector.test.tsx` | 22 | Registry-driven radios and `aria-checked`, selection callbacks, locking while running, per-role status (table-driven `columnStatus`), verifier verdict, per-role Emulated badge |
-| `components/FlowControls.test.tsx` | 35 | Action wiring, edited subject, tamper options (including "tamper mode on, nothing ticked" → no payload), scenarios, offer and OpenID4VP QR/deep links, clipboard, oversize-QR warning, W3C and SD-JWT summaries, verdict card with "Valid but Expired", URI builders, `activeTamper` |
+| `components/FlowControls.test.tsx` | 37 | Action wiring, edited subject, tamper options (including wrong credential type and "tamper mode on, nothing ticked" → no payload), scenarios, offer and OpenID4VP QR/deep links, clipboard, oversize-QR warning, W3C and SD-JWT summaries, verdict card with "Valid but Expired", URI builders, `activeTamper` |
 | `components/flow/CredentialInspector.test.tsx` | 6 | Collapsed by default, W3C claims and proof, labelled SD-JWT parts, decoded disclosures with digest result, unavailable WebCrypto, undecodable token |
 | `components/flow/SharedClaimsPanel.test.tsx` | 5 | Custody summary, minimal sharing, over-disclosure warning, missing claims, labelled groups |
 | `components/RunTimeline.test.tsx` | 5 | Protocol order, role mapping for emulated services, status and tamper in text, current/not-yet steps |
@@ -74,8 +74,6 @@ Configured in `backend/vitest.config.ts`. Tests live outside `src/`, so `tsc` do
 | `playground.routes` › returns a credential offer for real Inji Certify issuance | Real Certify responses aren't normalised (no `credentialOffer`) | Aatraya |
 | `playground.routes` › normalises real Inji Verify responses | No `isValid` / `checks` on real Verify responses | Aatraya |
 | `RingBuffer` › never returns a frame twice | `getLogs(limit > capacity)` wraps and returns duplicates | Aatraya |
-| `mockService` › does not leak tamper flags into the credential subject | `tamperPayload` is spread into `credentialSubject` | Aryan |
-| `mockService` › does not flag all-false tamper options as tampered | Any tamper object sets `tampered: true` | Aryan |
 
 **When you fix one,** the test turns red. Change `it.fails(` to `it(` and commit it with the fix. Details are in [known-issues.md](./known-issues.md).
 

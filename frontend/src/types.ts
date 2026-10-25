@@ -58,6 +58,7 @@ export interface IssueResponse {
   format: CredentialFormat;
   credentialOffer?: any;
   issuedCredential: any;
+  proofType?: string;
   protocolLogs?: ProtocolLog[];
   isSandboxFallback?: boolean;
   notice?: string;
@@ -72,6 +73,8 @@ export interface VerifyResponse {
   isValid?: boolean;
   verificationResult: VerificationResult;
   presentationDefinition?: any;
+  client_id?: string;
+  nonce?: string;
   protocolLogs?: ProtocolLog[];
   isSandboxFallback?: boolean;
   notice?: string;
@@ -81,6 +84,7 @@ export interface VerifyResponse {
 export interface TamperOptions {
   forceExpired: boolean;
   corruptSignature: boolean;
+  wrongCredentialType?: boolean;
 }
 
 export interface CredentialSubjectInput {

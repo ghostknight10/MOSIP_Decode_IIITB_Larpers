@@ -21,6 +21,7 @@ interface FlowControlsProps {
   issuedCredential: any;
   credentialOffer: any;
   presentationDefinition: any;
+  presentationRequest?: { clientId: string; nonce: string } | null;
   verificationResult: VerificationResult | null;
   format: CredentialFormat;
   verifier: VerifierType;
@@ -31,11 +32,16 @@ interface FlowControlsProps {
 
 /**
  * The tamper payload to send, if any. Nothing is sent unless an attack is
- * actually ticked: the mock verifier treats any tamperPayload object as
- * tampered, even with every flag false.
+ * actually ticked.
  */
 export const activeTamper = ({ tamperMode, tamperOptions }: RunInputs): TamperOptionsValue | undefined =>
-  tamperMode && (tamperOptions.forceExpired || tamperOptions.corruptSignature) ? tamperOptions : undefined;
+  tamperMode && (tamperOptions.forceExpired || tamperOptions.corruptSignature || tamperOptions.wrongCredentialType)
+    ? {
+        forceExpired: tamperOptions.forceExpired,
+        corruptSignature: tamperOptions.corruptSignature,
+        ...(tamperOptions.wrongCredentialType ? { wrongCredentialType: true } : {})
+      }
+    : undefined;
 
 export const FlowControls: React.FC<FlowControlsProps> = ({
   onIssue,
@@ -47,6 +53,7 @@ export const FlowControls: React.FC<FlowControlsProps> = ({
   issuedCredential,
   credentialOffer,
   presentationDefinition,
+  presentationRequest,
   verificationResult,
   format,
   verifier,
@@ -119,6 +126,7 @@ export const FlowControls: React.FC<FlowControlsProps> = ({
           transactionId={transactionId}
           issuedCredential={issuedCredential}
           presentationDefinition={presentationDefinition}
+          presentationRequest={presentationRequest}
           verificationResult={verificationResult}
           onVerify={() => onVerify(tamper)}
         />

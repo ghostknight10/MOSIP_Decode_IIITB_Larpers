@@ -67,7 +67,7 @@ When a Collab call fails, the BFF answers from the mock engine instead, relabels
 
 - **Authorization request:**
   - URI: `openid4vp://authorize?response_type=vp_token&response_mode=direct_post&client_id=…&nonce=…&presentation_definition=…`
-  - The UI renders it as a QR code (cross-device) and a deep link (same-device). The `nonce` is the run's transaction ID, and `client_id` comes from the verifier's registry entry.
+  - The UI renders it as a QR code (cross-device) and a deep link (same-device). The mock verifier returns its `nonce` and `client_id` alongside the presentation definition; the UI uses these values, with registry/transaction fallbacks for response shapes that omit them.
   - The presentation definition requests `fullName` and `nationalId` and accepts the `ES256` and `EdDSA` algorithms.
 - **Presentation submission:**
   - Envelope: `vp_token` posted to the verifier's response endpoint

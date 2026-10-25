@@ -27,7 +27,7 @@ export const App: React.FC = () => {
   const [inputs, setInputs] = useState<RunInputs>({
     subject: DEFAULT_SUBJECT,
     tamperMode: false,
-    tamperOptions: { forceExpired: false, corruptSignature: false }
+    tamperOptions: { forceExpired: false, corruptSignature: false, wrongCredentialType: false }
   });
 
   // A preset sets the matrix and tamper options the user can see, then runs.
@@ -35,7 +35,7 @@ export const App: React.FC = () => {
     setInputs(prev => ({
       ...prev,
       tamperMode: Boolean(scenario.tamper),
-      tamperOptions: scenario.tamper ?? { forceExpired: false, corruptSignature: false }
+      tamperOptions: scenario.tamper ?? { forceExpired: false, corruptSignature: false, wrongCredentialType: false }
     }));
     run.select(scenario.selection);
     void run.runFullFlow(inputs.subject, scenario.tamper ?? undefined, scenario.selection);
@@ -115,6 +115,7 @@ export const App: React.FC = () => {
                 issuedCredential={run.issuedCredential}
                 credentialOffer={run.credentialOffer}
                 presentationDefinition={run.presentationDefinition}
+                presentationRequest={run.presentationRequest}
                 verificationResult={run.verificationResult}
                 format={selection.format}
                 verifier={selection.verifier}

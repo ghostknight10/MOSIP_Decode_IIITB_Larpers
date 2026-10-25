@@ -32,6 +32,7 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
         format,
         credentialOffer: result.credentialOffer,
         issuedCredential: result.issuedCredential,
+        proofType: result.proofType,
         protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
       });
     }
@@ -62,6 +63,8 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
         format,
         credentialOffer,
         issuedCredential: response.data,
+        proofType: response.data?.proof?.type ??
+          (response.data?.decoded?.header?.alg ? `JWT (${response.data.decoded.header.alg})` : 'unknown'),
         protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
       });
     } catch (apiError: any) {
@@ -70,12 +73,8 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
       
       mockResult.logs.forEach((log: any) => {
         log.transactionId = transactionId;
-        // B-9 FIX: Only overwrite labels for the external emulated hop (Not the wallet)
-        if (log.receiver !== wallet && log.receiver !== 'mock-wallet' && log.receiver !== 'inji-wallet') {
+        if (log.receiver === 'Issuer (OpenID4VCI)') {
           log.receiver = 'Inji Certify (Collab Sandbox Emulated)';
-        }
-        if (log.sender !== wallet && log.sender !== 'mock-wallet' && log.sender !== 'inji-wallet') {
-          log.sender = 'Inji Certify (Collab Sandbox Emulated)';
         }
         globalAuditBuffer.add(log);
       });
@@ -89,6 +88,7 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
         notice: 'MOSIP Collab Sandbox reached via emulated gateway response',
         credentialOffer: mockResult.credentialOffer,
         issuedCredential: mockResult.issuedCredential,
+        proofType: mockResult.proofType,
         protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
       });
     }
@@ -126,6 +126,8 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
         isValid: result.isValid,
         verificationResult: result.verificationResult,
         presentationDefinition: result.presentationDefinition,
+        client_id: result.client_id,
+        nonce: result.nonce,
         protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
       });
     }
@@ -161,11 +163,10 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
 
       mockResult.logs.forEach((log: any) => {
         log.transactionId = transactionId;
-        // B-9 FIX: Only overwrite labels for the external emulated hop (Not the wallet)
-        if (log.sender !== wallet && log.sender !== 'mock-wallet' && log.sender !== 'inji-wallet') {
+        if (log.sender === 'Verifier (OpenID4VP)') {
           log.sender = 'Inji Verify (Collab Sandbox Emulated)';
         }
-        if (log.receiver !== wallet && log.receiver !== 'mock-wallet' && log.receiver !== 'inji-wallet') {
+        if (log.receiver === 'Verifier (OpenID4VP)') {
           log.receiver = 'Inji Verify (Collab Sandbox Emulated)';
         }
         globalAuditBuffer.add(log);
@@ -181,6 +182,8 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
         isValid: mockResult.isValid,
         verificationResult: mockResult.verificationResult,
         presentationDefinition: mockResult.presentationDefinition,
+        client_id: mockResult.client_id,
+        nonce: mockResult.nonce,
         protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
       });
     }

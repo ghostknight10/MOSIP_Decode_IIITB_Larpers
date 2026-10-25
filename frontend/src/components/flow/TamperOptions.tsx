@@ -28,6 +28,15 @@ export const TamperOptions: React.FC<{ value: TamperOptionsValue; onChange: (val
       />
       Corrupt Cryptographic Signature
     </label>
+    <label className="flex items-center gap-2 cursor-pointer">
+      <input
+        type="checkbox"
+        checked={Boolean(value.wrongCredentialType)}
+        onChange={e => onChange({ ...value, wrongCredentialType: e.target.checked })}
+        className="h-4 w-4 accent-accent"
+      />
+      Use Wrong Credential Type
+    </label>
     <span className="text-xs text-ink-muted">Applied when the wallet presents to the verifier.</span>
   </fieldset>
 );

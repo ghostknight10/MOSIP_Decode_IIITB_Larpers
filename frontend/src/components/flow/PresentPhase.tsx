@@ -15,6 +15,7 @@ interface PresentPhaseProps {
   transactionId: string | null;
   issuedCredential: any;
   presentationDefinition: any;
+  presentationRequest?: { clientId: string; nonce: string } | null;
   verificationResult: VerificationResult | null;
   onVerify: () => void;
 }
@@ -27,6 +28,7 @@ export const PresentPhase: React.FC<PresentPhaseProps> = ({
   transactionId,
   issuedCredential,
   presentationDefinition,
+  presentationRequest,
   verificationResult,
   onVerify
 }) => {
@@ -47,7 +49,11 @@ export const PresentPhase: React.FC<PresentPhaseProps> = ({
         {presentationDefinition && (
           <QrPanel
             title="Authorization Request (cross-device QR / same-device link)"
-            uri={buildVpRequestUri(presentationDefinition, clientId, transactionId ?? 'nonce')}
+            uri={buildVpRequestUri(
+              presentationDefinition,
+              presentationRequest?.clientId ?? clientId,
+              presentationRequest?.nonce ?? transactionId ?? 'nonce'
+            )}
           />
         )}
         {verificationResult && <VerdictCard result={verificationResult} />}

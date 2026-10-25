@@ -35,7 +35,7 @@ const verdict = (status: VerificationResult['status'], checks: Partial<Verificat
   verifiedClaims: {}
 });
 
-const INITIAL_INPUTS: RunInputs = { subject: DEFAULT_SUBJECT, tamperMode: false, tamperOptions: { forceExpired: false, corruptSignature: false } };
+const INITIAL_INPUTS: RunInputs = { subject: DEFAULT_SUBJECT, tamperMode: false, tamperOptions: { forceExpired: false, corruptSignature: false, wrongCredentialType: false } };
 
 type Props = React.ComponentProps<typeof FlowControls>;
 
@@ -109,6 +109,18 @@ describe('FlowControls actions', () => {
     await user.click(screen.getByLabelText('Corrupt Cryptographic Signature'));
     await user.click(verifyButton());
     expect(onVerify).toHaveBeenCalledWith({ forceExpired: false, corruptSignature: true });
+  });
+
+  it('supports presenting a credential with the wrong type', async () => {
+    const { onVerify, user } = renderControls({ phase: 'issued', issuedCredential: W3C_VC });
+    await user.click(screen.getByRole('button', { name: 'Enable Tamper Mode' }));
+    await user.click(screen.getByLabelText('Use Wrong Credential Type'));
+    await user.click(verifyButton());
+    expect(onVerify).toHaveBeenCalledWith({
+      forceExpired: false,
+      corruptSignature: false,
+      wrongCredentialType: true
+    });
   });
 
   it('drops tamper options again when tamper mode is switched off', async () => {
@@ -204,6 +216,20 @@ describe('FlowControls QR codes', () => {
     });
     const links = screen.getAllByRole('link', { name: 'Open on this device' });
     expect(links[0].getAttribute('href')).toBe(buildVpRequestUri(PD, 'https://verify.mock.mosip.net', 'tx-12345678'));
+  });
+
+  it('uses the verifier client_id and nonce returned by the backend', () => {
+    renderControls({
+      phase: 'verified',
+      issuedCredential: W3C_VC,
+      presentationDefinition: PD,
+      presentationRequest: { clientId: 'https://server-verifier', nonce: 'server-nonce' },
+      verificationResult: verdict('VALID'),
+      transactionId: 'tx-12345678',
+      verifier: 'mock-openid4vp'
+    });
+    const links = screen.getAllByRole('link', { name: 'Open on this device' });
+    expect(links[0].getAttribute('href')).toBe(buildVpRequestUri(PD, 'https://server-verifier', 'server-nonce'));
   });
 });
 
