@@ -77,5 +77,24 @@ export const api = {
 
   getLogs: () => request<{ count: number; logs: ProtocolLog[] }>('/api/playground/logs'),
 
-  clearLogs: () => request<{ success: boolean }>('/api/playground/logs', { method: 'DELETE' })
+  clearLogs: () => request<{ success: boolean }>('/api/playground/logs', { method: 'DELETE' }),
+
+  /**
+   * Subscribes to the BFF's live audit stream (SSE) and calls onLog for each
+   * protocol log as it is recorded. Returns an unsubscribe function. Proxy
+   * audit frames and control messages, which have other shapes, are ignored.
+   */
+  streamLogs: (onLog: (log: ProtocolLog) => void): (() => void) => {
+    if (typeof EventSource === 'undefined') return () => {};
+    const source = new EventSource('/api/playground/logs/stream');
+    source.onmessage = event => {
+      try {
+        const frame = JSON.parse(event.data);
+        if (typeof frame?.id === 'string' && typeof frame.action === 'string' && frame.request && frame.response) onLog(frame);
+      } catch {
+        // Not JSON: ignore.
+      }
+    };
+    return () => source.close();
+  }
 };

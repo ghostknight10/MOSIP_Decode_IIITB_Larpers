@@ -57,6 +57,7 @@ type Action =
   | { type: 'issueDone'; credentialOffer: any; issuedCredential: any; proofType?: string; logs?: ProtocolLog[]; fallback?: boolean; notice?: string }
   | { type: 'verifyStart' }
   | { type: 'verifyDone'; verificationResult: VerificationResult; presentationDefinition: any; client_id?: string; nonce?: string; logs?: ProtocolLog[]; fallback?: boolean; notice?: string }
+  | { type: 'streamed'; log: ProtocolLog }
   | { type: 'fail'; error: string }
   | { type: 'record'; record: RunRecord }
   | { type: 'clearLogs' }
@@ -155,6 +156,13 @@ function reducer(state: PlaygroundState, action: Action): PlaygroundState {
         notices: action.notice ? [...state.notices, action.notice] : state.notices,
         logs: mergeLogs(state.logs, action.logs, state.transactionId)
       };
+    case 'streamed':
+      // A frame of the run in flight, streamed before its response arrives.
+      // The response then replaces the transaction's frames (mergeLogs).
+      if (!isBusy(state.phase) || action.log.transactionId !== state.transactionId || state.logs.some(l => l.id === action.log.id)) {
+        return state;
+      }
+      return { ...state, logs: [action.log, ...state.logs] };
     case 'fail':
       return { ...state, phase: 'failed', error: action.error };
     case 'record':
@@ -185,6 +193,9 @@ export function usePlaygroundRun() {
     logs: [],
     history: loadHistory()
   }) as PlaygroundState);
+
+  // Live Collab calls take a second or more; show their frames as they happen.
+  useEffect(() => api.streamLogs(log => dispatch({ type: 'streamed', log })), []);
 
   useEffect(() => {
     try {

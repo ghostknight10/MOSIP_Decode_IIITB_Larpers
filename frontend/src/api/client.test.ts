@@ -91,3 +91,38 @@ describe('api', () => {
     await expect(api.health()).rejects.toThrow(/Cannot reach the Playground BFF/);
   });
 });
+
+describe('streamLogs', () => {
+  class FakeEventSource {
+    static last: FakeEventSource;
+    onmessage: ((event: { data: string }) => void) | null = null;
+    close = vi.fn();
+    constructor(public url: string) {
+      FakeEventSource.last = this;
+    }
+  }
+
+  it('subscribes to the BFF stream and passes on protocol logs only', () => {
+    vi.stubGlobal('EventSource', FakeEventSource);
+    const onLog = vi.fn();
+    const unsubscribe = api.streamLogs(onLog);
+    const source = FakeEventSource.last;
+    expect(source.url).toBe('/api/playground/logs/stream');
+
+    const frame = { id: 'l1', action: 'Fetch issuer metadata', request: {}, response: {} };
+    source.onmessage!({ data: JSON.stringify({ message: 'SSE audit log stream connected' }) });
+    source.onmessage!({ data: JSON.stringify({ action: 'CLEAR_LOGS' }) });
+    source.onmessage!({ data: JSON.stringify({ transactionId: 'tx', packet: {} }) }); // proxy audit frame
+    source.onmessage!({ data: 'not json' });
+    source.onmessage!({ data: JSON.stringify(frame) });
+    expect(onLog.mock.calls).toEqual([[frame]]);
+
+    unsubscribe();
+    expect(source.close).toHaveBeenCalledOnce();
+  });
+
+  it('does nothing where EventSource is unavailable', () => {
+    vi.stubGlobal('EventSource', undefined);
+    expect(() => api.streamLogs(vi.fn())()).not.toThrow();
+  });
+});

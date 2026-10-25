@@ -6,13 +6,14 @@ import { ProtocolLog, RunRecord, VerificationResult } from '../types';
 import { getProofType, mergeLogs, Selection, usePlaygroundRun } from './usePlaygroundRun';
 
 vi.mock('../api/client', () => ({
-  api: { issue: vi.fn(), verify: vi.fn(), clearLogs: vi.fn(), health: vi.fn(), getLogs: vi.fn() },
+  api: { issue: vi.fn(), verify: vi.fn(), clearLogs: vi.fn(), health: vi.fn(), getLogs: vi.fn(), streamLogs: vi.fn() },
   newTransactionId: vi.fn()
 }));
 
 const issueMock = vi.mocked(api.issue);
 const verifyMock = vi.mocked(api.verify);
 const clearLogsMock = vi.mocked(api.clearLogs);
+const streamLogsMock = vi.mocked(api.streamLogs);
 
 const log = (txId: string, step: number): ProtocolLog => ({
   id: `${txId}-${step}`,
@@ -464,5 +465,54 @@ describe('mergeLogs', () => {
     const incoming = [log('a', 1), log('a', 2)];
     mergeLogs([], incoming, 'a');
     expect(incoming.map(l => l.step)).toEqual([1, 2]);
+  });
+});
+
+describe('live log stream', () => {
+  const subscribe = () => {
+    let onLog: (log: ProtocolLog) => void = () => {};
+    const unsubscribe = vi.fn();
+    streamLogsMock.mockReset().mockImplementation(cb => {
+      onLog = cb;
+      return unsubscribe;
+    });
+    return { push: (l: ProtocolLog) => act(() => onLog(l)), unsubscribe };
+  };
+
+  it('shows frames of the run in flight before its response arrives', async () => {
+    const stream = subscribe();
+    let respond: (value: ReturnType<typeof issueOk>) => void = () => {};
+    issueMock.mockImplementation((_p, txId) => new Promise(r => (respond = () => r(issueOk(txId)))));
+    const { result: h } = setup();
+
+    let pending: Promise<unknown>;
+    act(() => {
+      pending = h.current.issue(DEFAULT_SUBJECT);
+    });
+    const tx = h.current.transactionId!;
+    stream.push(log(tx, 1));
+    stream.push(log(tx, 1)); // duplicate
+    stream.push(log('tx-other', 1)); // another run
+    expect(h.current.logs.map(l => l.id)).toEqual([`${tx}-1`]);
+
+    await act(async () => {
+      respond(issueOk(tx));
+      await pending;
+    });
+    expect(h.current.logs.map(l => l.id)).toEqual([`${tx}-2`, `${tx}-1`]);
+  });
+
+  it('ignores frames while no run is in flight', () => {
+    const stream = subscribe();
+    const { result: h } = setup();
+    stream.push(log('tx-00000001', 1));
+    expect(h.current.logs).toEqual([]);
+  });
+
+  it('unsubscribes on unmount', () => {
+    const stream = subscribe();
+    const { unmount } = setup();
+    unmount();
+    expect(stream.unsubscribe).toHaveBeenCalledOnce();
   });
 });
