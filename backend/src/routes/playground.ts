@@ -192,9 +192,41 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
   }
 });
 
+/**
+ * Standard HTTP GET Polling Logs Endpoint
+ */
 playgroundRouter.get('/logs', (_req: Request, res: Response) => {
   const logs = globalAuditBuffer.getLogs(100);
   res.json({ count: logs.length, logs });
+});
+
+/**
+ * Server-Sent Events (SSE) Real-Time Audit Log Stream
+ * Allows Ayaan's Live Protocol Inspector to listen to frames as they arrive.
+ */
+playgroundRouter.get('/logs/stream', (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  res.write(`data: ${JSON.stringify({ message: 'SSE audit log stream connected' })}\n\n`);
+
+  const onNewFrame = (frame: any) => {
+    res.write(`data: ${JSON.stringify(frame)}\n\n`);
+  };
+
+  const onClear = () => {
+    res.write(`data: ${JSON.stringify({ action: 'CLEAR_LOGS' })}\n\n`);
+  };
+
+  globalAuditBuffer.on('newFrame', onNewFrame);
+  globalAuditBuffer.on('clear', onClear);
+
+  req.on('close', () => {
+    globalAuditBuffer.off('newFrame', onNewFrame);
+    globalAuditBuffer.off('clear', onClear);
+  });
 });
 
 playgroundRouter.delete('/logs', (_req: Request, res: Response) => {

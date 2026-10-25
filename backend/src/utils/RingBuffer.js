@@ -1,5 +1,8 @@
-class AuditRingBuffer {
+import { EventEmitter } from 'events';
+
+class AuditRingBuffer extends EventEmitter {
   constructor(capacity = 350) {
+    super();
     this.capacity = capacity;
     // Pre-allocate the array to avoid dynamic allocation overhead
     this.buffer = new Array(capacity).fill(null);
@@ -8,10 +11,12 @@ class AuditRingBuffer {
 
   /**
    * Adds a new frame using FIFO chronological eviction (circular pointer)
+   * and emits a 'newFrame' event for active SSE listeners.
    */
   add(frame) {
     this.buffer[this.head] = frame;
     this.head = (this.head + 1) % this.capacity;
+    this.emit('newFrame', frame);
   }
 
   /**
@@ -24,26 +29,28 @@ class AuditRingBuffer {
   }
 
   /**
-   * Optional: For future SSE stream fetching
+   * Optional: For future SSE stream fetching / legacy compatibility
    */
   getLatest(count = 10) {
-    // Collects the most recent non-null frames
     const results = [];
     let idx = (this.head - 1 + this.capacity) % this.capacity;
-    while (results.length < count && this.buffer[idx] !== null) {
+    let itemsChecked = 0;
+    while (results.length < count && this.buffer[idx] !== null && itemsChecked < this.capacity) {
       results.push(this.buffer[idx]);
       idx = (idx - 1 + this.capacity) % this.capacity;
+      itemsChecked++;
     }
     return results;
   }
 
   /**
    * Retrieves the most recent frames (for initial UI load or SSE streams)
+   * Prevents infinite wrapping when limit exceeds buffer capacity (B-5 fix).
    */
   getLogs(limit = 50) {
     const results = [];
     let idx = (this.head - 1 + this.capacity) % this.capacity;
-    let itemsChecked = 0; // B-5 FIX: Prevent infinite wrapping
+    let itemsChecked = 0;
     
     while (results.length < limit && this.buffer[idx] !== null && itemsChecked < this.capacity) {
       results.push(this.buffer[idx]);
@@ -54,11 +61,12 @@ class AuditRingBuffer {
   }
 
   /**
-   * Wipes the memory cache completely
+   * Wipes the memory cache completely and emits a 'clear' event.
    */
   clearLogs() {
     this.buffer = new Array(this.capacity).fill(null);
     this.head = 0;
+    this.emit('clear');
   }
 }
 
