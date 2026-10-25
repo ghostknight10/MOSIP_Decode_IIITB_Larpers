@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useReducer } from 'react';
 import { api, newTransactionId } from '../api/client';
+import { parseImportedCredential } from '../lib/importCredential';
 import {
   CredentialFormat,
   CredentialSubjectInput,
@@ -42,6 +43,8 @@ interface PlaygroundState {
   verificationResult: VerificationResult | null;
   /** Inji Certify / Inji Verify answered from the emulated sandbox in this run. */
   issueFallback: boolean;
+  /** The wallet holds a credential imported from outside the playground (not issued in this run). */
+  imported: boolean;
   verifyFallback: boolean;
   /** issueFallback || verifyFallback */
   sandboxFallback: boolean;
@@ -54,7 +57,7 @@ interface PlaygroundState {
 type Action =
   | { type: 'select'; patch: Partial<Selection> }
   | { type: 'issueStart'; transactionId: string }
-  | { type: 'issueDone'; credentialOffer: any; issuedCredential: any; proofType?: string; logs?: ProtocolLog[]; fallback?: boolean; notice?: string }
+  | { type: 'issueDone'; credentialOffer: any; issuedCredential: any; proofType?: string; logs?: ProtocolLog[]; fallback?: boolean; notice?: string; imported?: boolean }
   | { type: 'verifyStart' }
   | { type: 'verifyDone'; verificationResult: VerificationResult; presentationDefinition: any; client_id?: string; nonce?: string; logs?: ProtocolLog[]; fallback?: boolean; notice?: string }
   | { type: 'streamed'; log: ProtocolLog }
@@ -75,6 +78,7 @@ const emptyRun = {
   presentationRequest: null,
   verificationResult: null,
   issueFallback: false,
+  imported: false,
   verifyFallback: false,
   sandboxFallback: false,
   notices: [],
@@ -134,6 +138,7 @@ function reducer(state: PlaygroundState, action: Action): PlaygroundState {
         credentialOffer: action.credentialOffer ?? null,
         issuedCredential: action.issuedCredential,
         issuedProofType: action.proofType ?? null,
+        imported: Boolean(action.imported),
         issueFallback: Boolean(action.fallback),
         verifyFallback: false,
         sandboxFallback: Boolean(action.fallback),
@@ -214,7 +219,8 @@ export function usePlaygroundRun() {
     fallback: boolean,
     result?: VerificationResult,
     errorDetail?: string,
-    proofType?: string
+    proofType?: string,
+    imported = false
   ) => {
     const tampered = Boolean(tamper && Object.values(tamper).some(Boolean));
     // PASS means the verifier behaved as expected: accept a clean credential,
@@ -234,7 +240,8 @@ export function usePlaygroundRun() {
         verificationStatus: result?.status,
         failedChecks: result ? (Object.keys(result.checks ?? {}) as (keyof VerificationResult['checks'])[]).filter(k => !result.checks[k]) : undefined,
         errorDetail: errorDetail ?? (passed ? undefined : result?.details),
-        sandboxFallback: fallback
+        sandboxFallback: fallback,
+        ...(imported ? { imported: true } : {})
       }
     });
   };
@@ -259,7 +266,8 @@ export function usePlaygroundRun() {
         startedAt,
         credential: data.issuedCredential,
         proofType: data.proofType,
-        fallback: Boolean(data.isSandboxFallback)
+        fallback: Boolean(data.isSandboxFallback),
+        imported: false
       };
     } catch (err: any) {
       dispatch({ type: 'fail', error: err.message });
@@ -276,7 +284,8 @@ export function usePlaygroundRun() {
       credential: state.issuedCredential,
       proofType: state.issuedProofType ?? undefined,
       // Only issuance carries over: a re-verification decides its own fallback.
-      fallback: state.issueFallback
+      fallback: state.issueFallback,
+      imported: state.imported
     },
     sel: Selection = state.selection
   ) => {
@@ -308,15 +317,37 @@ export function usePlaygroundRun() {
         run.fallback || Boolean(data.isSandboxFallback),
         data.verificationResult,
         undefined,
-        run.proofType
+        run.proofType,
+        run.imported
       );
       return data.verificationResult;
     } catch (err: any) {
       dispatch({ type: 'fail', error: err.message });
-      record(sel, run.transactionId, run.startedAt, run.credential, tamper, run.fallback, undefined, `Verification failed: ${err.message}`);
+      record(sel, run.transactionId, run.startedAt, run.credential, tamper, run.fallback, undefined, `Verification failed: ${err.message}`, run.proofType, run.imported);
       return null;
     }
-  }, [state.selection, state.transactionId, state.startedAt, state.issuedCredential, state.issuedProofType, state.issueFallback]);
+  }, [state.selection, state.transactionId, state.startedAt, state.issuedCredential, state.issuedProofType, state.issueFallback, state.imported]);
+
+  /**
+   * Puts a credential obtained outside the playground in the wallet, so it can
+   * be presented to either verifier. Switches the format to match. Returns an
+   * error message, or null on success.
+   */
+  const importCredential = useCallback((text: string): string | null => {
+    const parsed = parseImportedCredential(text);
+    if ('error' in parsed) return parsed.error;
+    if (parsed.format !== state.selection.format) dispatch({ type: 'select', patch: { format: parsed.format } });
+    dispatch({ type: 'issueStart', transactionId: newTransactionId() });
+    dispatch({
+      type: 'issueDone',
+      credentialOffer: null,
+      issuedCredential: parsed.credential,
+      proofType: getProofType(parsed.credential, parsed.format),
+      imported: true,
+      notice: 'The wallet holds an imported credential: it was issued outside the playground, so there are no issuance steps.'
+    });
+    return null;
+  }, [state.selection.format]);
 
   /** Issue then immediately present & verify, optionally for an explicit matrix combination. */
   const runFullFlow = useCallback(async (subject: CredentialSubjectInput, tamper?: TamperOptions, sel: Selection = state.selection) => {
@@ -355,6 +386,7 @@ export function usePlaygroundRun() {
     verify,
     runFullFlow,
     runBatch,
+    importCredential,
     reset: () => dispatch({ type: 'reset' }),
     clearLogs,
     clearHistory: () => dispatch({ type: 'clearHistory' })

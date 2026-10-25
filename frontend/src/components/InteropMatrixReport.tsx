@@ -70,7 +70,7 @@ export const toMarkdown = (matrix: { combo: ReturnType<typeof allCombinations>[n
     row(['---', '---', '---', '---', '---', '---', '---', '---', '---', '---', '---', '---']),
     ...history.map(r =>
       row([
-        r.finishedAt, nodeLabel(r.issuer), nodeLabel(r.wallet), nodeLabel(r.verifier), formatLabel(r.format), r.proofType,
+        r.finishedAt, `${nodeLabel(r.issuer)}${r.imported ? ' (imported credential)' : ''}`, nodeLabel(r.wallet), nodeLabel(r.verifier), formatLabel(r.format), r.proofType,
         r.tampered ? 'tampered' : 'clean', r.verificationStatus, r.outcome, failureLayer(r) ?? '', r.errorDetail, r.transactionId
       ])
     ),
@@ -380,7 +380,10 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
               {filtered.map(r => (
                 <tr key={r.id} className="hover:bg-surface-muted transition-colors">
                   <td className="p-3 font-mono whitespace-nowrap">{new Date(r.finishedAt).toLocaleString()}</td>
-                  <td className="p-3 min-w-64">{nodeLabel(r.issuer)} → {nodeLabel(r.wallet)} → {nodeLabel(r.verifier)}</td>
+                  <td className="p-3 min-w-64">
+                    {nodeLabel(r.issuer)}
+                    {r.imported && <span className="text-ink-subtle"> (imported credential)</span>} → {nodeLabel(r.wallet)} → {nodeLabel(r.verifier)}
+                  </td>
                   <td className="p-3"><FormatChip format={r.format} /></td>
                   <td className="p-3 font-mono">{r.proofType}</td>
                   <td className="p-3">{r.tampered ? <span className="text-warning-ink">tampered</span> : 'clean'}</td>

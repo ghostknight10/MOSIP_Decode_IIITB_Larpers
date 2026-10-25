@@ -122,6 +122,8 @@ export const App: React.FC = () => {
                 credentialOffer={run.credentialOffer}
                 presentationDefinition={run.presentationDefinition}
                 presentationRequest={run.presentationRequest}
+                onImport={run.importCredential}
+                imported={run.imported}
                 verificationResult={run.verificationResult}
                 format={selection.format}
                 verifier={selection.verifier}

@@ -119,6 +119,8 @@ export interface RunRecord {
   failedChecks?: (keyof VerificationResult['checks'])[];
   errorDetail?: string;
   sandboxFallback: boolean;
+  /** The credential was imported into the wallet, not issued in the playground. */
+  imported?: boolean;
 }
 
 /** User-controlled inputs for the next run (lifted so presets can set them). */

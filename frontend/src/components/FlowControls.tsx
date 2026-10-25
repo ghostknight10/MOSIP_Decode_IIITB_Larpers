@@ -28,6 +28,8 @@ interface FlowControlsProps {
   inputs: RunInputs;
   onInputsChange: (inputs: RunInputs) => void;
   onRunScenario: (scenario: Scenario) => void;
+  onImport: (text: string) => string | null;
+  imported: boolean;
 }
 
 /**
@@ -60,7 +62,9 @@ export const FlowControls: React.FC<FlowControlsProps> = ({
   verifier,
   inputs,
   onInputsChange,
-  onRunScenario
+  onRunScenario,
+  onImport,
+  imported
 }) => {
   const { subject: subjectData, tamperMode, tamperOptions } = inputs;
   const busy = phase === 'issuing' || phase === 'verifying';
@@ -119,6 +123,8 @@ export const FlowControls: React.FC<FlowControlsProps> = ({
           subject={subjectData}
           onSubjectChange={subject => onInputsChange({ ...inputs, subject })}
           onIssue={() => onIssue(subjectData)}
+          onImport={onImport}
+          imported={imported}
         />
         <PresentPhase
           phase={phase}

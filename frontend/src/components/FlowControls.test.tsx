@@ -51,7 +51,8 @@ const renderControls = (props: Partial<Props> = {}) => {
     onVerify: vi.fn().mockResolvedValue(undefined),
     onRunFullFlow: vi.fn().mockResolvedValue(undefined),
     onReset: vi.fn(),
-    onRunScenario: vi.fn()
+    onRunScenario: vi.fn(),
+    onImport: vi.fn<(text: string) => string | null>().mockReturnValue(null)
   };
   const user = userEvent.setup();
   render(
@@ -65,6 +66,7 @@ const renderControls = (props: Partial<Props> = {}) => {
       verificationResult={null}
       format="w3c-vc"
       verifier="inji-verify"
+      imported={false}
       {...props}
     />
   );
@@ -257,6 +259,32 @@ describe('FlowControls credential summary', () => {
     expect(screen.getByText('JWT (ES256)')).toBeInTheDocument();
     expect(screen.getByText('2 selective disclosures')).toBeInTheDocument();
     expect(screen.getByText(new Date(1800000000 * 1000).toISOString())).toBeInTheDocument();
+  });
+});
+
+describe('FlowControls credential import', () => {
+  it('hands pasted text to onImport and closes on success', async () => {
+    const { onImport, user } = renderControls();
+    await user.click(screen.getByRole('button', { name: /Use a credential from outside/ }));
+    await user.type(screen.getByLabelText('Credential to import'), 'abc~');
+    await user.click(screen.getByRole('button', { name: 'Hold this credential' }));
+    expect(onImport).toHaveBeenCalledWith('abc~');
+    expect(screen.queryByLabelText('Credential to import')).not.toBeInTheDocument();
+  });
+
+  it('shows the parse error and stays open', async () => {
+    const { onImport, user } = renderControls();
+    onImport.mockReturnValue('Not a W3C credential');
+    await user.click(screen.getByRole('button', { name: /Use a credential from outside/ }));
+    await user.click(screen.getByRole('button', { name: 'Hold this credential' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Not a W3C credential');
+    expect(screen.getByLabelText('Credential to import')).toBeInTheDocument();
+  });
+
+  it('labels an imported credential instead of warning about a missing offer', () => {
+    renderControls({ phase: 'issued', issuedCredential: W3C_VC, imported: true });
+    expect(screen.getByText('Imported credential: issued outside the playground.')).toBeInTheDocument();
+    expect(screen.queryByText(/without a credential offer/)).not.toBeInTheDocument();
   });
 });
 

@@ -516,3 +516,44 @@ describe('live log stream', () => {
     expect(stream.unsubscribe).toHaveBeenCalledOnce();
   });
 });
+
+describe('importCredential', () => {
+  const b64 = (v: unknown) => btoa(JSON.stringify(v)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const token = `${b64({ alg: 'ES256', typ: 'vc+sd-jwt' })}.${b64({ iss: 'https://issuer' })}.sig~${b64(['s', 'UIN', '42'])}~`;
+
+  it('holds the credential, switches the format and flags the recorded run', async () => {
+    const { result: h } = setup();
+    let error: string | null = 'unset';
+    act(() => {
+      error = h.current.importCredential(token);
+    });
+    expect(error).toBeNull();
+    expect(h.current).toMatchObject({ phase: 'issued', imported: true, credentialOffer: null, issueFallback: false });
+    expect(h.current.selection.format).toBe('sd-jwt');
+    expect(h.current.issuedCredential.rawToken).toBe(token);
+    expect(issueMock).not.toHaveBeenCalled();
+
+    await act(() => h.current.verify());
+    expect(verifyMock.mock.calls[0][0]).toMatchObject({ format: 'sd-jwt', credentialOrToken: { rawToken: token } });
+    expect(h.current.history[0]).toMatchObject({ imported: true, proofType: 'JWT (ES256)' });
+  });
+
+  it('returns the parse error and changes nothing', () => {
+    const { result: h } = setup();
+    let error: string | null = null;
+    act(() => {
+      error = h.current.importCredential('nope');
+    });
+    expect(error).toContain('Not a W3C credential');
+    expect(h.current.phase).toBe('idle');
+  });
+
+  it('issuing again clears the imported flag', async () => {
+    const { result: h } = setup();
+    act(() => {
+      h.current.importCredential(token);
+    });
+    await act(() => h.current.issue(DEFAULT_SUBJECT));
+    expect(h.current.imported).toBe(false);
+  });
+});
