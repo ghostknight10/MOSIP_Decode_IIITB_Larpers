@@ -73,7 +73,10 @@ const BANNED: [RegExp, string][] = [
   [/\b(bg|text|border|ring|outline|from|to|via|divide|fill|stroke|accent|decoration|placeholder)-(slate|gray|zinc|neutral|sky|blue|indigo|violet|purple|emerald|green|rose|red|amber|yellow|teal|cyan|pink|fuchsia|orange|lime)-\d{2,3}\b/, 'raw palette colours (use tokens)'],
   [/\btransition-all\b/, 'transition-all (use transition-colors)'],
   [/\btext-\[(9|10|11)px\]/, 'text below 12px'],
-  [/#(020617|0f172a|090d16|1e293b)\b|rgb\(\s*76,\s*29,\s*41\)/i, 'hard-coded dark colours']
+  [/#(020617|0f172a|090d16|1e293b)\b|rgb\(\s*76,\s*29,\s*41\)/i, 'hard-coded dark colours'],
+  // Inline styles and raw HTML strings bypass the class checks above.
+  [/\b(radial|linear|conic)-gradient\(/, 'CSS gradients'],
+  [/\banimation\s*:/, 'inline animation']
 ];
 
 // Vite reads the sources at test time; no Node APIs needed in browser-typed code.
@@ -87,5 +90,24 @@ describe('design guardrail', () => {
       text.split('\n').flatMap((line: string, i: number) => (pattern.test(line) ? [`${file}:${i + 1}: ${line.trim().slice(0, 100)}`] : []))
     );
     expect(offenders, `${label}:\n${offenders.join('\n')}`).toEqual([]);
+  });
+});
+
+// The global stylesheet is where a theme regression lands first.
+describe('global stylesheet', () => {
+  const outsideTheme = css.replace(/@theme\s*{[^}]*}/, '');
+
+  it('uses tokens, not raw colours, outside @theme', () => {
+    expect(outsideTheme.match(/#[0-9a-f]{3,8}\b|rgba?\(/gi) ?? []).toEqual([]);
+  });
+
+  it('has no gradients, keyframes or extra font imports', () => {
+    expect(css).not.toMatch(/gradient\(|@keyframes|fonts\.googleapis/);
+  });
+
+  it('keeps the canvas background, Inter and the accent focus ring', () => {
+    expect(outsideTheme).toMatch(/background-color:\s*var\(--color-canvas\)/);
+    expect(css).toMatch(/--font-sans:\s*'Inter'/);
+    expect(outsideTheme).toMatch(/:focus-visible\s*{[^}]*outline:\s*2px solid var\(--color-accent\)/);
   });
 });
