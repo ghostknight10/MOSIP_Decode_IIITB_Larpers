@@ -5,30 +5,42 @@ import globalAuditBuffer from '../utils/RingBuffer.js';
 
 const router = Router();
 
-// E-2 FIX: Added INJI_MIMOTO to TARGETS
-// E-1 FIX : standardize the names across files
-const TARGETS = {
-  INJI_CERTIFY: process.env.MOSIP_INJI_CERTIFY_URL || 'https://certify.collab.mosip.net',
-  INJI_VERIFY: process.env.MOSIP_INJI_VERIFY_URL || 'https://verify.collab.mosip.net',
-  INJI_MIMOTO: process.env.MOSIP_INJI_MIMOTO_URL || 'https://mimoto.collab.mosip.net',
+// Read at request time: index.ts loads .env after its imports have run.
+const targets = () => ({
+  INJI_CERTIFY: process.env.MOSIP_INJI_CERTIFY_URL || 'https://injicertify-mosipid.collab.mosip.net',
+  INJI_VERIFY: process.env.MOSIP_INJI_VERIFY_URL || 'https://injiverify.collab.mosip.net',
+  INJI_MIMOTO: process.env.MOSIP_INJI_MIMOTO_URL || 'https://api.collab.mosip.net',
   MOCK_ISSUER: process.env.MOCK_URL || 'http://localhost:5001/mock-issuer',
   MOCK_VERIFIER: process.env.MOCK_URL || 'http://localhost:5001/mock-verifier'
-};
+});
+
+// Only these caller headers reach MOSIP. Cookies, Host, the original
+// Content-Length (the body is re-serialised) and hop-by-hop headers are dropped.
+const FORWARDED_HEADERS = ['accept', 'accept-language', 'content-type', 'authorization', 'dpop', 'x-transaction-id'];
+const forwardedHeaders = (headers) =>
+  Object.fromEntries(
+    Object.entries(headers).filter(([name]) => FORWARDED_HEADERS.includes(name) || name.startsWith('x-audit-'))
+  );
 
 // Express 5 named wildcards
 router.all('/api/proxy/:targetService/*splat', async (req, res) => {
   const { targetService } = req.params;
   
-  const baseUrl = TARGETS[targetService.toUpperCase()];
+  const target = targetService.toUpperCase();
+  const baseUrl = Object.hasOwn(targets(), target) ? targets()[target] : undefined;
   if (!baseUrl) {
     return res.status(400).json({ error: `Unknown routing target: ${targetService}` });
   }
 
-  const endpointPath = req.originalUrl.replace(`/api/proxy/${targetService}`, '');
+  // Rebuild the path from the matched segments, so case or percent-encoding in
+  // the /api/proxy/<target> prefix can't leak into the upstream URL.
+  const query = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
+  const endpointPath = `/${[].concat(req.params.splat).map(encodeURIComponent).join('/')}${query}`;
   const destinationUrl = `${baseUrl}${endpointPath}`;
 
   const transactionId = req.headers['x-transaction-id'] || `tx-${uuidv4().substring(0, 8)}`;
-  const isSandbox = targetService.startsWith('INJI');
+  const isSandbox = target.startsWith('INJI');
+  const hasBody = !['GET', 'HEAD'].includes(req.method) && req.body !== undefined;
   
   const auditClient = createAuditClient({
     transactionId,
@@ -40,11 +52,10 @@ router.all('/api/proxy/:targetService/*splat', async (req, res) => {
     const response = await auditClient({
       method: req.method,
       url: destinationUrl,
-      data: req.body,
+      data: hasBody ? req.body : undefined,
       headers: {
-        ...req.headers,
-        host: undefined, 
-        'X-Audit-Destination': targetService,
+        ...forwardedHeaders(req.headers),
+        'X-Audit-Destination': target
       }
     });
 
@@ -61,7 +72,8 @@ router.all('/api/proxy/:targetService/*splat', async (req, res) => {
 
   } catch (error) {
     const status = error.response ? error.response.status : 500;
-    const data = error.response ? error.response.data : { message: error.message };
+    // Don't echo internal error text (hostnames, stack details) to the caller.
+    const data = error.response ? error.response.data : { error: 'Upstream request failed', code: error.code };
     const recordedFrames = globalAuditBuffer.getByTransactionId(transactionId);
     
     const isErrorObject = typeof data === 'object' && data !== null && !Array.isArray(data);

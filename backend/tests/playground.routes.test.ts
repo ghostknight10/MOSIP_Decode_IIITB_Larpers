@@ -107,6 +107,62 @@ describe('POST /issue', () => {
   });
 });
 
+describe('request validation', () => {
+  it.each([
+    ['an array body', ['x'], 'JSON body is required'],
+    ['an unknown issuer', { ...issueBody, issuer: 'evil' }, 'issuer must be one of'],
+    ['an unknown wallet', { ...issueBody, wallet: 'evil' }, 'wallet must be one of'],
+    ['an unknown format', { ...issueBody, format: 'mso_mdoc' }, 'format must be one of'],
+    ['a non-string subject field', { ...issueBody, credentialSubject: { fullName: { $gt: '' } } }, 'credentialSubject'],
+    ['non-boolean tamper flags', { ...issueBody, tamperPayload: { forceExpired: 'yes' } }, 'tamperPayload']
+  ])('rejects %s on /issue with 400', async (_label, body, message) => {
+    const res = await post('/issue', body);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain(message);
+    expect(postMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unknown verifier on /verify', async () => {
+    const res = await post('/verify', { verifier: 'evil', wallet: 'mock-wallet', format: 'w3c-vc' });
+    expect(res.status).toBe(400);
+  });
+
+  it('replaces a malformed transaction id', async () => {
+    const { body } = await post('/issue', issueBody, 'tx bad; drop');
+    expect(body.protocolLogs[0].transactionId).toMatch(/^tx-[0-9a-f]{8}$/);
+  });
+
+  it('answers internal errors without the exception text', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(MockProtocolService, 'issueCredential').mockImplementation(() => {
+      throw new Error('secret internal detail');
+    });
+    const res = await post('/issue', issueBody);
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Issuance flow encountered an internal error');
+  });
+});
+
+describe('GET /logs/stream', () => {
+  it('pushes new frames to connected clients and detaches on close', async () => {
+    const controller = new AbortController();
+    const res = await fetch(`${base}/logs/stream`, { signal: controller.signal });
+    expect(res.headers.get('content-type')).toBe('text/event-stream');
+    const reader = res.body!.getReader();
+    const read = async () => new TextDecoder().decode((await reader.read()).value);
+    expect(await read()).toContain('SSE audit log stream connected');
+
+    await post('/issue', issueBody, 'tx-sse');
+    let text = '';
+    while (!text.includes('tx-sse')) text += await read();
+    expect(text).toContain('"transactionId":"tx-sse"');
+
+    controller.abort();
+    await new Promise(r => setTimeout(r, 50));
+    expect(globalAuditBuffer.listenerCount('newFrame')).toBe(0);
+  });
+});
+
 describe('POST /verify', () => {
   // Generate an actual valid credential for the test instead of a dummy payload
   const validCredential = MockProtocolService.issueCredential('w3c-vc').issuedCredential;

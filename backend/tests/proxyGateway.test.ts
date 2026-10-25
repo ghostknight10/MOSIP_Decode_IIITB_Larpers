@@ -71,6 +71,53 @@ describe('proxy gateway', () => {
     expect(last.headers['x-audit-destination']).toBe('MOCK_ISSUER');
   });
 
+  it('forwards JSON that is not byte-identical after re-serialising (no hang)', async () => {
+    const res = await fetch(`${base}/api/proxy/MOCK_ISSUER/credential`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{ "format" :   "ldp_vc" }',
+      signal: AbortSignal.timeout(3000)
+    });
+    expect(res.status).toBe(200);
+    expect(JSON.parse(received.at(-1)!.body)).toEqual({ format: 'ldp_vc' });
+  });
+
+  it('does not forward cookies or other browser headers upstream', async () => {
+    await call('/api/proxy/MOCK_ISSUER/x', { headers: { cookie: 'session=secret', referer: 'http://localhost:5173/', 'x-transaction-id': 'tx-h' } });
+    const { headers } = received.at(-1)!;
+    expect(headers.cookie).toBeUndefined();
+    expect(headers.referer).toBeUndefined();
+    expect(headers['x-transaction-id']).toBe('tx-h');
+  });
+
+  it('sends no body on GET', async () => {
+    await call('/api/proxy/MOCK_ISSUER/x');
+    expect(received.at(-1)!.body).toBe('');
+  });
+
+  it('keeps the upstream path when the prefix is percent-encoded', async () => {
+    const { body } = await call('/api/proxy/MOCK%5FISSUER/a/b?x=1');
+    expect(body.echoed).toBe('/a/b?x=1');
+  });
+
+  it('marks Inji targets as sandbox regardless of case', async () => {
+    process.env.MOSIP_INJI_VERIFY_URL = process.env.MOCK_URL;
+    const { body } = await call('/api/proxy/inji_verify/x', { headers: { 'x-transaction-id': 'tx-sbx' } });
+    delete process.env.MOSIP_INJI_VERIFY_URL;
+    expect(body._auditTrail[0]).toMatchObject({ isSandbox: true, destination: 'INJI_VERIFY' });
+  });
+
+  it('does not leak internal error text when the upstream is unreachable', async () => {
+    process.env.MOSIP_INJI_CERTIFY_URL = 'http://127.0.0.1:1';
+    const { status, body } = await call('/api/proxy/INJI_CERTIFY/x');
+    delete process.env.MOSIP_INJI_CERTIFY_URL;
+    expect(status).toBe(500);
+    expect(body).toMatchObject({ error: 'Upstream request failed', code: 'ECONNREFUSED' });
+    // The audit trail records the destination on purpose; the error fields must not.
+    const { _auditTrail, ...error } = body;
+    expect(JSON.stringify(error)).not.toContain('127.0.0.1');
+  });
+
   it('resolves target names case-insensitively', async () => {
     const { status } = await call('/api/proxy/mock_issuer/anything');
     expect(status).toBe(200);

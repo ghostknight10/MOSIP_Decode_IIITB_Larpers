@@ -7,14 +7,54 @@ import { v4 as uuidv4 } from 'uuid';
 
 export const playgroundRouter = Router();
 
-playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialRequest>, res: Response) => {
-  // B-3 FIX: Guard against missing JSON bodies crashing the Express router
-  if (!req.body || Object.keys(req.body).length === 0) {
-    return res.status(400).json({ success: false, error: 'JSON body is required' });
+const ALLOWED = {
+  issuer: ['inji-certify', 'mock-openid4vci'],
+  verifier: ['inji-verify', 'mock-openid4vp'],
+  wallet: ['inji-wallet', 'mock-wallet'],
+  format: ['w3c-vc', 'sd-jwt']
+} as const;
+
+const isPlainObject = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/** The first problem with an /issue or /verify body, or null if it is usable. */
+export function invalidBody(body: unknown, role: 'issuer' | 'verifier'): string | null {
+  if (!isPlainObject(body) || Object.keys(body).length === 0) return 'JSON body is required';
+  const oneOf = (field: keyof typeof ALLOWED, optional = false) =>
+    (optional && body[field] === undefined) || (ALLOWED[field] as readonly unknown[]).includes(body[field])
+      ? null
+      : `${field} must be one of: ${ALLOWED[field].join(', ')}`;
+  const problem = oneOf(role) ?? oneOf('wallet', true) ?? oneOf('format');
+  if (problem) return problem;
+  if (body.credentialSubject !== undefined &&
+      (!isPlainObject(body.credentialSubject) || Object.values(body.credentialSubject).some(v => typeof v !== 'string'))) {
+    return 'credentialSubject must be an object of strings';
   }
+  if (body.tamperPayload !== undefined &&
+      (!isPlainObject(body.tamperPayload) || Object.values(body.tamperPayload).some(v => typeof v !== 'boolean'))) {
+    return 'tamperPayload must be an object of booleans';
+  }
+  return null;
+}
+
+/** The caller's x-transaction-id if well-formed, else a fresh one. */
+const transactionIdOf = (req: Request) => {
+  const header = req.headers['x-transaction-id'];
+  return typeof header === 'string' && /^[\w-]{1,64}$/.test(header) ? header : `tx-${uuidv4().substring(0, 8)}`;
+};
+
+/** Log the real error server-side; tell the caller only that the flow failed. */
+const serverError = (res: Response, flow: string, err: unknown) => {
+  console.error(`[BFF] ${flow} flow failed:`, err);
+  return res.status(500).json({ success: false, error: `${flow} flow encountered an internal error` });
+};
+
+playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialRequest>, res: Response) => {
+  const problem = invalidBody(req.body, 'issuer');
+  if (problem) return res.status(400).json({ success: false, error: problem });
 
   const { issuer, wallet, format, credentialSubject, tamperPayload } = req.body;
-  const transactionId = (req.headers['x-transaction-id'] as string) || `tx-${uuidv4().substring(0, 8)}`;
+  const transactionId = transactionIdOf(req);
 
   try {
     if (issuer === 'mock-openid4vci') {
@@ -92,22 +132,17 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
         protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
       });
     }
-  } catch (err: any) {
-    return res.status(500).json({
-      success: false,
-      error: err.message || 'Issuance flow encountered an error'
-    });
+  } catch (err) {
+    return serverError(res, 'Issuance', err);
   }
 });
 
 playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialRequest>, res: Response) => {
-  // B-3 FIX: Guard against missing JSON bodies
-  if (!req.body || Object.keys(req.body).length === 0) {
-    return res.status(400).json({ success: false, error: 'JSON body is required' });
-  }
+  const problem = invalidBody(req.body, 'verifier');
+  if (problem) return res.status(400).json({ success: false, error: problem });
 
   const { verifier, wallet, format, credentialOrToken, tamperPayload } = req.body;
-  const transactionId = (req.headers['x-transaction-id'] as string) || `tx-${uuidv4().substring(0, 8)}`;
+  const transactionId = transactionIdOf(req);
 
   try {
     if (verifier === 'mock-openid4vp') {
@@ -187,11 +222,8 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
         protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
       });
     }
-  } catch (err: any) {
-    return res.status(500).json({
-      success: false,
-      error: err.message || 'Verification flow encountered an error'
-    });
+  } catch (err) {
+    return serverError(res, 'Verification', err);
   }
 });
 
@@ -211,6 +243,8 @@ playgroundRouter.get('/logs/stream', (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
+  // Stop reverse proxies (nginx) from buffering the stream.
+  res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders();
 
   res.write(`data: ${JSON.stringify({ message: 'SSE audit log stream connected' })}\n\n`);
@@ -226,7 +260,11 @@ playgroundRouter.get('/logs/stream', (req: Request, res: Response) => {
   globalAuditBuffer.on('newFrame', onNewFrame);
   globalAuditBuffer.on('clear', onClear);
 
+  // An SSE comment every 25 s keeps idle proxies and load balancers from closing the stream.
+  const heartbeat = setInterval(() => res.write(': keep-alive\n\n'), 25_000);
+
   req.on('close', () => {
+    clearInterval(heartbeat);
     globalAuditBuffer.off('newFrame', onNewFrame);
     globalAuditBuffer.off('clear', onClear);
   });

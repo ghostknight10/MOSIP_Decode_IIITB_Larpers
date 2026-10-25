@@ -9,16 +9,17 @@ dotenv.config({ quiet: true });
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// CORS configuration
+// CORS: the UI normally reaches the BFF through the Vite proxy (same origin),
+// so only the configured frontend origins may call it directly.
 app.use(cors({
-  origin: '*',
+  origin: (process.env.FRONTEND_URL || 'http://localhost:5173').split(',').map(o => o.trim()),
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-transaction-id']
 }));
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use('/', proxyGateway);
+// Credentials and presentations are a few KB; 1 MB leaves ample headroom.
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // Global Request Logging Middleware
 app.use((req: Request, _res: Response, next: NextFunction) => {
@@ -26,6 +27,9 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   console.log(`[BFF] ${timestamp} | ${req.method} ${req.originalUrl}`);
   next();
 });
+
+// Proxy gateway (after the logger, so proxied calls are logged too)
+app.use('/', proxyGateway);
 
 // Health check endpoint
 app.get('/api/health', (_req: Request, res: Response) => {

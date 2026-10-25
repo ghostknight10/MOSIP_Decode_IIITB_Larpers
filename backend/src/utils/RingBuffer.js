@@ -3,6 +3,9 @@ import { EventEmitter } from 'events';
 class AuditRingBuffer extends EventEmitter {
   constructor(capacity = 350) {
     super();
+    // One 'newFrame' and one 'clear' listener per open SSE client; the default
+    // limit of 10 would warn about a leak after ten browser tabs.
+    this.setMaxListeners(0);
     this.capacity = capacity;
     // Pre-allocate the array to avoid dynamic allocation overhead
     this.buffer = new Array(capacity).fill(null);

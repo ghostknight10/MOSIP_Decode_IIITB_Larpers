@@ -6,7 +6,10 @@ describe('redactPayload', () => {
     for (const v of [null, undefined, 1, 'x', true]) expect(redactPayload(v)).toBe(v);
   });
 
-  it.each(['authorization', 'Authorization', 'DPoP', 'cookie', 'Set-Cookie', 'client_secret', 'access_token', 'refresh_token', 'id_token', 'client_assertion'])(
+  it.each([
+    'authorization', 'Authorization', 'DPoP', 'cookie', 'Set-Cookie', 'client_secret', 'access_token', 'refresh_token', 'id_token', 'client_assertion',
+    'pre-authorized_code', 'tx_code', 'user_pin', 'code', 'code_verifier', 'password', 'Proxy-Authorization', 'X-API-Key'
+  ])(
     'masks %s',
     key => {
       expect(redactPayload({ [key]: 'secret', keep: 'me' })).toEqual({ [key]: '[REDACTED]', keep: 'me' });
@@ -22,9 +25,18 @@ describe('redactPayload', () => {
     expect(redactPayload([{ id_token: 'x' }, 2])).toEqual([{ id_token: '[REDACTED]' }, 2]);
   });
 
-  it('keeps VC artefacts verbatim for the inspector', () => {
-    const vp = { vp_token: { proof: { jws: 'abc' }, access_token: 'inside-vp' }, credential: 'raw', proof: { proofValue: 'z' } };
+  it('keeps VC artefacts for the inspector', () => {
+    const vp = { vp_token: { proof: { jws: 'abc' } }, credential: 'raw', proof: { proofValue: 'z' } };
     expect(redactPayload(vp)).toEqual(vp);
+  });
+
+  it('still masks secrets nested inside VC artefacts', () => {
+    expect(redactPayload({ vp_token: { access_token: 'inside-vp', ok: 1 } })).toEqual({ vp_token: { access_token: '[REDACTED]', ok: 1 } });
+  });
+
+  it('masks the pre-authorized code inside a credential offer', () => {
+    const offer = { grants: { 'urn:ietf:params:oauth:grant-type:pre-authorized_code': { 'pre-authorized_code': 'abc', tx_code: { length: 4 } } } };
+    expect(redactPayload(offer).grants['urn:ietf:params:oauth:grant-type:pre-authorized_code']).toEqual({ 'pre-authorized_code': '[REDACTED]', tx_code: '[REDACTED]' });
   });
 
   it('does not mutate its input', () => {

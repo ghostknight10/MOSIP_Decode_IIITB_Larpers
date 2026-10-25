@@ -1,14 +1,15 @@
 const SENSITIVE_KEYS = new Set([
   'authorization', 'dpop', 'cookie', 'set-cookie', 
   'client_secret', 'access_token', 'refresh_token', 
-  'id_token', 'client_assertion'
+  'id_token', 'client_assertion',
+  // OpenID4VCI grant secrets: whoever holds these can redeem the credential.
+  'pre-authorized_code', 'tx_code', 'user_pin', 'code', 'code_verifier',
+  'password', 'proxy-authorization', 'x-api-key', 'api_key'
 ]);
 
-// Explicit exceptions that MUST be preserved for the UI Inspector
-const VC_EXCEPTIONS = new Set([
-  'vp_token', 'credential', 'credentials', 
-  'verifiablecredential', 'proof'
-]);
+// VC artefacts (vp_token, credential, proof) are kept for the inspector: none
+// of their keys are sensitive, but they are still scanned, so a secret nested
+// inside one is masked.
 
 /**
  * Recursively scans and masks sensitive keys in HTTP headers and JSON bodies.
@@ -23,8 +24,6 @@ export function redactPayload(obj) {
     
     if (SENSITIVE_KEYS.has(lowerKey)) {
       redacted[key] = '[REDACTED]';
-    } else if (VC_EXCEPTIONS.has(lowerKey)) {
-      redacted[key] = value; // Explicitly preserve VC artifacts
     } else if (typeof value === 'object') {
       redacted[key] = redactPayload(value);
     } else {
