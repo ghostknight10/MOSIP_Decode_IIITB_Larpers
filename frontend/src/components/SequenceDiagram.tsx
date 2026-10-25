@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mermaid from 'mermaid';
 import { ProtocolLog } from '../types';
-import { GitCommit, Sparkles, Maximize2, X } from 'lucide-react';
+import { Maximize2, X } from 'lucide-react';
 import { participantOf } from '../lib/participants';
 
 interface SequenceDiagramProps {
@@ -17,23 +17,27 @@ export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ logs }) => {
   useEffect(() => {
     mermaid.initialize({
       startOnLoad: false,
-      theme: 'dark',
+      // Light theme from the design tokens (frontend/src/index.css); Mermaid needs literal colours.
+      theme: 'base',
       themeVariables: {
-        darkMode: true,
-        background: '#090d16',
-        primaryColor: '#0284c7',
-        primaryTextColor: '#f8fafc',
-        primaryBorderColor: '#38bdf8',
-        lineColor: '#64748b',
-        secondaryColor: '#6366f1',
-        tertiaryColor: '#10b981',
-        noteBkgColor: '#1e293b',
-        noteTextColor: '#f1f5f9',
-        actorBkg: '#0f172a',
-        actorBorder: '#38bdf8',
-        actorTextColor: '#f8fafc',
-        signalColor: '#38bdf8',
-        signalTextColor: '#f8fafc'
+        fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
+        background: '#ffffff',
+        primaryColor: '#f4f5f7',
+        primaryTextColor: '#1b1e24',
+        primaryBorderColor: '#c4c9d2',
+        lineColor: '#454b57',
+        secondaryColor: '#f8eef4',
+        tertiaryColor: '#fafbfd',
+        noteBkgColor: '#fff5e3',
+        noteBorderColor: '#d98c00',
+        noteTextColor: '#7a4f00',
+        actorBkg: '#ffffff',
+        actorBorder: '#c4c9d2',
+        actorTextColor: '#1b1e24',
+        actorLineColor: '#c4c9d2',
+        signalColor: '#454b57',
+        signalTextColor: '#1b1e24',
+        sequenceNumberColor: '#ffffff'
       },
       sequence: {
         actorMargin: 50,
@@ -50,17 +54,9 @@ export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ logs }) => {
     if (logs.length === 0) {
       setSvgContent('');
       containerRef.current.innerHTML = `
-        <div class="h-28 flex flex-col items-center justify-center text-slate-500 text-xs gap-1.5 p-3">
-          <div class="w-full max-w-xs space-y-1.5 opacity-50 animate-pulse">
-            <div class="flex justify-between items-center px-4">
-              <div class="h-4 w-14 bg-slate-800 rounded border border-slate-700/50 flex items-center justify-center text-[9px] text-slate-400">Issuer</div>
-              <div class="h-4 w-14 bg-slate-800 rounded border border-slate-700/50 flex items-center justify-center text-[9px] text-slate-400">Wallet</div>
-              <div class="h-4 w-14 bg-slate-800 rounded border border-slate-700/50 flex items-center justify-center text-[9px] text-slate-400">Verifier</div>
-            </div>
-            <div class="h-1 w-2/3 mx-auto bg-gradient-to-r from-sky-500/20 via-sky-400/40 to-transparent rounded"></div>
-          </div>
-          <span class="font-medium text-slate-400">No sequence events recorded yet.</span>
-          <span class="text-[11px] text-slate-500">Run a flow to visualize the message exchange.</span>
+        <div class="py-6 flex flex-col items-center justify-center text-center text-sm text-ink-muted gap-1">
+          <span>No sequence events recorded yet.</span>
+          <span class="text-xs text-ink-subtle">Run a flow to see the message exchange.</span>
         </div>
       `;
       return;
@@ -88,7 +84,7 @@ export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ logs }) => {
       const cleanAction = l.action.replace(/[^a-zA-Z0-9_\- ]/g, '');
 
       if (l.tampered) {
-        diagram += '  rect rgb(76, 29, 41)\n';
+        diagram += '  rect rgb(255, 245, 227)\n'; // warning-soft
       }
 
       diagram += `  ${from}->>${to}: ${cleanAction} [${statusEmoji} ${l.status}]\n`;
@@ -137,36 +133,32 @@ export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ logs }) => {
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl mb-6">
-      <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-800">
-        <div className="flex items-center gap-2">
-          <GitCommit className="h-4 w-4 text-indigo-400" />
-          <h3 className="text-sm font-bold text-white">Live Dynamic Sequence Visualizer</h3>
+    <div className="bg-surface border border-line rounded-md p-4 mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-3 border-b border-line">
+        <div>
+          <h3 className="text-sm font-semibold text-ink">Live Dynamic Sequence Visualizer</h3>
+          <p className="text-xs text-ink-subtle">Generated from the BFF wire logs</p>
         </div>
         <div className="flex items-center gap-3">
           {logs.length > 0 && (
             <button
               type="button"
               onClick={openFullscreen}
-              className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-950/40 border border-sky-800/50 hover:bg-sky-900/50 transition cursor-pointer"
+              className="text-xs text-ink flex items-center gap-1.5 px-2.5 py-1 rounded border border-line-strong bg-surface hover:bg-surface-muted transition-colors"
               title="Expand Sequence Diagram Fullscreen"
             >
               <Maximize2 className="h-3.5 w-3.5" />
               <span>Fullscreen</span>
             </button>
           )}
-          <span className="text-[11px] text-slate-400 flex items-center gap-1">
-            <Sparkles className="h-3 w-3 text-sky-400" />
-            Auto-generated from BFF wire logs
-          </span>
         </div>
       </div>
 
       <div
         ref={containerRef}
-        className="w-full overflow-x-auto min-h-[120px] flex items-center justify-center bg-slate-950/80 rounded-xl p-3 border border-slate-800/80"
+        className="w-full overflow-x-auto min-h-[120px] flex items-center justify-center bg-surface rounded-md p-3 border border-line"
       >
-        {renderError && <div className="text-xs text-rose-400">{renderError}</div>}
+        {renderError && <div className="text-xs text-danger-ink">{renderError}</div>}
       </div>
 
       <dialog
@@ -176,24 +168,22 @@ export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ logs }) => {
             closeFullscreen();
           }
         }}
-        className="bg-slate-900 border border-slate-700 text-white rounded-2xl p-6 backdrop:bg-black/80 max-w-5xl w-full max-h-[90vh] overflow-auto shadow-2xl m-auto"
+        className="bg-surface border border-line text-ink rounded-md p-5 backdrop:bg-ink/40 max-w-5xl w-full max-h-[90vh] overflow-auto shadow-sm m-auto"
       >
-        <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
-          <div className="flex items-center gap-2">
-            <GitCommit className="h-5 w-5 text-indigo-400" />
-            <h3 className="text-base font-bold text-white">Full-Screen Sequence Visualizer</h3>
-          </div>
+        <div className="flex items-center justify-between pb-3 mb-4 border-b border-line">
+          <h3 className="text-base font-semibold text-ink">Full-Screen Sequence Visualizer</h3>
           <button
             type="button"
             onClick={closeFullscreen}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+            className="text-ink-muted hover:text-ink p-1 rounded hover:bg-surface-muted transition-colors"
             title="Close Fullscreen"
+            aria-label="Close fullscreen"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
         <div
-          className="w-full flex items-center justify-center overflow-x-auto bg-slate-950 rounded-xl p-6 border border-slate-800"
+          className="w-full flex items-center justify-center overflow-x-auto bg-surface rounded-md p-4 border border-line"
           dangerouslySetInnerHTML={{ __html: svgContent }}
         />
       </dialog>

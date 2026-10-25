@@ -47,7 +47,7 @@ export const RunPlayer: React.FC<RunPlayerProps> = ({ logs, revealed, onChange, 
     if (position >= total) onChange(1);
     setPlaying(true);
   };
-  const btn = 'p-1.5 rounded-md border border-slate-700 bg-slate-800/80 text-slate-200 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed';
+  const btn = 'p-1.5 rounded border border-line-strong bg-surface text-ink hover:bg-surface-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
   const current = steps[position - 1];
 
   return (
@@ -86,7 +86,7 @@ export const RunPlayer: React.FC<RunPlayerProps> = ({ logs, revealed, onChange, 
           onChange={e => go(Number(e.target.value))}
           aria-label="Replay position"
           aria-valuetext={`Step ${position} of ${total}`}
-          className="flex-1 min-w-24 accent-sky-500"
+          className="flex-1 min-w-24 accent-accent"
         />
         <button
           type="button"
@@ -95,14 +95,14 @@ export const RunPlayer: React.FC<RunPlayerProps> = ({ logs, revealed, onChange, 
             onChange(null);
           }}
           aria-pressed={revealed === null}
-          className={`px-2 py-1 rounded-md border text-xs font-semibold inline-flex items-center gap-1 ${
-            revealed === null ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300' : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:bg-slate-700'
+          className={`px-2 py-1 rounded border text-xs font-medium inline-flex items-center gap-1 transition-colors ${
+            revealed === null ? 'border-accent bg-accent-soft text-accent' : 'border-line-strong bg-surface text-ink hover:bg-surface-muted'
           }`}
         >
           <Radio className="h-3.5 w-3.5" /> Live
         </button>
       </div>
-      <p aria-live="polite" className="mt-1.5 text-xs text-slate-300">
+      <p aria-live="polite" className="mt-1.5 text-xs text-ink-muted">
         {revealed === null ? `Live · ${total} step${total === 1 ? '' : 's'}` : `Step ${position} of ${total}: ${current?.action ?? ''}`}
       </p>
     </div>

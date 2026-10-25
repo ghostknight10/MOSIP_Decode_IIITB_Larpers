@@ -11,9 +11,9 @@ interface RunTimelineProps {
 }
 
 const STATUS = {
-  SUCCESS: { Icon: CheckCircle2, cls: 'text-emerald-300', label: 'Success' },
-  FAILED: { Icon: XCircle, cls: 'text-rose-300', label: 'Failed' },
-  PENDING: { Icon: Clock, cls: 'text-slate-300', label: 'Pending' }
+  SUCCESS: { Icon: CheckCircle2, cls: 'text-success-ink', label: 'Success' },
+  FAILED: { Icon: XCircle, cls: 'text-danger-ink', label: 'Failed' },
+  PENDING: { Icon: Clock, cls: 'text-ink-muted', label: 'Pending' }
 } as const;
 
 /**
@@ -35,24 +35,26 @@ export const RunTimeline: React.FC<RunTimelineProps> = ({ logs, revealed }) => {
           <li
             key={log.id}
             aria-current={current ? 'step' : undefined}
-            className={`flex items-start gap-3 p-2 rounded-lg border text-xs transition-opacity ${
-              current ? 'border-sky-500/50 bg-sky-500/10' : 'border-slate-800 bg-slate-950/40'
-            } ${future ? 'opacity-35' : ''}`}
+            className={`flex items-start gap-3 p-2 rounded-md border text-xs transition-colors ${
+              current ? 'border-accent border-l-4 bg-accent-soft' : 'border-line bg-surface'
+            }`}
           >
-            <span className="mt-0.5 h-5 w-5 shrink-0 rounded-full bg-slate-800 text-slate-200 font-mono flex items-center justify-center">{i + 1}</span>
+            <span className={`mt-0.5 h-5 w-5 shrink-0 rounded-full border font-mono flex items-center justify-center ${
+              future ? 'border-line text-ink-subtle' : 'border-line-strong bg-surface-muted text-ink'
+            }`}>{i + 1}</span>
             <div className="flex-1 min-w-0">
-              <div className="font-semibold text-slate-100 truncate">{log.action}</div>
-              <div className="text-slate-400">
-                {from} → {to} <span className="font-mono text-slate-500">· {log.protocol}</span>
+              <div className={`font-medium truncate ${future ? 'text-ink-subtle' : 'text-ink'}`}>{log.action}</div>
+              <div className={future ? 'text-ink-subtle' : 'text-ink-muted'}>
+                {from} → {to} <span className="font-mono text-ink-subtle">· {log.protocol}</span>
               </div>
             </div>
             <div className="shrink-0 text-right">
-              <span className={`inline-flex items-center gap-1 font-semibold ${future ? 'text-slate-500' : cls}`}>
+              <span className={`inline-flex items-center gap-1 font-medium ${future ? 'text-ink-subtle' : cls}`}>
                 {future ? <Clock className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
                 {future ? 'Not yet' : label}
               </span>
               {log.tampered && !future && (
-                <div className="mt-0.5 inline-flex items-center gap-1 text-amber-300">
+                <div className="mt-0.5 inline-flex items-center gap-1 text-warning-ink">
                   <AlertTriangle className="h-3 w-3" /> Tampered
                 </div>
               )}

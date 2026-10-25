@@ -25,11 +25,11 @@ const logs = [
 ];
 
 describe('SequenceDiagram', () => {
-  it('initialises mermaid once with the dark theme', () => {
+  it('initialises mermaid once with the light token theme', () => {
     const { rerender } = render(<SequenceDiagram logs={[]} />);
     rerender(<SequenceDiagram logs={logs} />);
     expect(mermaid.initialize).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(mermaid.initialize).mock.calls[0][0]).toMatchObject({ startOnLoad: false, theme: 'dark' });
+    expect(vi.mocked(mermaid.initialize).mock.calls[0][0]).toMatchObject({ startOnLoad: false, theme: 'base', themeVariables: { background: '#ffffff', primaryTextColor: '#1b1e24' } });
   });
 
   it('shows a placeholder and skips rendering when there are no logs', () => {
