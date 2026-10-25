@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'node:path';
+import fs from 'node:fs';
 import proxyGateway from './routes/proxyGateway.js';
 import { playgroundRouter } from './routes/playground.js';
 import { collabTargets } from './services/collab.js';
@@ -16,10 +17,13 @@ dotenv.config({
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// CORS: the UI normally reaches the BFF through the Vite proxy (same origin),
-// so only the configured frontend origins may call it directly.
+// CORS: allow configured origins, or reflect origin for single-container/same-origin deployments.
+const corsOrigin = process.env.FRONTEND_URL
+  ? (process.env.FRONTEND_URL === '*' ? true : process.env.FRONTEND_URL.split(',').map(o => o.trim()))
+  : true;
+
 app.use(cors({
-  origin: (process.env.FRONTEND_URL || 'http://localhost:5173').split(',').map(o => o.trim()),
+  origin: corsOrigin,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-transaction-id', 'x-playground-token']
 }));
@@ -54,6 +58,31 @@ app.get('/api/health', (_req: Request, res: Response) => {
 
 // Playground Routes
 app.use('/api/playground', playgroundRouter);
+
+// In production, serve static frontend assets if built
+const frontendDistCandidates = [
+  path.resolve(__dirname, 'public'),
+  path.resolve(__dirname, '../../frontend/dist'),
+  path.resolve(__dirname, '../frontend/dist'),
+  path.resolve(process.cwd(), 'frontend/dist'),
+  path.resolve(process.cwd(), '../frontend/dist')
+];
+const frontendDist = frontendDistCandidates.find(dir => fs.existsSync(dir));
+
+if (frontendDist) {
+  console.log(`[BFF] Serving frontend static assets from: ${frontendDist}`);
+  app.use(express.static(frontendDist));
+  // Client-side SPA routing fallback for requests that don't match /api
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      return next();
+    }
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ error: `Not found: ${req.path}` });
+    }
+    res.sendFile(path.resolve(frontendDist, 'index.html'));
+  });
+}
 
 app.listen(PORT, () => {
   console.log(`=======================================================`);

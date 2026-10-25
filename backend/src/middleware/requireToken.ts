@@ -9,7 +9,7 @@ import { NextFunction, Request, Response } from 'express';
  */
 export function requireToken(req: Request, res: Response, next: NextFunction) {
   const expected = process.env.PLAYGROUND_TOKEN;
-  if (!expected || req.path === '/api/health') return next();
+  if (!expected || req.path === '/api/health' || !req.path.startsWith('/api')) return next();
   const given = req.headers['x-playground-token'];
   const ok =
     typeof given === 'string' &&

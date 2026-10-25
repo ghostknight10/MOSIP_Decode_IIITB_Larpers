@@ -47,4 +47,9 @@ describe('requireToken', () => {
     process.env.PLAYGROUND_TOKEN = 's3cret';
     expect((await get('/api/health')).status).toBe(200);
   });
+
+  it('keeps non-api static routes open even when PLAYGROUND_TOKEN is set', async () => {
+    process.env.PLAYGROUND_TOKEN = 's3cret';
+    expect((await get('/')).status).toBe(404); // hits next() without 401
+  });
 });

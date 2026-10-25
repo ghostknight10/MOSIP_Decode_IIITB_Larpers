@@ -1,0 +1,14 @@
+node_modules
+*/node_modules
+.git
+.github
+.vscode
+dist
+backend/dist
+frontend/dist
+.env
+.env.local
+.env*.local
+coverage
+*.log
+.DS_Store

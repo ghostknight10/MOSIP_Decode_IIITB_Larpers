@@ -132,6 +132,13 @@ Before sharing a running instance with others, set `PLAYGROUND_TOKEN` in `.env` 
 3. Run **TC-03**, **TC-04** or **TC-08** (or turn on **Enable Tamper Mode** yourself) to see the verifier reject an expired, forged or replayed presentation.
 4. Open **Interop Matrix Report**, click **Run All Combinations**, select heatmap cells to drill in, then export the report as **Markdown**.
 
+### 4. Cloud Deployment (Render, Railway, Fly.io)
+The repository includes a production multi-stage [Dockerfile](file:///home/yugpo/MOSIP_Decode_IIITB_Larpers/Dockerfile) and [render.yaml](file:///home/yugpo/MOSIP_Decode_IIITB_Larpers/render.yaml) blueprint:
+- **Build Type:** Docker
+- **Dockerfile Path:** `Dockerfile` (or `./Dockerfile`). *Do not set this to `docker-compose.yml`, which is for local multi-container development only.*
+- **Port:** `4000` (Cloud hosts dynamically bind `$PORT` automatically)
+- The unified container builds both the React 19 UI and Express 5 BFF, serving the full app seamlessly on a single public URL.
+
 ---
 
 ## Testing
