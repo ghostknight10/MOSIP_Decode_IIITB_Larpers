@@ -1,6 +1,6 @@
 # Known Issues & Interoperability Gaps
 
-This is the running list of open problems, and of the interoperability findings from testing against the MOSIP Collab sandbox. Drafts for reporting the upstream findings are in [upstream-issues.md](./upstream-issues.md). Fixed items are listed at the end.
+This is the running list of open problems, and of the interoperability findings from testing against the MOSIP Collab sandbox. Draft upstream reports are kept in [upstream-issues.md](./upstream-issues.md) but are deliberately not filed (see the note there). Fixed items are listed at the end.
 
 Last updated: 2026-10-25.
 

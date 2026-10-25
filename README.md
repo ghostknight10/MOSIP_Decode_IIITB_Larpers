@@ -103,6 +103,12 @@ The UI choices are grounded in published research and in comparable tools. See [
 - [Docker](https://docs.docker.com/get-docker/) with Docker Compose, **or**
 - Node.js **26** and npm (`engines: node >=26`)
 
+### 0. Configuration (both ways)
+```bash
+cp .env.example .env   # once; the BFF, Vite and docker compose all read this file
+```
+The defaults work as they are. They include the published Collab test identity (`COLLAB_TEST_INDIVIDUAL_ID=8267411578`) for real Inji Certify issuance; empty it to emulate the credential instead. See the comments in `.env.example` for every setting.
+
 ### 1. One command (Docker Compose)
 ```bash
 docker compose up --build
@@ -118,7 +124,7 @@ npm run dev:backend    # terminal 1, BFF on :4000 (tsx watch)
 npm run dev:frontend   # terminal 2, Vite on :5173, proxies /api to the BFF
 ```
 
-Set `COLLAB_TEST_INDIVIDUAL_ID=8267411578` in `.env` for real Inji Certify issuance, and `PLAYGROUND_TOKEN` to make the BFF answer only the frontend's proxy (recommended for any shared deployment). Copy `.env.example` to `.env` to point the BFF at other MOSIP endpoints (`MOSIP_INJI_CERTIFY_URL`, `MOSIP_INJI_MIMOTO_URL`, `MOSIP_INJI_VERIFY_URL`) or to allow other origins (`FRONTEND_URL`, comma-separated).
+Before sharing a running instance with others, set `PLAYGROUND_TOKEN` in `.env` to a long random value (`openssl rand -hex 24`): the BFF then answers only the frontend's proxy. The MOSIP endpoints (`MOSIP_INJI_CERTIFY_URL`, `MOSIP_INJI_MIMOTO_URL`, `MOSIP_INJI_VERIFY_URL`) and allowed origins (`FRONTEND_URL`) are also set there.
 
 ### 3. Try it
 1. Click a **Quick scenario** (e.g. **TC-01 Happy path · W3C VC**), or pick nodes yourself and press **Run Full Flow**.

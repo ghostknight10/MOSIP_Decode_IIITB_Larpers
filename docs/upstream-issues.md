@@ -1,9 +1,13 @@
 # Upstream Issue Drafts
 
-Draft reports for findings from running the playground against the MOSIP Collab sandbox on 2026-10-25. Each is ready to file on the named repository after a team member re-checks it. Nothing here has been filed yet.
+Draft reports for findings from running the playground against the MOSIP Collab sandbox on 2026-10-25.
 
-- **U-1 to U-3, U-5, U-6:** functional or conformance problems. File them as public GitHub issues.
-- **U-4:** a security weakness. Report it privately through MOSIP's security contact rather than in a public issue.
+> **Status: not filed, on purpose.** Much of this project was built with AI assistance, and the team decided (2026-10-25) not to file these until we understand the findings well enough to answer the maintainers' follow-up questions. They stay here as notes, and the evidence for each is in the playground (and in [known-issues.md](./known-issues.md)).
+
+If they are filed later:
+
+- **U-1 to U-3, U-5, U-6:** functional or conformance problems; public GitHub issues.
+- **U-4:** a security weakness; report it privately through MOSIP's security contact, never in a public issue.
 
 Short IDs in brackets refer to [known-issues.md](./known-issues.md).
 

@@ -1,12 +1,17 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'node:path';
 import proxyGateway from './routes/proxyGateway.js';
 import { playgroundRouter } from './routes/playground.js';
 import { collabTargets } from './services/collab.js';
 import { requireToken } from './middleware/requireToken.js';
 
-dotenv.config({ quiet: true });
+// The repo-root .env (shared with docker compose), or backend/.env; the first wins per variable.
+dotenv.config({
+  quiet: true,
+  path: [path.resolve(__dirname, '../.env'), path.resolve(__dirname, '../../.env')]
+});
 
 const app = express();
 const PORT = process.env.PORT || 4000;
