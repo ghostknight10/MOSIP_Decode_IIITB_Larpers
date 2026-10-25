@@ -43,10 +43,12 @@ class AuditRingBuffer {
   getLogs(limit = 50) {
     const results = [];
     let idx = (this.head - 1 + this.capacity) % this.capacity;
+    let itemsChecked = 0; // B-5 FIX: Prevent infinite wrapping
     
-    while (results.length < limit && this.buffer[idx] !== null) {
+    while (results.length < limit && this.buffer[idx] !== null && itemsChecked < this.capacity) {
       results.push(this.buffer[idx]);
       idx = (idx - 1 + this.capacity) % this.capacity;
+      itemsChecked++;
     }
     return results;
   }

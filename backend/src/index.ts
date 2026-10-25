@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import proxyGateway from './routes/proxyGateway.js';
 import { playgroundRouter } from './routes/playground.js';
 
 dotenv.config({ quiet: true });
@@ -17,6 +18,7 @@ app.use(cors({
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use('/', proxyGateway);
 
 // Global Request Logging Middleware
 app.use((req: Request, _res: Response, next: NextFunction) => {
@@ -34,7 +36,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     collabSandbox: {
       injiCertify: process.env.MOSIP_INJI_CERTIFY_URL || 'https://certify.collab.mosip.net',
-      mimoto: process.env.MOSIP_MIMOTO_URL || 'https://mimoto.collab.mosip.net',
+      mimoto: process.env.MOSIP_INJI_MIMOTO_URL || 'https://mimoto.collab.mosip.net',
       injiVerify: process.env.MOSIP_INJI_VERIFY_URL || 'https://verify.collab.mosip.net'
     }
   });

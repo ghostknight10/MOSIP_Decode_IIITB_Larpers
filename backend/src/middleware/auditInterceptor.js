@@ -2,33 +2,22 @@ import axios from 'axios';
 import globalAuditBuffer from '../utils/RingBuffer.js';
 import { redactPayload } from '../utils/redactor.js';
 
-// --- Strict Enum Enforcers ---
-
 function enforceComplianceStandard(protocolInput, standardInput) {
   const input = `${protocolInput} ${standardInput}`.toUpperCase();
-  // If the flow is explicitly VP, enforce Draft 21
   if (input.includes('OPENID4VP') || input.includes('DRAFT 21')) {
     return { protocol: 'OpenID4VP', standard: 'OpenID4VP Draft 21' };
   }
-  // Default fallback for VCI is Draft 13
   return { protocol: 'OpenID4VCI', standard: 'OpenID4VCI Draft 13' };
 }
 
 function enforceCredentialFormat(formatInput) {
   const input = (formatInput || '').toUpperCase();
-  // Route any SD-JWT variations to the strict IETF definition
   if (input.includes('SD-JWT') || input.includes('VC+SD-JWT')) {
     return 'IETF SD-JWT VC (vc+sd-jwt)';
   }
-  // Default to W3C JSON-LD and strip out any mDoc/ISO attempts
   return 'W3C VC (JSON-LD)';
 }
 
-// ------------------------------
-
-/**
- * Creates a proxied Axios client that automatically logs traffic to the Ring Buffer.
- */
 export function createAuditClient({ 
   transactionId, 
   isSandbox, 
@@ -58,12 +47,10 @@ export function createAuditClient({
     const metadata = config.metadata || { startTime: Date.now() };
     const latencyMs = Date.now() - metadata.startTime;
     
-    // Read raw headers passed from the route
     const rawProtocol = config.headers?.['X-Audit-Protocol'] || '';
     const rawStandard = config.headers?.['X-Audit-Standard'] || '';
     const rawFormat = config.headers?.['X-Audit-Format'] || '';
     
-    // ENFORCE SPECIFICATIONS (Coerces invalid/mDoc inputs to strict targets)
     const { protocol, standard } = enforceComplianceStandard(rawProtocol, rawStandard);
     const credentialFormat = enforceCredentialFormat(rawFormat);
 
@@ -72,7 +59,16 @@ export function createAuditClient({
     const isTampered = config.headers?.['X-Audit-Tampered'] === 'true';
     const tamperMessage = config.headers?.['X-Audit-Tamper-Msg'] || null;
 
-    // Build the strict Audit Frame schema
+    // B-1 FIX: Safely parse JSON, fallback to raw string for form-urlencoded
+    let safeBody = config.data;
+    if (typeof config.data === 'string') {
+      try {
+        safeBody = JSON.parse(config.data);
+      } catch (e) {
+        // Leave as string if parsing fails
+      }
+    }
+
     const frame = {
       transactionId,
       sequenceNo: sequenceCounter++,
@@ -82,8 +78,8 @@ export function createAuditClient({
       tamperFlag: isTampered ? { isTampered, message: tamperMessage } : null,
       protocolContext: {
         protocol,
-        complianceStandard: standard, // Strictly enforced: "OpenID4VCI Draft 13" or "OpenID4VP Draft 21"
-        credentialFormat,             // Strictly enforced: "W3C VC (JSON-LD)" or "IETF SD-JWT VC (vc+sd-jwt)"
+        complianceStandard: standard,
+        credentialFormat,
         specStep
       },
       packet: {
@@ -92,7 +88,7 @@ export function createAuditClient({
           method: config.method?.toUpperCase(),
           url: config.url,
           headers: redactPayload(config.headers),
-          body: config.data ? redactPayload(JSON.parse(config.data)) : null
+          body: safeBody ? redactPayload(safeBody) : null
         },
         response: {
           statusCode: responseOrError.status || 500,

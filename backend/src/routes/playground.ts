@@ -7,19 +7,14 @@ import { v4 as uuidv4 } from 'uuid';
 
 export const playgroundRouter = Router();
 
-/**
- * Trigger Issue Credential Flow (OpenID4VCI)
- */
 playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialRequest>, res: Response) => {
   const { issuer, wallet, format, credentialSubject, tamperPayload } = req.body;
   const transactionId = (req.headers['x-transaction-id'] as string) || `tx-${uuidv4().substring(0, 8)}`;
 
   try {
     if (issuer === 'mock-openid4vci') {
-      // Use standard-compliant mock issuer
       const result = MockProtocolService.issueCredential(format, credentialSubject, tamperPayload);
       
-      // Inject transactionId and push to our new RingBuffer
       result.logs.forEach((log: any) => {
         log.transactionId = transactionId;
         globalAuditBuffer.add(log);
@@ -36,12 +31,9 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
       });
     }
 
-    // Target: Inji Certify (MOSIP Collab Sandbox)
     const certifyUrl = process.env.MOSIP_INJI_CERTIFY_URL || 'https://certify.collab.mosip.net';
 
     try {
-      // NOTE: In a full implementation, use createAuditClient here 
-      // instead of raw axios so the interceptor catches the outbound HTTP call.
       const response = await axios.post(
         `${certifyUrl}/v1/certify/credentials/issue`,
         {
@@ -60,14 +52,15 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
         protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
       });
     } catch (apiError: any) {
-      // Graceful fallback to sandbox mock mode when sandbox is unreachable
       console.warn(`[Proxy Warning] Inji Certify call unreachable (${apiError.message}). Falling back to emulated Collab response.`);
       const mockResult = MockProtocolService.issueCredential(format, credentialSubject, tamperPayload);
       
-      // Customize sender/receiver to indicate sandbox emulation
       mockResult.logs.forEach((log: any) => {
         log.transactionId = transactionId;
-        log.receiver = 'Inji Certify (Collab Sandbox Emulated)';
+        // B-9 FIX: Only overwrite labels for the external hop
+        if (log.receiver === 'inji-certify' || log.destination === 'inji-certify') {
+          log.receiver = 'Inji Certify (Collab Sandbox Emulated)';
+        }
         globalAuditBuffer.add(log);
       });
 
@@ -91,9 +84,6 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
   }
 });
 
-/**
- * Trigger Present & Verify Flow (OpenID4VP)
- */
 playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialRequest>, res: Response) => {
   const { verifier, wallet, format, credentialOrToken, tamperPayload } = req.body;
   const transactionId = (req.headers['x-transaction-id'] as string) || `tx-${uuidv4().substring(0, 8)}`;
@@ -119,7 +109,6 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
       });
     }
 
-    // Target: Inji Verify (MOSIP Collab Sandbox)
     const verifyUrl = process.env.MOSIP_INJI_VERIFY_URL || 'https://verify.collab.mosip.net';
     try {
       const response = await axios.post(
@@ -142,7 +131,10 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
 
       mockResult.logs.forEach((log: any) => {
         log.transactionId = transactionId;
-        log.sender = 'Inji Verify (Collab Sandbox Emulated)';
+        // B-9 FIX: Only overwrite labels for the external hop
+        if (log.sender === 'inji-verify' || log.origin === 'inji-verify') {
+          log.sender = 'Inji Verify (Collab Sandbox Emulated)';
+        }
         globalAuditBuffer.add(log);
       });
 
@@ -167,26 +159,16 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
   }
 });
 
-/**
- * Retrieve In-Memory Protocol Audit Logs
- * (Refactored to fetch the last 100 frames from the Ring Buffer)
- */
 playgroundRouter.get('/logs', (_req: Request, res: Response) => {
   const logs = globalAuditBuffer.getLogs(100);
   res.json({ count: logs.length, logs });
 });
 
-/**
- * Clear Logs
- */
 playgroundRouter.delete('/logs', (_req: Request, res: Response) => {
   globalAuditBuffer.clearLogs();
   res.json({ success: true, message: 'Protocol logs cleared.' });
 });
 
-/**
- * Interoperability Matrix Status View Data (Day 3 Feature Pre-wired)
- */
 playgroundRouter.get('/matrix-status', (_req: Request, res: Response) => {
   const combinations = [
     { issuer: 'inji-certify', wallet: 'inji-wallet', verifier: 'inji-verify', format: 'w3c-vc', status: 'PASS' },
