@@ -11,10 +11,19 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@digitalbazaar/credentials-context": "^3.2.0",
+    "@digitalbazaar/did-method-key": "^5.3.0",
+    "@digitalbazaar/ed25519-signature-2020": "^5.4.0",
+    "@digitalbazaar/ed25519-verification-key-2020": "^4.2.0",
+    "@digitalbazaar/vc": "^7.3.0",
+    "@peculiar/x509": "^2.2.0",
     "axios": "^1.20.0",
     "cors": "^2.8.6",
     "dotenv": "^18.0.9",
+    "ed25519-signature-2020-context": "^1.1.0",
     "express": "^5.3.0",
+    "jsonld-signatures": "^11.6.0",
+    "reflect-metadata": "^0.2.2",
     "uuid": "^14.0.3"
   },
   "devDependencies": {

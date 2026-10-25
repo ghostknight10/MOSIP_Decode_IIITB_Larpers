@@ -1,88 +1,241 @@
-import { createHash } from 'node:crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { CredentialFormat, ProtocolLog } from '../types/index.js';
+import {
+  CREDENTIALS_V1,
+  ED25519_2020_CONTEXT,
+  PLAYGROUND_CONTEXT,
+  decodeJwt,
+  jwtSignatureValid,
+  ldpProofProblem,
+  mockKeys,
+  sha256b64url,
+  signCredential,
+  signJwt,
+  x5cPublicKey
+} from './crypto.js';
 
-type PresentationCheck = 'formatCheck' | 'signatureValid';
-
-const decodeJson = (segment: string): unknown => {
-  try {
-    return JSON.parse(Buffer.from(segment, 'base64url').toString('utf8'));
-  } catch {
-    return undefined;
-  }
-};
+export const MOCK_ISSUER_URL = 'https://issuer.mock.mosip.net';
+export const MOCK_VERIFIER_CLIENT_ID = 'https://verify.mock.mosip.net';
+export const NATIONAL_ID_TYPE = 'MosipNationalIdentityCredential';
+export const NATIONAL_ID_VCT = 'https://schema.mosip.net/credentials/national-id/v1';
+const UNRELATED_VCT = 'https://schema.mosip.net/credentials/unrelated/v1';
+const DAY_MS = 86_400_000;
 
 /**
- * Reads the claims a wallet presented and reports the first structural
- * problem. For SD-JWT every disclosure must hash to a digest in the issuer
- * JWT's `_sd`, so a disclosure the issuer never signed is rejected. A trailing
- * key-binding JWT (`~<kb-jwt>`) is not a disclosure and is skipped.
+ * Requested claims and the names other issuers use for them (G-6): a real Inji
+ * Certify credential carries the national ID as UIN.
  */
-export function readPresentation(
-  format: CredentialFormat,
-  presented: any
-): { claims: Record<string, unknown>; problem?: { check: PresentationCheck; message: string } } {
-  const fail = (check: PresentationCheck, message: string) => ({ claims: {}, problem: { check, message } });
+export const REQUESTED_CLAIMS: Record<string, string[]> = {
+  fullName: ['fullName'],
+  nationalId: ['nationalId', 'UIN']
+};
 
-  if (format === 'sd-jwt') {
-    const token = typeof presented === 'string' ? presented : presented?.rawToken;
-    if (typeof token !== 'string' || !token.includes('~')) {
-      return fail('formatCheck', 'No SD-JWT presented: expected <issuer-jwt>~<disclosure>~...');
-    }
-    const [issuerJwt, ...rest] = token.split('~');
-    const payload = decodeJson(issuerJwt.split('.')[1] ?? '') as { _sd?: unknown } | undefined;
-    if (issuerJwt.split('.').length !== 3 || !payload || typeof payload !== 'object') {
-      return fail('formatCheck', 'Malformed SD-JWT: the issuer JWT could not be decoded.');
-    }
-    const digests = new Set(Array.isArray(payload._sd) ? payload._sd : []);
-    const claims: Record<string, unknown> = {};
-    for (const encoded of rest.filter(part => part && !part.includes('.'))) {
-      const disclosure = decodeJson(encoded);
-      if (!Array.isArray(disclosure) || disclosure.length !== 3 || typeof disclosure[1] !== 'string') {
-        return fail('formatCheck', 'Malformed SD-JWT disclosure.');
-      }
-      if (!digests.has(createHash('sha256').update(encoded).digest('base64url'))) {
-        return fail('signatureValid', `Disclosure for "${disclosure[1]}" is not covered by the issuer's _sd digests.`);
-      }
-      claims[disclosure[1]] = disclosure[2];
-    }
-    return { claims };
-  }
-
-  const subject = presented?.credentialSubject;
-  if (!subject || typeof subject !== 'object') {
-    return fail('formatCheck', 'No W3C credential presented: credentialSubject is missing.');
-  }
-  return { claims: subject };
+export type Subject = Record<string, unknown>;
+export interface MintOptions {
+  /** Issued two days ago, expired yesterday. */
+  expired?: boolean;
+  /** A valid credential of an unrelated type. */
+  wrongType?: boolean;
 }
 
-/** The presented claims the presentation definition asks for, and nothing else. */
-export function sharedClaims(presentationDefinition: any, claims: Record<string, unknown>) {
-  const requested: string[] = presentationDefinition.input_descriptors[0].constraints.fields
-    .map((field: { path: string[] }) => field.path[0].split('.').pop());
-  return Object.fromEntries(requested.filter(claim => claim in claims).map(claim => [claim, claims[claim]]));
+export type VerificationStatus = 'VALID' | 'INVALID' | 'EXPIRED' | 'SIGNATURE_MISMATCH';
+type Check = 'formatCheck' | 'signatureValid' | 'notExpired' | 'schemaCompliant' | 'holderBinding';
+
+/** The presented claims the presentation definition asks for, under whichever alias was presented. */
+export function sharedClaims(presentationDefinition: any, claims: Subject) {
+  const fields: { path: string[] }[] = presentationDefinition.input_descriptors[0].constraints.fields;
+  return Object.fromEntries(
+    fields.flatMap(field => {
+      const name = field.path.map(path => path.split('.').pop()!).find(claim => claim in claims);
+      return name ? [[name, claims[name]]] : [];
+    })
+  );
+}
+
+/** Disclosures of an SD-JWT as [encoded, claim name, value]; null if one is malformed. */
+export function disclosuresOf(token: string): [string, string, unknown][] | null {
+  const parts = token.split('~').slice(1).filter(part => part && !part.includes('.'));
+  const decoded: [string, string, unknown][] = [];
+  for (const encoded of parts) {
+    try {
+      const value = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
+      if (!Array.isArray(value) || value.length !== 3 || typeof value[1] !== 'string') return null;
+      decoded.push([encoded, value[1], value[2]]);
+    } catch {
+      return null;
+    }
+  }
+  return decoded;
+}
+
+/** The subject claims a credential carries (W3C credentialSubject, or SD-JWT disclosures). */
+export function claimsOf(format: CredentialFormat, credential: any): Subject {
+  if (format === 'sd-jwt') {
+    const token = typeof credential === 'string' ? credential : credential?.rawToken;
+    return Object.fromEntries((typeof token === 'string' ? disclosuresOf(token) ?? [] : []).map(([, name, value]) => [name, value]));
+  }
+  const { id: _holder, ...claims } = credential?.credentialSubject ?? {};
+  return claims;
+}
+
+/* ----- Verifier state (S-1): single-use nonces ----- */
+
+export interface PresentationRequest {
+  presentationDefinition: any;
+  client_id: string;
+  nonce: string;
+}
+
+const NONCE_TTL_MS = 10 * 60_000;
+const pending = new Map<string, { request: PresentationRequest; expires: number }>();
+
+function takeNonce(nonce: unknown): PresentationRequest | null {
+  const now = Date.now();
+  for (const [key, entry] of pending) if (entry.expires < now) pending.delete(key);
+  if (typeof nonce !== 'string') return null;
+  const entry = pending.get(nonce);
+  pending.delete(nonce); // single use, whatever the outcome
+  return entry?.request ?? null;
+}
+
+interface Verdict {
+  status: VerificationStatus;
+  failed?: Check;
+  details: string;
+  claims: Subject;
+}
+
+const reject = (failed: Check, details: string): Verdict => ({
+  status: failed === 'signatureValid' ? 'SIGNATURE_MISMATCH' : failed === 'notExpired' ? 'EXPIRED' : 'INVALID',
+  failed,
+  details,
+  claims: {}
+});
+
+async function checkLdpPresentation(vp: any, nonce: string, clientId: string): Promise<Verdict> {
+  const credential = Array.isArray(vp?.verifiableCredential) ? vp.verifiableCredential[0] : vp?.verifiableCredential;
+  if (!vp?.type?.includes?.('VerifiablePresentation') || !credential?.credentialSubject) {
+    return reject('formatCheck', 'Expected a W3C verifiable presentation containing a credential.');
+  }
+  if (vp.proof?.challenge !== nonce) {
+    return reject('holderBinding', 'The presentation was not made for this request: its challenge is not the nonce the verifier issued (replayed or stale presentation).');
+  }
+  const vpProblem = await ldpProofProblem(vp, { challenge: nonce, domain: clientId });
+  if (vpProblem) return reject('holderBinding', `Presentation proof failed: ${vpProblem}`);
+  if (vp.holder !== credential.credentialSubject.id) {
+    return reject('holderBinding', 'The presenter is not the holder the credential was issued to.');
+  }
+  const vcProblem = await ldpProofProblem(credential, 'assertion');
+  if (vcProblem) return reject('signatureValid', `Credential proof failed: ${vcProblem}`);
+  const { issuerEd } = await mockKeys();
+  const issuer = typeof credential.issuer === 'string' ? credential.issuer : credential.issuer?.id;
+  if (issuer !== issuerEd.controller) return reject('signatureValid', `Issuer ${issuer} is not in the verifier's trust list.`);
+  if (credential.expirationDate && new Date(credential.expirationDate).getTime() < Date.now()) {
+    return reject('notExpired', `Credential expired on ${credential.expirationDate}.`);
+  }
+  if (!credential.type?.includes?.(NATIONAL_ID_TYPE)) {
+    return reject('schemaCompliant', `Credential type ${JSON.stringify(credential.type)} is not a ${NATIONAL_ID_TYPE}.`);
+  }
+  return { status: 'VALID', details: '', claims: claimsOf('w3c-vc', credential) };
+}
+
+async function checkSdJwtPresentation(token: unknown, nonce: string, clientId: string): Promise<Verdict> {
+  if (typeof token !== 'string' || !token.includes('~')) {
+    return reject('formatCheck', 'No SD-JWT presented: expected <issuer-jwt>~<disclosure>~...~<kb-jwt>.');
+  }
+  const segments = token.split('~');
+  const issuerJwt = decodeJwt(segments[0]);
+  if (!issuerJwt) return reject('formatCheck', 'Malformed SD-JWT: the issuer JWT could not be decoded.');
+  const disclosures = disclosuresOf(token);
+  if (!disclosures) return reject('formatCheck', 'Malformed SD-JWT disclosure.');
+
+  const issuerKey = x5cPublicKey(issuerJwt.header);
+  if (!issuerKey || !jwtSignatureValid(issuerJwt, issuerKey.key)) {
+    return reject('signatureValid', 'The issuer signature does not verify against the x5c certificate.');
+  }
+  const { issuerEs } = await mockKeys();
+  if (issuerKey.certificate !== issuerEs.certificate) {
+    return reject('signatureValid', "The issuer certificate is not in the verifier's trust list.");
+  }
+  const digests = new Set(Array.isArray(issuerJwt.payload._sd) ? issuerJwt.payload._sd : []);
+  const forged = disclosures.find(([encoded]) => !digests.has(sha256b64url(encoded)));
+  if (forged) return reject('signatureValid', `Disclosure for "${forged[1]}" is not covered by the issuer's _sd digests.`);
+
+  // Key binding: the last segment proves the holder made this presentation for this request.
+  const kb = decodeJwt(segments.at(-1) ?? '');
+  const presented = token.slice(0, token.lastIndexOf('~') + 1);
+  if (!kb || kb.header.typ !== 'kb+jwt') return reject('holderBinding', 'No key-binding JWT: the holder did not prove possession.');
+  if (!issuerJwt.payload.cnf?.jwk || !jwtSignatureValid(kb, issuerJwt.payload.cnf.jwk)) {
+    return reject('holderBinding', "The key-binding JWT is not signed by the credential's holder key (cnf).");
+  }
+  if (kb.payload.nonce !== nonce || kb.payload.aud !== clientId) {
+    return reject('holderBinding', 'The presentation was not made for this request: its nonce or audience does not match (replayed or stale presentation).');
+  }
+  if (kb.payload.sd_hash !== sha256b64url(presented)) return reject('holderBinding', 'The key-binding JWT does not cover the presented disclosures.');
+
+  if (typeof issuerJwt.payload.exp === 'number' && issuerJwt.payload.exp * 1000 < Date.now()) {
+    return reject('notExpired', `Credential expired on ${new Date(issuerJwt.payload.exp * 1000).toISOString()}.`);
+  }
+  if (issuerJwt.payload.vct !== NATIONAL_ID_VCT) return reject('schemaCompliant', `Credential type ${issuerJwt.payload.vct} is not a national ID.`);
+  return { status: 'VALID', details: '', claims: Object.fromEntries(disclosures.map(([, name, value]) => [name, value])) };
 }
 
 export class MockProtocolService {
-  /**
-   * Generates a realistic OpenID4VCI Draft 13 Credential Offer & Issued VC
-   */
-  public static issueCredential(
-    format: CredentialFormat,
-    subjectData: any = {},
-    tamperPayload?: Record<string, any>
-  ): {
-    credentialOffer: any;
-    issuedCredential: any;
-    proofType: string;
-    logs: ProtocolLog[];
-  } {
-    const offerId = `urn:uuid:${uuidv4()}`;
-    const txId = uuidv4();
-    const startTime = Date.now();
+  /** Signs a credential with the mock issuer's keys. Used for issuance and by the wallet's tamper options. */
+  public static async mintCredential(format: CredentialFormat, subject: Subject, { expired = false, wrongType = false }: MintOptions = {}) {
+    const keys = await mockKeys();
+    const issuedAt = Date.now() - (expired ? 2 * DAY_MS : 0);
+    const expiresAt = expired ? Date.now() - DAY_MS : issuedAt + 365 * DAY_MS;
 
-    const baseSubject = {
-      id: `did:key:z6MkuTq...mockHolderDid`,
+    if (format === 'sd-jwt') {
+      const disclosures = Object.entries(subject).map(([claim, value]) => Buffer.from(JSON.stringify([uuidv4(), claim, value])).toString('base64url'));
+      const header = { alg: 'ES256', typ: 'vc+sd-jwt' };
+      const payload = {
+        iss: MOCK_ISSUER_URL,
+        iat: Math.floor(issuedAt / 1000),
+        nbf: Math.floor(issuedAt / 1000),
+        exp: Math.floor(expiresAt / 1000),
+        vct: wrongType ? UNRELATED_VCT : NATIONAL_ID_VCT,
+        cnf: { jwk: keys.holderEs.jwk },
+        _sd_alg: 'sha-256',
+        _sd: disclosures.map(sha256b64url)
+      };
+      const jwt = signJwt({ ...header, x5c: [keys.issuerEs.certificate] }, payload, keys.issuerEs.privateKey);
+      return {
+        format: 'vc+sd-jwt',
+        rawToken: `${jwt}~${disclosures.join('~')}~`,
+        decoded: { header, payload: { iss: payload.iss, vct: payload.vct, exp: payload.exp, claims: subject } }
+      };
+    }
+
+    return signCredential({
+      '@context': [CREDENTIALS_V1, ED25519_2020_CONTEXT, PLAYGROUND_CONTEXT],
+      id: `urn:uuid:${uuidv4()}`,
+      type: ['VerifiableCredential', wrongType ? 'UnrelatedCredential' : NATIONAL_ID_TYPE],
+      issuer: keys.issuerEd.controller,
+      issuanceDate: new Date(issuedAt).toISOString(),
+      expirationDate: new Date(expiresAt).toISOString(),
+      credentialSubject: { id: keys.holderEd.controller, ...subject }
+    });
+  }
+
+  /** True when the mock issuer signed this credential (so the wallet can ask it for a variant). */
+  public static async issuedByMock(format: CredentialFormat, credential: any) {
+    const keys = await mockKeys();
+    if (format === 'sd-jwt') {
+      const token = typeof credential === 'string' ? credential : credential?.rawToken;
+      const header = typeof token === 'string' ? decodeJwt(token.split('~')[0])?.header : undefined;
+      return header?.x5c?.[0] === keys.issuerEs.certificate;
+    }
+    const issuer = typeof credential?.issuer === 'string' ? credential.issuer : credential?.issuer?.id;
+    return issuer === keys.issuerEd.controller;
+  }
+
+  /**
+   * OpenID4VCI Draft 13: a pre-authorized credential offer and a signed credential.
+   */
+  public static async issueCredential(format: CredentialFormat, subjectData: Record<string, string> = {}) {
+    const subject = {
       nationalId: subjectData.nationalId || 'MOSIP-IND-9876-5432-1098',
       fullName: subjectData.fullName || 'Aaditya Sharma',
       dob: subjectData.dob || '1995-08-15',
@@ -90,12 +243,9 @@ export class MockProtocolService {
       email: subjectData.email || 'aaditya.sharma@example.org'
     };
 
-    // OpenID4VCI Draft 13 Credential Offer format
     const credentialOffer = {
-      credential_issuer: 'https://issuer.mock.mosip.net',
-      credential_configuration_ids: [
-        format === 'sd-jwt' ? 'NationalId_SD_JWT' : 'NationalId_W3C_JSONLD'
-      ],
+      credential_issuer: MOCK_ISSUER_URL,
+      credential_configuration_ids: [format === 'sd-jwt' ? 'NationalId_SD_JWT' : 'NationalId_W3C_JSONLD'],
       grants: {
         'urn:ietf:params:oauth:grant-type:pre-authorized_code': {
           'pre-authorized_code': `authz-code-${uuidv4().substring(0, 8)}`,
@@ -104,65 +254,7 @@ export class MockProtocolService {
       }
     };
 
-    let issuedCredential: any;
-
-    if (format === 'sd-jwt') {
-      const disclosures = Object.entries(baseSubject)
-        .filter(([claim]) => claim !== 'id')
-        .map(([claim, value]) => Buffer.from(JSON.stringify([uuidv4(), claim, value])).toString('base64url'));
-      const digests = disclosures.map(disclosure =>
-        createHash('sha256').update(disclosure).digest('base64url')
-      );
-      const fakeHeader = Buffer.from(JSON.stringify({ alg: 'ES256', typ: 'vc+sd-jwt' })).toString('base64url');
-      const fakePayload = Buffer.from(
-        JSON.stringify({
-          iss: 'https://issuer.mock.mosip.net',
-          sub: baseSubject.id,
-          iat: Math.floor(Date.now() / 1000),
-          exp: Math.floor(Date.now() / 1000) + 3600 * 24 * 365,
-          vct: 'https://schema.mosip.net/credentials/national-id/v1',
-          _sd_alg: 'sha-256',
-          _sd: digests
-        })
-      ).toString('base64url');
-      const fakeSig = Buffer.from('mock_crypto_signature_es256_valid').toString('base64url');
-      issuedCredential = {
-        format: 'vc+sd-jwt',
-        rawToken: `${fakeHeader}.${fakePayload}.${fakeSig}~${disclosures.join('~')}~`,
-        decoded: {
-          header: { alg: 'ES256', typ: 'vc+sd-jwt' },
-          payload: {
-            iss: 'https://issuer.mock.mosip.net',
-            vct: 'https://schema.mosip.net/credentials/national-id/v1',
-            claims: baseSubject
-          }
-        }
-      };
-    } else {
-      // W3C VC JSON-LD representation
-      issuedCredential = {
-        '@context': [
-          'https://www.w3.org/2018/credentials/v1',
-          'https://schema.mosip.net/contexts/identity-v1.jsonld'
-        ],
-        id: offerId,
-        type: ['VerifiableCredential', 'MosipNationalIdentityCredential'],
-        issuer: {
-          id: 'did:mosip:certify:sandbox:mock-issuer',
-          name: 'MOSIP Collab Identity Authority'
-        },
-        issuanceDate: new Date().toISOString(),
-        expirationDate: new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString(),
-        credentialSubject: baseSubject,
-        proof: {
-          type: 'Ed25519Signature2020',
-          created: new Date().toISOString(),
-          verificationMethod: 'did:mosip:certify:sandbox:mock-issuer#key-1',
-          proofPurpose: 'assertionMethod',
-          proofValue: 'z3hWb23...mockValidEd25519Proof...'
-        }
-      };
-    }
+    const issuedCredential: any = await MockProtocolService.mintCredential(format, subject);
 
     const log1: ProtocolLog = {
       id: uuidv4(),
@@ -173,14 +265,8 @@ export class MockProtocolService {
       protocol: 'OpenID4VCI',
       action: 'Fetch Credential Offer',
       status: 'SUCCESS',
-      request: {
-        method: 'GET',
-        url: 'https://issuer.mock.mosip.net/.well-known/openid-credential-issuer'
-      },
-      response: {
-        status: 200,
-        body: credentialOffer
-      },
+      request: { method: 'GET', url: `${MOCK_ISSUER_URL}/.well-known/openid-credential-issuer` },
+      response: { status: 200, body: credentialOffer },
       durationMs: 42
     };
 
@@ -195,17 +281,14 @@ export class MockProtocolService {
       status: 'SUCCESS',
       request: {
         method: 'POST',
-        url: 'https://issuer.mock.mosip.net/credential',
+        url: `${MOCK_ISSUER_URL}/credential`,
         headers: { 'Content-Type': 'application/json' },
         body: {
           format: format === 'sd-jwt' ? 'vc+sd-jwt' : 'ldp_vc',
           proof: { proof_type: 'jwt', jwt: 'eyJhbGciOiJFUzI1NiIsIn...' }
         }
       },
-      response: {
-        status: 200,
-        body: issuedCredential
-      },
+      response: { status: 200, body: issuedCredential },
       durationMs: 78
     };
 
@@ -217,7 +300,7 @@ export class MockProtocolService {
     };
   }
 
-  /** OpenID4VP Draft 21 presentation definition: fullName and nationalId. */
+  /** OpenID4VP Draft 21 presentation definition: fullName and the national ID (or UIN). */
   public static presentationDefinition(format: CredentialFormat) {
     return {
       id: `pres-def-${uuidv4().substring(0, 8)}`,
@@ -226,98 +309,55 @@ export class MockProtocolService {
           id: 'national_id_credential',
           name: 'National Identity Proof',
           purpose: 'Verify age, identity, and citizenship without leaking unwanted attributes',
-          format: {
-            [format === 'sd-jwt' ? 'vc+sd-jwt' : 'ldp_vc']: {
-              alg: ['ES256', 'EdDSA']
-            }
-          },
+          format: { [format === 'sd-jwt' ? 'vc+sd-jwt' : 'ldp_vc']: { alg: ['ES256', 'EdDSA'] } },
           constraints: {
-            fields: [
-              {
-                path: ['$.credentialSubject.fullName', '$.fullName'],
-                filter: { type: 'string' }
-              },
-              {
-                path: ['$.credentialSubject.nationalId', '$.nationalId'],
-                filter: { type: 'string' }
-              }
-            ]
+            fields: Object.values(REQUESTED_CLAIMS).map(names => ({
+              path: names.flatMap(name => [`$.credentialSubject.${name}`, `$.${name}`]),
+              filter: { type: 'string' }
+            }))
           }
         }
       ]
     };
   }
 
+  /** Authorization request: a presentation definition and a fresh single-use nonce. */
+  public static createRequest(format: CredentialFormat): PresentationRequest {
+    const request = { presentationDefinition: MockProtocolService.presentationDefinition(format), client_id: MOCK_VERIFIER_CLIENT_ID, nonce: uuidv4() };
+    pending.set(request.nonce, { request, expires: Date.now() + NONCE_TTL_MS });
+    return request;
+  }
+
   /**
-   * Evaluates OpenID4VP Draft 21 Presentation & verification
+   * Verifies a presentation for a request this verifier issued: holder proof
+   * bound to the nonce, issuer signature and trust, disclosures, expiry, type.
    */
-  public static verifyPresentation(
-    format: CredentialFormat,
-    presentedTokenOrVC: any,
-    tamperPayload?: Record<string, any>
-  ): {
-    isValid: boolean;
-    verificationResult: {
-      status: 'VALID' | 'INVALID' | 'EXPIRED' | 'SIGNATURE_MISMATCH';
-      checks: {
-        formatCheck: boolean;
-        signatureValid: boolean;
-        notExpired: boolean;
-        schemaCompliant: boolean;
-      };
-      details: string;
-      verifiedClaims: any;
+  public static async checkPresentation(format: CredentialFormat, vpToken: unknown, request: PresentationRequest, tampered = false) {
+    const issued = takeNonce(request.nonce);
+    const verdict: Verdict = !issued
+      ? reject('holderBinding', 'Unknown or already used nonce: this request was answered before (replay).')
+      : format === 'sd-jwt'
+        ? await checkSdJwtPresentation(vpToken, issued.nonce, issued.client_id)
+        : await checkLdpPresentation(vpToken, issued.nonce, issued.client_id);
+
+    const isValid = verdict.status === 'VALID';
+    const checks = {
+      formatCheck: verdict.failed !== 'formatCheck',
+      signatureValid: verdict.failed !== 'signatureValid',
+      notExpired: verdict.failed !== 'notExpired',
+      schemaCompliant: verdict.failed !== 'schemaCompliant',
+      holderBinding: verdict.failed !== 'holderBinding'
     };
-    presentationDefinition: any;
-    client_id: string;
-    nonce: string;
-    logs: ProtocolLog[];
-  } {
-    const presentationDefinition = MockProtocolService.presentationDefinition(format);
-    const clientId = 'https://verify.mock.mosip.net';
-    const nonce = uuidv4();
-
-    // Structural checks on what the wallet actually presented.
-    const presented = readPresentation(format, presentedTokenOrVC);
-
-    // Tampering simulation
-    const isExpired = Boolean(tamperPayload?.forceExpired);
-    const signatureMismatch = Boolean(tamperPayload?.corruptSignature);
-    const wrongCredentialType = Boolean(tamperPayload?.wrongCredentialType);
-
-    const isValid = !presented.problem && !isExpired && !signatureMismatch && !wrongCredentialType;
-    let statusText: 'VALID' | 'INVALID' | 'EXPIRED' | 'SIGNATURE_MISMATCH' = 'VALID';
-    let details = 'All cryptographic signatures, schemas, and trust anchors verified successfully against MOSIP root.';
-
-    if (presented.problem) {
-      statusText = presented.problem.check === 'signatureValid' ? 'SIGNATURE_MISMATCH' : 'INVALID';
-      details = presented.problem.message;
-    } else if (isExpired) {
-      statusText = 'EXPIRED';
-      details = 'Credential expiration check failed: validity period exceeded.';
-    } else if (signatureMismatch) {
-      statusText = 'SIGNATURE_MISMATCH';
-      details = 'Cryptographic verification failed: Proof signature does not match issuer public key.';
-    } else if (wrongCredentialType) {
-      statusText = 'INVALID';
-      details = 'Credential type check failed: the presented credential is not a National Identity credential.';
-    }
-
-    const presentedClaims = presented.claims;
-    const verifiedClaims = isValid ? sharedClaims(presentationDefinition, presentedClaims) : {};
     const verificationResult = {
-      status: statusText,
-      checks: {
-        formatCheck: !wrongCredentialType && presented.problem?.check !== 'formatCheck',
-        signatureValid: !signatureMismatch && presented.problem?.check !== 'signatureValid',
-        notExpired: !isExpired,
-        schemaCompliant: true
-      },
-      details,
-      verifiedClaims
+      status: verdict.status,
+      checks,
+      details: isValid
+        ? 'Holder proof bound to this request, issuer signature, selective disclosures, expiry and credential type all verified.'
+        : verdict.details,
+      verifiedClaims: isValid ? sharedClaims(request.presentationDefinition, verdict.claims) : {}
     };
 
-    const vpLog1: ProtocolLog = {
+    const authorizationRequest: ProtocolLog = {
       id: uuidv4(),
       timestamp: new Date().toISOString(),
       step: 3,
@@ -328,20 +368,12 @@ export class MockProtocolService {
       status: 'SUCCESS',
       request: {
         method: 'GET',
-        url: `openid4vp://authorize?${new URLSearchParams({
-          client_id: clientId,
-          nonce,
-          response_type: 'vp_token'
-        }).toString()}`
+        url: `openid4vp://authorize?${new URLSearchParams({ client_id: request.client_id, nonce: request.nonce, response_type: 'vp_token', response_mode: 'direct_post' }).toString()}`
       },
-      response: {
-        status: 200,
-        body: presentationDefinition
-      },
+      response: { status: 200, body: request.presentationDefinition },
       durationMs: 35
     };
-
-    const vpLog2: ProtocolLog = {
+    const submission: ProtocolLog = {
       id: uuidv4(),
       timestamp: new Date(Date.now() + 60).toISOString(),
       step: 4,
@@ -352,31 +384,22 @@ export class MockProtocolService {
       status: isValid ? 'SUCCESS' : 'FAILED',
       request: {
         method: 'POST',
-        url: 'https://verify.mock.mosip.net/vp-response',
+        url: `${MOCK_VERIFIER_CLIENT_ID}/vp-response`,
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: {
-          vp_token: presentedTokenOrVC || 'mock_vp_token_payload'
-        }
+        body: { vp_token: vpToken ?? null, presentation_submission: { definition_id: request.presentationDefinition.id } }
       },
-      response: {
-        status: isValid ? 200 : 400,
-        body: verificationResult
-      },
+      response: { status: isValid ? 200 : 400, body: verificationResult },
       durationMs: 110,
-      tampered: Boolean(
-        tamperPayload?.forceExpired ||
-        tamperPayload?.corruptSignature ||
-        tamperPayload?.wrongCredentialType
-      )
+      ...(tampered ? { tampered: true } : {})
     };
 
     return {
       isValid,
       verificationResult,
-      presentationDefinition,
-      client_id: clientId,
-      nonce,
-      logs: [vpLog1, vpLog2]
+      presentationDefinition: request.presentationDefinition,
+      client_id: request.client_id,
+      nonce: request.nonce,
+      logs: [authorizationRequest, submission]
     };
   }
 }

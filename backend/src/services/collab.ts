@@ -2,6 +2,7 @@ import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { CredentialFormat, ProtocolLog, WalletType } from '../types/index.js';
 import { redactPayload } from '../utils/redactor.js';
+import { TamperOptions, isTampered, prepareCredential } from '../mocks/wallet.js';
 
 /**
  * Live calls to the MOSIP Collab sandbox. Every exchange is recorded as a
@@ -151,53 +152,19 @@ export async function certifyDiscovery(
   };
 }
 
-const b64json = (segment: string) => JSON.parse(Buffer.from(segment, 'base64url').toString('utf8'));
-const toB64json = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
-const DAY_S = 86_400;
-
-/**
- * Applies the playground's tamper options to a real copy of the credential, so
- * Inji Verify sees an actually expired, re-typed or re-signed credential.
- */
-export function tamperCredential(format: CredentialFormat, credential: any, tamper: Record<string, boolean> = {}) {
-  if (format === 'sd-jwt') {
-    const token: string = typeof credential === 'string' ? credential : credential?.rawToken ?? '';
-    const [jwt, ...disclosures] = token.split('~');
-    const [header, payload, signature = ''] = jwt.split('.');
-    let claims: Record<string, any>;
-    try {
-      claims = b64json(payload);
-    } catch {
-      return token;
-    }
-    if (tamper.forceExpired) claims.exp = Math.floor(Date.now() / 1000) - DAY_S;
-    if (tamper.wrongCredentialType) claims.vct = 'https://example.org/credentials/not-a-national-id';
-    const sig = tamper.corruptSignature ? `${signature.slice(0, -4)}AAAA` : signature;
-    return [`${header}.${toB64json(claims)}.${sig}`, ...disclosures].join('~');
-  }
-
-  const vc = structuredClone(credential ?? {});
-  if (tamper.forceExpired) {
-    const past = new Date(Date.now() - DAY_S * 1000).toISOString();
-    vc.expirationDate = past;
-    if ('validUntil' in vc) vc.validUntil = past;
-  }
-  if (tamper.wrongCredentialType) vc.type = ['VerifiableCredential', 'UnrelatedCredential'];
-  if (tamper.corruptSignature && isObject(vc.proof)) {
-    for (const key of ['proofValue', 'jws']) {
-      if (typeof vc.proof[key] === 'string') vc.proof[key] = `${vc.proof[key].slice(0, -4)}AAAA`;
-    }
-  }
-  return vc;
-}
-
 const STATUS: Record<string, 'VALID' | 'EXPIRED' | 'INVALID'> = { SUCCESS: 'VALID', VALID: 'VALID', EXPIRED: 'EXPIRED', INVALID: 'INVALID' };
 
-/** Inji Verify's /vc-verification on the (optionally tampered) credential. */
-export async function injiVerify(format: CredentialFormat, credential: any, tamper?: Record<string, boolean>) {
+/**
+ * Inji Verify's /vc-verification on the credential as the wallet would present
+ * it (really expired, re-typed or with a corrupted signature in tamper mode).
+ * This endpoint takes a credential, not a presentation, so there is no nonce
+ * or holder proof to check.
+ */
+export async function injiVerify(format: CredentialFormat, credential: any, tamper?: TamperOptions) {
   const { verify } = collabTargets();
-  const tampered = Boolean(tamper && Object.values(tamper).some(Boolean));
-  const presented = tamperCredential(format, credential, tamper);
+  const tampered = isTampered(tamper);
+  const prepared = await prepareCredential(format, credential, tamper);
+  const presented = format === 'sd-jwt' && typeof prepared !== 'string' ? prepared?.rawToken : prepared;
 
   const call = await liveCall({
     method: 'POST',

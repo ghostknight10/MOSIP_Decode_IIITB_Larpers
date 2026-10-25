@@ -38,6 +38,8 @@ export interface VerificationResult {
     signatureValid: boolean;
     notExpired: boolean;
     schemaCompliant: boolean;
+    /** Holder proof bound to the verifier's nonce (OpenID4VP). Absent when the verifier doesn't check it. */
+    holderBinding?: boolean;
   };
   details: string;
   verifiedClaims: any;
@@ -87,6 +89,8 @@ export interface TamperOptions {
   forceExpired: boolean;
   corruptSignature: boolean;
   wrongCredentialType?: boolean;
+  /** Present a presentation made for an earlier request (old nonce). */
+  replayPresentation?: boolean;
 }
 
 export interface CredentialSubjectInput {

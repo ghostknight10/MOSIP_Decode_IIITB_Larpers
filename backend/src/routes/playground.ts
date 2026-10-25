@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import globalAuditBuffer from '../utils/RingBuffer.js';
-import { MockProtocolService, readPresentation, sharedClaims } from '../mocks/mockService.js';
+import { MockProtocolService, claimsOf, sharedClaims } from '../mocks/mockService.js';
+import { presentToMockVerifier } from '../mocks/wallet.js';
 import { CollabUnavailable, certifyDiscovery, collabTargets, injiVerify } from '../services/collab.js';
 import { IssueCredentialRequest, ProtocolLog, VerifyCredentialRequest } from '../types/index.js';
 import { v4 as uuidv4 } from 'uuid';
@@ -59,11 +60,11 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
   const problem = invalidBody(req.body, 'issuer');
   if (problem) return res.status(400).json({ success: false, error: problem });
 
-  const { issuer, wallet, format, credentialSubject, tamperPayload } = req.body;
+  const { issuer, wallet, format, credentialSubject } = req.body;
   const transactionId = transactionIdOf(req);
 
   try {
-    const mockResult = MockProtocolService.issueCredential(format, credentialSubject, tamperPayload);
+    const mockResult = await MockProtocolService.issueCredential(format, credentialSubject);
 
     if (issuer === 'mock-openid4vci') {
       record(transactionId, mockResult.logs);
@@ -138,7 +139,7 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
             status: live.status,
             checks: live.checks,
             details: live.details,
-            verifiedClaims: isValid ? sharedClaims(presentationDefinition, readPresentation(format, credentialOrToken).claims) : {}
+            verifiedClaims: isValid ? sharedClaims(presentationDefinition, claimsOf(format, credentialOrToken)) : {}
           },
           presentationDefinition,
           client_id: new URL(collabTargets().verify).origin,
@@ -148,7 +149,7 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
       } catch (err) {
         if (!(err instanceof CollabUnavailable)) throw err;
         console.warn(`[BFF] ${err.message}. Emulating Inji Verify.`);
-        const mockResult = MockProtocolService.verifyPresentation(format, credentialOrToken, tamperPayload);
+        const mockResult = await presentToMockVerifier(format, credentialOrToken, tamperPayload);
         const relabel = (name: string) => (name === 'Verifier (OpenID4VP)' ? 'Inji Verify (Collab Sandbox Emulated)' : name);
         record(transactionId, mockResult.logs.map(log => ({ ...log, sender: relabel(log.sender), receiver: relabel(log.receiver) })));
         return res.json({
@@ -168,7 +169,7 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
       }
     }
 
-    const result = MockProtocolService.verifyPresentation(format, credentialOrToken, tamperPayload);
+    const result = await presentToMockVerifier(format, credentialOrToken, tamperPayload);
     record(transactionId, result.logs);
     return res.json({
       success: true,

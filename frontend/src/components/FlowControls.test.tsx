@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -109,6 +109,14 @@ describe('FlowControls actions', () => {
     await user.click(screen.getByLabelText('Corrupt Cryptographic Signature'));
     await user.click(verifyButton());
     expect(onVerify).toHaveBeenCalledWith({ forceExpired: false, corruptSignature: true });
+  });
+
+  it('supports replaying an earlier presentation', async () => {
+    const { onVerify, user } = renderControls({ phase: 'issued', issuedCredential: W3C_VC });
+    await user.click(screen.getByRole('button', { name: 'Enable Tamper Mode' }));
+    await user.click(screen.getByLabelText('Replay an Earlier Presentation'));
+    await user.click(verifyButton());
+    expect(onVerify).toHaveBeenCalledWith({ forceExpired: false, corruptSignature: false, replayPresentation: true });
   });
 
   it('supports presenting a credential with the wrong type', async () => {
@@ -261,6 +269,14 @@ describe('FlowControls verification result', () => {
     for (const check of ['Format', 'Signature', 'Not expired', 'Schema']) {
       expect(within(status).getByText(check)).toHaveClass('text-success-ink');
     }
+  });
+
+  it('shows the holder-binding check only when the verifier reports it', () => {
+    renderControls({ phase: 'verified', issuedCredential: W3C_VC, verificationResult: verdict('VALID') });
+    expect(screen.queryByText('Holder binding')).not.toBeInTheDocument();
+    cleanup();
+    renderControls({ phase: 'failed', issuedCredential: W3C_VC, verificationResult: verdict('INVALID', { holderBinding: false }) });
+    expect(screen.getByText('Holder binding')).toHaveClass('text-danger-ink');
   });
 
   it('labels an expired but correctly signed credential as Valid but Expired', () => {

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { MockProtocolService } from '../src/mocks/mockService.js';
+import { presentToMockVerifier } from '../src/mocks/wallet.js';
 
 const BFF_URL = process.env.BFF_URL || 'http://localhost:4000';
 
@@ -37,7 +38,7 @@ async function runTests() {
       const res = await axios.post(`${BFF_URL}/api/playground/issue`, payload);
       return res.data;
     } else {
-      const mock = MockProtocolService.issueCredential(payload.format, payload.credentialSubject, payload.tamperPayload);
+      const mock = await MockProtocolService.issueCredential(payload.format, payload.credentialSubject);
       return {
         success: true,
         issuer: payload.issuer,
@@ -56,7 +57,7 @@ async function runTests() {
       const res = await axios.post(`${BFF_URL}/api/playground/verify`, payload);
       return res.data;
     } else {
-      const mock = MockProtocolService.verifyPresentation(payload.format, payload.credentialOrToken, payload.tamperPayload);
+      const mock = await presentToMockVerifier(payload.format, payload.credentialOrToken, payload.tamperPayload);
       return {
         success: true,
         verifier: payload.verifier,

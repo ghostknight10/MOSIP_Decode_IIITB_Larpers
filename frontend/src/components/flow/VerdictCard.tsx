@@ -13,10 +13,11 @@ const CHECK_LABELS: [keyof VerificationResult['checks'], string][] = [
   ['formatCheck', 'Format'],
   ['signatureValid', 'Signature'],
   ['notExpired', 'Not expired'],
-  ['schemaCompliant', 'Schema']
+  ['schemaCompliant', 'Schema'],
+  ['holderBinding', 'Holder binding']
 ];
 
-/** Verifier verdict with the four individual checks. */
+/** Verifier verdict with its individual checks (holder binding only when the verifier reports it). */
 export const VerdictCard: React.FC<{ result: VerificationResult }> = ({ result }) => {
   const isValid = result.status === 'VALID';
   // The PS asks for "Valid-but-Expired": signature checks out, only expiry failed.
@@ -40,7 +41,7 @@ export const VerdictCard: React.FC<{ result: VerificationResult }> = ({ result }
         </div>
       </div>
       <ul className="mt-3 grid grid-cols-2 gap-1.5 text-xs">
-        {CHECK_LABELS.map(([key, label]) => {
+        {CHECK_LABELS.filter(([key]) => result.checks?.[key] !== undefined).map(([key, label]) => {
           const ok = result.checks?.[key];
           return (
             <li key={key} className={`flex items-center gap-1.5 ${ok ? 'text-success-ink' : 'text-danger-ink'}`}>

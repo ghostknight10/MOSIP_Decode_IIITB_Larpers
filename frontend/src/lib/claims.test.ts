@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyClaims, claimFromPath, heldClaims, requestedClaims, sharedClaims } from './claims';
+import { claimAliases, classifyClaims, claimFromPath, heldClaims, requestedClaims, sharedClaims } from './claims';
 
 const b64url = (s: string) => btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const seg = (o: object) => b64url(JSON.stringify(o));
@@ -81,5 +81,29 @@ describe('classifyClaims', () => {
     expect(c.overShared).toEqual([]);
     expect(c.missing).toEqual([]);
     expect(c.keptPrivate).toEqual(['b']);
+  });
+});
+
+describe('claim aliases (G-6)', () => {
+  const pd = {
+    input_descriptors: [{ constraints: { fields: [
+      { path: ['$.credentialSubject.fullName', '$.fullName'] },
+      { path: ['$.credentialSubject.nationalId', '$.nationalId', '$.credentialSubject.UIN', '$.UIN'] }
+    ] } }]
+  };
+
+  it('maps alternative names to the first name of each field', () => {
+    expect(claimAliases(pd)).toEqual({ UIN: 'nationalId' });
+    expect(requestedClaims(pd)).toEqual(['fullName', 'nationalId']);
+  });
+
+  it('counts a claim shared under an alias as the requested one', () => {
+    const shared = sharedClaims({ fullName: 'A', UIN: '42' }, claimAliases(pd));
+    expect(shared).toEqual(['fullName', 'nationalId']);
+    expect(classifyClaims(requestedClaims(pd), ['fullName', 'nationalId', 'email'], shared)).toMatchObject({
+      requestedShared: ['fullName', 'nationalId'],
+      overShared: [],
+      missing: []
+    });
   });
 });

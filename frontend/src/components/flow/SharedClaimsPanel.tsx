@@ -1,7 +1,7 @@
 import React from 'react';
 import { AlertTriangle, CheckCircle2, Lock, XCircle, LucideIcon } from 'lucide-react';
 import { CredentialFormat } from '../../types';
-import { classifyClaims, heldClaims, requestedClaims, sharedClaims } from '../../lib/claims';
+import { claimAliases, classifyClaims, heldClaims, requestedClaims, sharedClaims } from '../../lib/claims';
 
 interface SharedClaimsPanelProps {
   presentationDefinition: any;
@@ -26,8 +26,10 @@ interface Group {
  */
 export const SharedClaimsPanel: React.FC<SharedClaimsPanelProps> = ({ presentationDefinition, credential, format, verifiedClaims }) => {
   const requested = requestedClaims(presentationDefinition);
-  const held = heldClaims(credential, format);
-  const shared = sharedClaims(verifiedClaims);
+  // A claim presented under an accepted alias (UIN for nationalId) counts as the requested one.
+  const aliases = claimAliases(presentationDefinition);
+  const held = [...new Set(heldClaims(credential, format).map(claim => aliases[claim] ?? claim))];
+  const shared = sharedClaims(verifiedClaims, aliases);
   const c = classifyClaims(requested, held, shared);
 
   const groups: Group[] = [

@@ -216,7 +216,7 @@ export function usePlaygroundRun() {
     errorDetail?: string,
     proofType?: string
   ) => {
-    const tampered = Boolean(tamper && (tamper.forceExpired || tamper.corruptSignature || tamper.wrongCredentialType));
+    const tampered = Boolean(tamper && Object.values(tamper).some(Boolean));
     // PASS means the verifier behaved as expected: accept a clean credential,
     // reject a tampered one.
     const passed = !errorDetail && !!result && (tampered ? result.status !== 'VALID' : result.status === 'VALID');

@@ -13,6 +13,7 @@ describe('failureLayer', () => {
     [{ errorDetail: 'Verification failed: timeout' }, 'Technical'],
     [{ tampered: true, verificationStatus: 'VALID' as const }, 'Technical'],
     [{ verificationStatus: 'SIGNATURE_MISMATCH' as const, failedChecks: ['signatureValid' as const] }, 'Technical'],
+    [{ verificationStatus: 'INVALID' as const, failedChecks: ['holderBinding' as const] }, 'Technical'],
     [{ verificationStatus: 'INVALID' as const, failedChecks: ['formatCheck' as const] }, 'Syntactical'],
     [{ verificationStatus: 'INVALID' as const, failedChecks: ['schemaCompliant' as const] }, 'Semantic'],
     [{ verificationStatus: 'EXPIRED' as const, failedChecks: ['notExpired' as const] }, 'Organizational'],

@@ -19,11 +19,23 @@ export const claimFromPath = (path: string) => {
   return parts[parts.length - 1] ?? path;
 };
 
+const fieldsOf = (presentationDefinition: any): any[] =>
+  (presentationDefinition?.input_descriptors ?? []).flatMap((d: any) => d?.constraints?.fields ?? []);
+
+/** One name per requested field: the claim named by its first path. */
 export const requestedClaims = (presentationDefinition: any): string[] =>
-  unique(
-    (presentationDefinition?.input_descriptors ?? []).flatMap((d: any) =>
-      (d?.constraints?.fields ?? []).map((f: any) => f?.path?.[0]).filter(Boolean).map(claimFromPath)
-    )
+  unique(fieldsOf(presentationDefinition).map((f: any) => f?.path?.[0]).filter(Boolean).map(claimFromPath));
+
+/**
+ * Alternative claim names a field accepts (its other paths), mapped to the
+ * field's first name. A field asking for nationalId or UIN is satisfied by UIN.
+ */
+export const claimAliases = (presentationDefinition: any): Record<string, string> =>
+  Object.fromEntries(
+    fieldsOf(presentationDefinition).flatMap((f: any) => {
+      const names = unique((f?.path ?? []).map(claimFromPath));
+      return names.slice(1).map(alias => [alias, names[0]]);
+    })
   );
 
 export const heldClaims = (credential: any, format: CredentialFormat): string[] => {
@@ -39,8 +51,12 @@ export const heldClaims = (credential: any, format: CredentialFormat): string[] 
   return Object.keys(subject ?? {}).filter(k => !NON_SUBJECT_CLAIMS.has(k));
 };
 
-export const sharedClaims = (verifiedClaims: any): string[] =>
-  Object.keys(verifiedClaims && typeof verifiedClaims === 'object' ? verifiedClaims : {}).filter(k => !NON_SUBJECT_CLAIMS.has(k));
+export const sharedClaims = (verifiedClaims: any, aliases: Record<string, string> = {}): string[] =>
+  unique(
+    Object.keys(verifiedClaims && typeof verifiedClaims === 'object' ? verifiedClaims : {})
+      .filter(k => !NON_SUBJECT_CLAIMS.has(k))
+      .map(k => aliases[k] ?? k)
+  );
 
 export interface ClaimClassification {
   /** Asked for and received. */

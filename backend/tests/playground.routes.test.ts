@@ -255,8 +255,12 @@ describe('GET /logs/stream', () => {
 
 describe('POST /verify', () => {
   // Generate an actual valid credential for the test instead of a dummy payload
-  const validCredential = MockProtocolService.issueCredential('w3c-vc').issuedCredential;
-  const verifyBody = { verifier: 'mock-openid4vp', wallet: 'mock-wallet', format: 'w3c-vc', credentialOrToken: validCredential };
+  let validCredential: any;
+  let verifyBody: any;
+  beforeAll(async () => {
+    validCredential = (await MockProtocolService.issueCredential('w3c-vc')).issuedCredential;
+    verifyBody = { verifier: 'mock-openid4vp', wallet: 'mock-wallet', format: 'w3c-vc', credentialOrToken: validCredential };
+  });
 
   it('verifies through the mock OpenID4VP verifier', async () => {
     const { body } = await post('/verify', verifyBody, 'tx-v1');
@@ -282,11 +286,11 @@ describe('POST /verify', () => {
   });
 
   describe('with Inji Verify', () => {
-    const injiBody = { ...verifyBody, verifier: 'inji-verify' };
+    const injiBody = () => ({ ...verifyBody, verifier: 'inji-verify' });
 
     it('submits the credential to /vc-verification and reports the live verdict', async () => {
       collab();
-      const { body } = await post('/verify', injiBody, 'tx-iv1');
+      const { body } = await post('/verify', injiBody(), 'tx-iv1');
       expect(requestMock).toHaveBeenCalledTimes(1);
       expect(requestMock.mock.calls[0][0]).toMatchObject({
         method: 'POST',
@@ -312,7 +316,7 @@ describe('POST /verify', () => {
       ['SOMETHING_NEW', 'INVALID', { signatureValid: false }]
     ])('maps verificationStatus %s to %s', async (reported, status, checks) => {
       collab({ '/vc-verification': json(200, { verificationStatus: reported }) });
-      const { body } = await post('/verify', injiBody);
+      const { body } = await post('/verify', injiBody());
       expect(body).toMatchObject({ isValid: false, verificationResult: { status, checks, verifiedClaims: {} } });
       expect(body.verificationResult.details).toContain(reported);
       expect(body.protocolLogs[0]).toMatchObject({ status: 'FAILED', response: { status: 200 } });
@@ -320,7 +324,7 @@ describe('POST /verify', () => {
 
     it('sends a really tampered credential and marks the step', async () => {
       collab({ '/vc-verification': json(200, { verificationStatus: 'INVALID' }) });
-      const { body } = await post('/verify', { ...injiBody, tamperPayload: { forceExpired: true, corruptSignature: true } });
+      const { body } = await post('/verify', { ...injiBody(), tamperPayload: { forceExpired: true, corruptSignature: true } });
       const sent = requestMock.mock.calls[0][0].data as any;
       expect(new Date(sent.expirationDate).getTime()).toBeLessThan(Date.now());
       expect(sent.proof.proofValue).not.toBe(validCredential.proof.proofValue);
@@ -329,8 +333,8 @@ describe('POST /verify', () => {
 
     it('sends an SD-JWT as a compact token', async () => {
       collab();
-      const sdJwt = MockProtocolService.issueCredential('sd-jwt').issuedCredential;
-      await post('/verify', { ...injiBody, format: 'sd-jwt', credentialOrToken: sdJwt });
+      const sdJwt = (await MockProtocolService.issueCredential('sd-jwt')).issuedCredential;
+      await post('/verify', { ...injiBody(), format: 'sd-jwt', credentialOrToken: sdJwt });
       expect(requestMock.mock.calls[0][0]).toMatchObject({ headers: { 'Content-Type': 'application/vc+sd-jwt' }, data: sdJwt.rawToken });
     });
 
@@ -340,7 +344,7 @@ describe('POST /verify', () => {
       ['failing without a status', json(502, { error: 'bad gateway' })]
     ])('falls back to an emulated Inji Verify when it is %s', async (_label, answer) => {
       collab({ '/vc-verification': answer });
-      const { body } = await post('/verify', injiBody);
+      const { body } = await post('/verify', injiBody());
       expect(body).toMatchObject({ isSandboxFallback: true, isValid: true, notice: expect.stringContaining('emulated by the mock engine') });
       expect(body.protocolLogs.find((l: any) => l.step === 2)).toMatchObject({ sender: 'Wallet', receiver: 'Inji Verify (Collab Sandbox Emulated)' });
       expect(body.protocolLogs.some((l: any) => l.sender === 'Inji Verify (Collab Sandbox Emulated)')).toBe(true);

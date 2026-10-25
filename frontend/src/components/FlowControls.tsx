@@ -35,11 +35,12 @@ interface FlowControlsProps {
  * actually ticked.
  */
 export const activeTamper = ({ tamperMode, tamperOptions }: RunInputs): TamperOptionsValue | undefined =>
-  tamperMode && (tamperOptions.forceExpired || tamperOptions.corruptSignature || tamperOptions.wrongCredentialType)
+  tamperMode && Object.values(tamperOptions).some(Boolean)
     ? {
         forceExpired: tamperOptions.forceExpired,
         corruptSignature: tamperOptions.corruptSignature,
-        ...(tamperOptions.wrongCredentialType ? { wrongCredentialType: true } : {})
+        ...(tamperOptions.wrongCredentialType ? { wrongCredentialType: true } : {}),
+        ...(tamperOptions.replayPresentation ? { replayPresentation: true } : {})
       }
     : undefined;
 
