@@ -1,0 +1,63 @@
+name: Nightly Collab Interop Report
+
+# Runs every combination and attack against the live MOSIP Collab sandbox and
+# posts the compatibility matrix to the run summary (bonus task: CI-style
+# interoperability suite). Outcomes never fail the job: the report is the
+# result. Only a broken BFF or script does.
+on:
+  schedule:
+    - cron: '30 20 * * *' # 02:00 IST
+  workflow_dispatch:
+
+jobs:
+  interop-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js 26.x
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26.x
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start the BFF against Collab
+        env:
+          PORT: '4000'
+          # MOSIP's published Collab test identity: real Inji Certify issuance.
+          COLLAB_TEST_INDIVIDUAL_ID: '8267411578'
+        run: |
+          npm --prefix backend run build
+          nohup node backend/dist/index.js > bff.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:4000/api/health && exit 0
+            sleep 2
+          done
+          cat bff.log
+          exit 1
+
+      - name: Run the interoperability report
+        run: npm run report:interop -- --out "$PWD/interop-report.md" --json "$PWD/interop-report.json"
+
+      - name: Post the matrix to the run summary
+        if: always()
+        run: |
+          if [ -f interop-report.md ]; then cat interop-report.md >> "$GITHUB_STEP_SUMMARY"; else echo "No report produced." >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - name: Keep the report and BFF log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: interop-report-${{ github.run_number }}
+          path: |
+            interop-report.md
+            interop-report.json
+            bff.log
+          if-no-files-found: warn
