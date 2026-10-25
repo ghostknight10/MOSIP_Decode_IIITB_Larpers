@@ -142,6 +142,26 @@ describe('App', () => {
     expect(screen.getAllByText('Emulated').length).toBeGreaterThan(0);
   });
 
+  it('shows a notice without emulation as plain information, not a warning', async () => {
+    stubBff({
+      issue: (_b, tx) => ({
+        body: {
+          success: true,
+          notice: 'Real credential: Inji Certify issued a LandStatementCredential.',
+          credentialOffer: {},
+          issuedCredential: { proof: { type: 'Ed25519Signature2020' } },
+          protocolLogs: [makeLog({ transactionId: tx })]
+        }
+      })
+    });
+    const { user } = setup();
+    await user.click(screen.getByRole('button', { name: /Issue Credential/ }));
+    const note = await screen.findByRole('note');
+    expect(note).toHaveTextContent('Real credential');
+    expect(note).not.toHaveClass('bg-warning-soft');
+    expect(screen.queryByText(/^Emulated in this run/)).not.toBeInTheDocument();
+  });
+
   it('runs every combination from the report', async () => {
     const fetchFn = stubBff();
     const { user } = setup();

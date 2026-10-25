@@ -97,7 +97,13 @@ export const App: React.FC = () => {
               </div>
             )}
             {(emulatedNotice || run.notices.length > 0) && (
-              <div role="note" className="mb-5 p-3 rounded-md border border-warning-line border-l-4 bg-warning-soft text-warning-ink text-sm flex items-start gap-2">
+              <div
+                role="note"
+                className={`mb-5 p-3 rounded-md border border-l-4 text-sm flex items-start gap-2 ${
+                  // Amber only when something was emulated; otherwise the BFF's notice is plain information.
+                  emulatedNotice ? 'border-warning-line bg-warning-soft text-warning-ink' : 'border-line border-l-line-strong bg-surface text-ink-muted'
+                }`}
+              >
                 <Info className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
                 <div className="space-y-1">
                   {emulatedNotice && <p>{emulatedNotice}</p>}
