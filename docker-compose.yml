@@ -11,9 +11,9 @@ services:
       - PORT=4000
       - NODE_ENV=development
       - FRONTEND_URL=http://localhost:5173
-      - MOSIP_INJI_CERTIFY_URL=https://certify.collab.mosip.net
-      - MOSIP_MIMOTO_URL=https://mimoto.collab.mosip.net
-      - MOSIP_INJI_VERIFY_URL=https://verify.collab.mosip.net
+      - MOSIP_INJI_CERTIFY_URL=https://injicertify-mosipid.collab.mosip.net
+      - MOSIP_INJI_MIMOTO_URL=https://api.collab.mosip.net
+      - MOSIP_INJI_VERIFY_URL=https://injiverify.collab.mosip.net
     volumes:
       - ./backend:/app
       - /app/node_modules
@@ -29,7 +29,9 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_BFF_URL=http://localhost:4000
+      # The Vite dev server proxies /api to the BFF over the compose network;
+      # localhost here would be the frontend container itself.
+      - VITE_BFF_URL=http://bff:4000
     volumes:
       - ./frontend:/app
       - /app/node_modules

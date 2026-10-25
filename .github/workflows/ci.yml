@@ -36,5 +36,21 @@ jobs:
       - name: Verify Docker Compose Configuration
         run: docker compose config
 
+      # Config alone missed a frontend proxy pointing at its own container;
+      # bring the stack up and hit the BFF through the frontend's /api proxy.
+      - name: Docker Compose smoke test
+        run: |
+          docker compose up -d --build
+          for i in $(seq 1 60); do
+            curl -sf -m 3 http://localhost:5173/api/health && exit 0
+            sleep 2
+          done
+          docker compose logs
+          exit 1
+
+      - name: Stop Docker Compose
+        if: always()
+        run: docker compose down
+
       - name: Execute Protocol Interoperability Test Suite (TC-01 - TC-05)
         run: npm run test:interop
