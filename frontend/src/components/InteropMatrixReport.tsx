@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, XCircle, CircleDashed, Download, Award, Play, Printer, Trash2, Loader2, FileJson } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, XCircle, CircleDashed, Download, Play, Printer, Trash2, Loader2, FileJson } from 'lucide-react';
 import { CredentialFormat, RunRecord } from '../types';
 import { allCombinations, comboKey, formatLabel, nodeLabel } from '../config/nodes';
 import { Selection } from '../hooks/usePlaygroundRun';
 import { failureLayer, FailureLayer, LAYERS, shortLayer } from '../lib/failureLayer';
 import { InteropHeatmap } from './report/InteropHeatmap';
+import { btnPrimary, btnSecondary, btnSmall, chip } from './ui';
 
 interface InteropMatrixReportProps {
   history: RunRecord[];
@@ -18,22 +19,20 @@ type Outcome = RunRecord['outcome'] | 'UNTESTED';
 
 const OutcomeBadge: React.FC<{ outcome: Outcome }> = ({ outcome }) => {
   const style = {
-    PASS: { cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', Icon: CheckCircle2 },
-    FAIL: { cls: 'bg-rose-500/10 text-rose-400 border-rose-500/20', Icon: XCircle },
-    UNTESTED: { cls: 'bg-slate-800 text-slate-400 border-slate-700', Icon: CircleDashed }
+    PASS: { cls: 'bg-success-soft text-success-ink border-success-line', Icon: CheckCircle2 },
+    FAIL: { cls: 'bg-danger-soft text-danger-ink border-danger-line', Icon: XCircle },
+    UNTESTED: { cls: 'bg-surface-muted text-ink-muted border-line', Icon: CircleDashed }
   }[outcome];
   return (
-    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-bold text-xs border ${style.cls}`}>
-      <style.Icon className="h-3 w-3" />
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium text-xs border ${style.cls}`}>
+      <style.Icon className="h-3 w-3" aria-hidden="true" />
       {outcome}
     </span>
   );
 };
 
 const FormatChip: React.FC<{ format: CredentialFormat }> = ({ format }) => (
-  <span className={`px-2 py-0.5 rounded-sm text-xs font-sans whitespace-nowrap ${
-    format === 'sd-jwt' ? 'bg-indigo-500/20 text-indigo-300' : 'bg-sky-500/20 text-sky-300'
-  }`}>
+  <span className={`${chip} whitespace-nowrap`}>
     {formatLabel(format)}
   </span>
 );
@@ -107,10 +106,10 @@ export const scoreMatrix = (matrix: { run?: RunRecord }[]) => {
 const ScoreChip: React.FC<{ label: string; score: Score }> = ({ label, score }) => {
   const allPass = score.passed === score.tested;
   return (
-    <span className={`text-xs font-semibold px-2 py-0.5 rounded-sm border inline-flex items-center gap-1 ${
-      allPass ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+    <span className={`text-xs font-medium px-2 py-0.5 rounded-full border inline-flex items-center gap-1 ${
+      allPass ? 'bg-success-soft text-success-ink border-success-line' : 'bg-danger-soft text-danger-ink border-danger-line'
     }`}>
-      {allPass ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+      {allPass ? <CheckCircle2 className="h-3 w-3" aria-hidden="true" /> : <XCircle className="h-3 w-3" aria-hidden="true" />}
       {label}: {score.passed}/{score.tested} pass
     </span>
   );
@@ -147,86 +146,86 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
   );
 
   const stamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-  const selectCls = 'bg-slate-950 border border-slate-700 rounded-md px-2 py-1 text-xs text-slate-200';
-  const actionCls = 'px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-2 transition-all disabled:opacity-50';
+  const selectCls = 'bg-surface border border-line-strong rounded px-2 py-1 text-xs text-ink';
+  const actionCls = btnSecondary;
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl mb-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 mb-6 border-b border-slate-800">
+    <section aria-labelledby="report-heading" className="bg-surface border border-line rounded-md p-4 sm:p-5 mb-5">
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 mb-5 border-b border-line">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-bold text-white">Ecosystem Interoperability Certification Matrix</h2>
+            <h2 id="report-heading" className="text-base font-semibold text-ink">Interoperability report</h2>
             {scores.real.tested > 0 && <ScoreChip label="Real" score={scores.real} />}
             {scores.emulated.tested > 0 && <ScoreChip label="Emulated" score={scores.emulated} />}
             {allEmulated && (
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-sm border bg-amber-500/15 text-amber-200 border-amber-500/30 inline-flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3" /> No real MOSIP results yet
+              <span className="text-xs font-medium px-2 py-0.5 rounded-full border bg-warning-soft text-warning-ink border-warning-line inline-flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" aria-hidden="true" /> No real MOSIP results yet
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-ink-muted mt-1">
             Results from actual playground runs between MOSIP reference implementations and independent OpenID4VCI / OpenID4VP engines.
           </p>
         </div>
 
         <div className="flex flex-wrap gap-2 print:hidden">
-          <button onClick={onRunAll} disabled={busy || !!batchProgress} className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold flex items-center gap-2 transition-all disabled:opacity-60">
+          <button onClick={onRunAll} disabled={busy || !!batchProgress} className={btnPrimary}>
             {batchProgress ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
             {batchProgress ? `Running ${batchProgress.done}/${batchProgress.total}…` : 'Run All Combinations'}
           </button>
           <button onClick={() => download(`interop-report-${stamp}.md`, toMarkdown(matrix, history), 'text/markdown')} disabled={!history.length} className={actionCls}>
-            <Download className="h-4 w-4 text-sky-400" /> Markdown
+            <Download className="h-4 w-4" aria-hidden="true" /> Markdown
           </button>
           <button onClick={() => download(`interop-runs-${stamp}.json`, JSON.stringify(history, null, 2), 'application/json')} disabled={!history.length} className={actionCls}>
-            <FileJson className="h-4 w-4 text-sky-400" /> JSON
+            <FileJson className="h-4 w-4" aria-hidden="true" /> JSON
           </button>
           <button onClick={() => window.print()} className={actionCls}>
-            <Printer className="h-4 w-4 text-sky-400" /> Print
+            <Printer className="h-4 w-4" aria-hidden="true" /> Print
           </button>
           <button
             onClick={() => window.confirm('Clear all recorded runs from this browser?') && onClearHistory()}
             disabled={!history.length || !!batchProgress}
             className={actionCls}
           >
-            <Trash2 className="h-4 w-4 text-rose-400" /> Clear
+            <Trash2 className="h-4 w-4" aria-hidden="true" /> Clear
           </button>
         </div>
       </div>
 
       {/* Summary Scorecard */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800">
-          <div className="text-xs text-slate-400 font-medium">Combinations Tested</div>
-          <div className="text-2xl font-bold text-white mt-1">{scores.all.tested} / {matrix.length}</div>
+        <div className="p-4 rounded-md bg-surface border border-line">
+          <div className="text-xs text-ink-muted font-medium">Combinations tested</div>
+          <div className="text-2xl font-semibold text-ink mt-1">{scores.all.tested} / {matrix.length}</div>
         </div>
-        <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800">
-          <div className="text-xs text-slate-400 font-medium">Standards Profile</div>
-          <div className="text-xs font-mono text-sky-400 mt-2">OpenID4VCI (Draft 13)<br />OpenID4VP (Draft 21)</div>
+        <div className="p-4 rounded-md bg-surface border border-line">
+          <div className="text-xs text-ink-muted font-medium">Standards profile</div>
+          <div className="text-sm font-mono text-ink mt-1.5">OpenID4VCI Draft 13<br />OpenID4VP Draft 21</div>
         </div>
-        <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800">
-          <div className="text-xs text-slate-400 font-medium">Negative-Path Runs</div>
-          <div className="text-2xl font-bold text-white mt-1">
+        <div className="p-4 rounded-md bg-surface border border-line">
+          <div className="text-xs text-ink-muted font-medium">Negative-path runs</div>
+          <div className="text-2xl font-semibold text-ink mt-1">
             {negativePassed} / {negativeRuns.length}
-            <span className="text-xs font-normal text-slate-400 ml-2">correctly rejected</span>
+            <span className="text-xs font-normal text-ink-muted ml-2">correctly rejected</span>
           </div>
         </div>
-        <div className="p-4 rounded-xl bg-slate-950/70 border border-emerald-500/20 bg-emerald-950/10">
-          <div className="text-xs text-emerald-400 font-medium">Cross-Interop Pass Rate</div>
+        <div className="p-4 rounded-md bg-surface border border-line">
+          <div className="text-xs text-ink-muted">Pass rate</div>
           <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-2 items-baseline">
-            <dt className="text-xs text-slate-400">Real</dt>
-            <dd className="text-2xl font-bold text-emerald-400 flex items-center gap-1.5">
-              <Award className="h-5 w-5" /> {rate(scores.real) === null ? '—' : `${rate(scores.real)}%`}
+            <dt className="text-xs text-ink-muted">Real</dt>
+            <dd className="text-2xl font-semibold text-ink">
+              {rate(scores.real) === null ? '—' : `${rate(scores.real)}%`}
             </dd>
-            <dt className="text-xs text-slate-400">Emulated</dt>
-            <dd className="text-sm font-semibold text-slate-300">{rate(scores.emulated) === null ? '—' : `${rate(scores.emulated)}%`}</dd>
+            <dt className="text-xs text-ink-muted">Emulated</dt>
+            <dd className="text-sm font-semibold text-ink-muted">{rate(scores.emulated) === null ? '—' : `${rate(scores.emulated)}%`}</dd>
           </dl>
         </div>
       </div>
 
       {/* Matrix */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
-        <h3 className="text-sm font-semibold text-white">Matrix <span className="text-xs font-normal text-slate-400">— latest clean run per combination</span></h3>
-        <div role="radiogroup" aria-label="Matrix view" className="flex gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs print:hidden">
+        <h3 className="text-sm font-semibold text-ink">Matrix <span className="text-xs font-normal text-ink-muted">— latest clean run per combination</span></h3>
+        <div role="radiogroup" aria-label="Matrix view" className="inline-flex rounded border border-line-strong overflow-hidden text-xs print:hidden">
           {(['heatmap', 'list'] as const).map(v => (
             <button
               key={v}
@@ -234,15 +233,15 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
               role="radio"
               aria-checked={view === v}
               onClick={() => setView(v)}
-              className={`px-2.5 py-1 rounded-md ${view === v ? 'bg-sky-600 text-white font-semibold' : 'text-slate-400 hover:text-slate-200'}`}
+              className={`px-2.5 py-1 transition-colors not-first:border-l not-first:border-line-strong ${view === v ? 'bg-accent text-ink' : 'bg-surface text-ink hover:bg-surface-muted'}`}
             >
               {v === 'heatmap' ? 'Heatmap' : 'List'}
             </button>
           ))}
         </div>
       </div>
-      <p className="text-xs text-slate-400 mb-2">
-        <span aria-hidden="true" className="text-amber-300 font-bold">†</span> answered by the emulated sandbox, not a real MOSIP service.
+      <p className="text-xs text-ink-muted mb-2">
+        <span aria-hidden="true" className="text-warning-ink font-semibold">†</span> answered by the emulated sandbox, not a real MOSIP service.
         {view === 'heatmap' && ' Select a cell to filter the run history.'}
       </p>
       {view === 'heatmap' && (
@@ -250,38 +249,38 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
           <InteropHeatmap latest={latest} selectedKey={comboFilter ? comboKey(comboFilter) : null} onSelect={setComboFilter} />
         </div>
       )}
-      <details className="mb-8 text-xs text-slate-400">
-        <summary className="cursor-pointer text-slate-300">Failure layers (Schumm et al., 2025)</summary>
+      <details className="mb-8 text-xs text-ink-muted">
+        <summary className="cursor-pointer text-ink-muted">Failure layers (Schumm et al., 2025)</summary>
         <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
           {LAYERS.map(l => (
             <React.Fragment key={l.layer}>
-              <dt className="font-mono text-slate-200">{l.short}</dt>
+              <dt className="font-mono text-ink">{l.short}</dt>
               <dd>
-                <span className="text-slate-200">{l.layer}:</span> {l.description}
+                <span className="text-ink">{l.layer}:</span> {l.description}
               </dd>
             </React.Fragment>
           ))}
         </dl>
       </details>
       {view === 'list' && (
-      <div className="overflow-x-auto rounded-xl border border-slate-800 mb-8">
+      <div className="overflow-x-auto rounded-md border border-line mb-8">
         <table className="w-full text-left text-xs">
-          <thead className="bg-slate-950 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
+          <thead className="bg-surface-muted text-ink-muted font-medium border-b border-line">
             <tr>
-              <th className="p-3">Issuer Node</th>
-              <th className="p-3">Wallet / Holder</th>
-              <th className="p-3">Verifier Node</th>
-              <th className="p-3">Credential Format</th>
-              <th className="p-3">Proof Type</th>
+              <th className="p-3">Issuer</th>
+              <th className="p-3">Wallet</th>
+              <th className="p-3">Verifier</th>
+              <th className="p-3">Format</th>
+              <th className="p-3">Proof type</th>
               <th className="p-3 text-center">Status</th>
               <th className="p-3">Layer</th>
-              <th className="p-3">Error Detail</th>
+              <th className="p-3">Error detail</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60 text-slate-300">
+          <tbody className="divide-y divide-line text-ink-muted">
             {matrix.map(({ combo, run }) => (
-              <tr key={comboKey(combo)} className="hover:bg-slate-800/30 transition-colors">
-                <td className="p-3 font-medium text-white">{nodeLabel(combo.issuer)}</td>
+              <tr key={comboKey(combo)} className="hover:bg-surface-muted transition-colors">
+                <td className="p-3 font-medium text-ink">{nodeLabel(combo.issuer)}</td>
                 <td className="p-3">{nodeLabel(combo.wallet)}</td>
                 <td className="p-3">{nodeLabel(combo.verifier)}</td>
                 <td className="p-3"><FormatChip format={combo.format} /></td>
@@ -289,11 +288,11 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
                 <td className="p-3 text-center">
                   <OutcomeBadge outcome={run?.outcome ?? 'UNTESTED'} />
                   {run?.sandboxFallback && (
-                    <abbr title="Emulated sandbox response" aria-label="emulated" className="ml-1 text-amber-300 font-bold no-underline">†</abbr>
+                    <abbr title="Emulated sandbox response" aria-label="emulated" className="ml-1 text-warning-ink font-semibold no-underline">†</abbr>
                   )}
                 </td>
                 <td className="p-3 font-mono">{run && failureLayer(run) ? shortLayer(failureLayer(run)!) : ''}</td>
-                <td className="p-3 text-rose-300 max-w-xs">{run?.errorDetail ?? ''}</td>
+                <td className="p-3 text-danger-ink max-w-xs">{run?.errorDetail ?? ''}</td>
               </tr>
             ))}
           </tbody>
@@ -303,7 +302,7 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
 
       {/* Run history */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
-        <h3 className="text-sm font-semibold text-white">Run History <span className="text-xs font-normal text-slate-400">({filtered.length} of {history.length})</span></h3>
+        <h3 className="text-sm font-semibold text-ink">Run history <span className="text-xs font-normal text-ink-muted">({filtered.length} of {history.length})</span></h3>
         <div className="flex flex-wrap gap-2 print:hidden">
           <select aria-label="Filter by format" value={formatFilter} onChange={e => setFormatFilter(e.target.value as typeof formatFilter)} className={selectCls}>
             <option value="all">All formats</option>
@@ -332,53 +331,53 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
         </div>
       </div>
       {comboFilter && (
-        <p className="mb-2 text-xs text-slate-300 flex flex-wrap items-center gap-2">
+        <p className="mb-2 text-xs text-ink-muted flex flex-wrap items-center gap-2">
           Showing {nodeLabel(comboFilter.issuer)} → {nodeLabel(comboFilter.wallet)} → {nodeLabel(comboFilter.verifier)} · {formatLabel(comboFilter.format)}
-          <button type="button" onClick={() => setComboFilter(null)} className="px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200">
+          <button type="button" onClick={() => setComboFilter(null)} className={btnSmall}>
             Clear combination filter
           </button>
         </p>
       )}
       {history.length === 0 ? (
-        <p className="text-xs text-slate-400 p-6 text-center border border-dashed border-slate-800 rounded-xl">
+        <p className="text-xs text-ink-muted p-6 text-center border border-dashed border-line-strong rounded-md">
           No runs yet. Run a flow in the Playground or click “Run All Combinations”.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-800">
+        <div className="overflow-x-auto rounded-md border border-line">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-950 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
+            <thead className="bg-surface-muted text-ink-muted font-medium border-b border-line">
               <tr>
                 <th className="p-3">Time</th>
                 <th className="p-3">Issuer → Wallet → Verifier</th>
                 <th className="p-3">Format</th>
                 <th className="p-3">Proof</th>
                 <th className="p-3">Mode</th>
-                <th className="p-3">Verifier Status</th>
+                <th className="p-3">Verifier status</th>
                 <th className="p-3 text-center">Outcome</th>
                 <th className="p-3">Layer</th>
-                <th className="p-3">Error Detail</th>
+                <th className="p-3">Error detail</th>
                 <th className="p-3">Transaction</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 text-slate-300">
+            <tbody className="divide-y divide-line text-ink-muted">
               {filtered.map(r => (
-                <tr key={r.id} className="hover:bg-slate-800/30 transition-colors">
+                <tr key={r.id} className="hover:bg-surface-muted transition-colors">
                   <td className="p-3 font-mono whitespace-nowrap">{new Date(r.finishedAt).toLocaleString()}</td>
                   <td className="p-3 min-w-64">{nodeLabel(r.issuer)} → {nodeLabel(r.wallet)} → {nodeLabel(r.verifier)}</td>
                   <td className="p-3"><FormatChip format={r.format} /></td>
                   <td className="p-3 font-mono">{r.proofType}</td>
-                  <td className="p-3">{r.tampered ? <span className="text-rose-300">tampered</span> : 'clean'}</td>
+                  <td className="p-3">{r.tampered ? <span className="text-warning-ink">tampered</span> : 'clean'}</td>
                   <td className="p-3 font-mono">{r.verificationStatus ?? '—'}</td>
                   <td className="p-3 text-center"><OutcomeBadge outcome={r.outcome} /></td>
                   <td className="p-3 font-mono">{failureLayer(r) ?? ''}</td>
-                  <td className="p-3 text-rose-300 max-w-xs">{r.errorDetail ?? ''}</td>
-                  <td className="p-3 font-mono text-slate-500">{r.transactionId}</td>
+                  <td className="p-3 text-danger-ink max-w-xs">{r.errorDetail ?? ''}</td>
+                  <td className="p-3 font-mono text-ink-subtle whitespace-nowrap">{r.transactionId}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
-    </div>
+    </section>
   );
 };

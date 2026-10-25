@@ -73,7 +73,7 @@ const BANNED: [RegExp, string][] = [
   [/\b(bg|text|border|ring|outline|from|to|via|divide|fill|stroke|accent|decoration|placeholder)-(slate|gray|zinc|neutral|sky|blue|indigo|violet|purple|emerald|green|rose|red|amber|yellow|teal|cyan|pink|fuchsia|orange|lime)-\d{2,3}\b/, 'raw palette colours (use tokens)'],
   [/\btransition-all\b/, 'transition-all (use transition-colors)'],
   [/\btext-\[(9|10|11)px\]/, 'text below 12px'],
-  [/rgb\(\s*\d+,\s*\d+,\s*\d+\)\s*\\n|#020617|#0f172a/, 'hard-coded dark colours']
+  [/#(020617|0f172a|090d16|1e293b)\b|rgb\(\s*76,\s*29,\s*41\)/i, 'hard-coded dark colours']
 ];
 
 // Vite reads the sources at test time; no Node APIs needed in browser-typed code.
@@ -82,7 +82,7 @@ const componentFiles = () => Object.entries(sources).map(([file, text]) => ({ fi
 
 describe('design guardrail', () => {
   // Enabled once the restyle is complete (docs/design-tokens.md).
-  it.skip.each(BANNED)('no component uses %s (%s)', (pattern, label) => {
+  it.each(BANNED)('no component uses %s (%s)', (pattern, label) => {
     const offenders = componentFiles().flatMap(({ file, text }) =>
       text.split('\n').flatMap((line: string, i: number) => (pattern.test(line) ? [`${file}:${i + 1}: ${line.trim().slice(0, 100)}`] : []))
     );
