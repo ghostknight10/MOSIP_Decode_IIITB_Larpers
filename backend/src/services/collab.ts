@@ -73,9 +73,13 @@ const WIRE_FORMATS: Record<CredentialFormat, string[]> = { 'w3c-vc': ['ldp_vc'],
  * request, which Certify refuses without an eSignet access token. The caller
  * emulates the credential itself.
  */
-export async function certifyDiscovery(format: CredentialFormat, wallet: WalletType | undefined) {
+export async function certifyDiscovery(
+  format: CredentialFormat,
+  wallet: WalletType | undefined,
+  /** Called as each live call completes, so the audit stream shows it immediately. */
+  emit: (log: ProtocolLog) => void
+) {
   const { certify, mimoto } = collabTargets();
-  const logs: ProtocolLog[] = [];
 
   const metadataCall = await liveCall({
     method: 'GET',
@@ -85,7 +89,7 @@ export async function certifyDiscovery(format: CredentialFormat, wallet: WalletT
     protocol: 'OpenID4VCI',
     action: 'Fetch issuer metadata'
   });
-  logs.push(metadataCall.log);
+  emit(metadataCall.log);
   const metadata = metadataCall.data;
   if (metadataCall.status !== 200 || !isObject(metadata.credential_configurations_supported)) {
     throw new CollabUnavailable(`Inji Certify metadata unavailable (HTTP ${metadataCall.status})`);
@@ -100,7 +104,7 @@ export async function certifyDiscovery(format: CredentialFormat, wallet: WalletT
       protocol: 'OpenID4VCI',
       action: 'Look up issuer in Mimoto registry'
     }).catch(() => null); // the registry is informative; issuance doesn't depend on it
-    if (registry) logs.push(registry.log);
+    if (registry) emit(registry.log);
   }
 
   const configs = metadata.credential_configurations_supported as Record<string, any>;
@@ -131,14 +135,13 @@ export async function certifyDiscovery(format: CredentialFormat, wallet: WalletT
       protocol: 'OpenID4VCI',
       action: 'Credential request (no access token)'
     });
-    logs.push(credentialCall.log);
+    emit(credentialCall.log);
     reasons.push(`its credential endpoint needs an eSignet access token (HTTP ${credentialCall.status})`);
   } else {
     reasons.push('its credential_endpoint is on another origin, so it was not called');
   }
 
   return {
-    logs,
     credentialOffer: {
       credential_issuer: metadata.credential_issuer ?? certify,
       credential_configuration_ids: configId ? [configId] : [],
@@ -215,7 +218,8 @@ export async function injiVerify(format: CredentialFormat, credential: any, tamp
   return {
     status,
     reported,
-    log: call.log,
+    // Like the mock verifier: a rejected credential is a failed step even on HTTP 200.
+    log: { ...call.log, status: status === 'VALID' ? 'SUCCESS' : 'FAILED' } as ProtocolLog,
     // Inji Verify reports one overall status, not individual checks.
     checks: {
       formatCheck: true,

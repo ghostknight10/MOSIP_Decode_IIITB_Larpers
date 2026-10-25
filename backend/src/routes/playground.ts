@@ -84,7 +84,7 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
     let discovery: Awaited<ReturnType<typeof certifyDiscovery>> | null = null;
     let unavailable = '';
     try {
-      discovery = await certifyDiscovery(format, wallet);
+      discovery = await certifyDiscovery(format, wallet, log => record(transactionId, [log]));
     } catch (err) {
       if (!(err instanceof CollabUnavailable)) throw err;
       unavailable = err.message;
@@ -95,7 +95,7 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
       // With live discovery, only the credential response itself is emulated.
       .filter(log => !discovery || log.action.startsWith('Credential Request'))
       .map(log => (log.receiver === 'Issuer (OpenID4VCI)' ? { ...log, receiver: 'Inji Certify (Collab Sandbox Emulated)' } : log));
-    record(transactionId, [...(discovery?.logs ?? []), ...emulated]);
+    record(transactionId, emulated);
 
     return res.json({
       success: true,

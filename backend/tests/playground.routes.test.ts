@@ -153,14 +153,35 @@ describe('POST /issue', () => {
 
     it.each([
       ['unreachable', unreachable()],
-      ['answering HTML', { status: 200, data: '<html>', headers: { 'content-type': 'text/html' } }],
-      ['without metadata', json(404, { error: 'not found' })]
+      ['answering HTML', { status: 200, data: '<html>', headers: { 'content-type': 'text/html' } }]
     ])('emulates Inji Certify entirely when it is %s', async (_label, answer) => {
       collab({ 'openid-credential-issuer': answer });
       const { body } = await post('/issue', certifyBody, 'tx-c2');
       expect(body).toMatchObject({ success: true, isSandboxFallback: true, notice: expect.stringContaining('emulated by the mock engine') });
       expect(body.protocolLogs.map((l: any) => l.receiver)).toEqual(['Inji Certify (Collab Sandbox Emulated)', 'Inji Certify (Collab Sandbox Emulated)']);
       expect(body.protocolLogs.every((l: any) => l.sender === 'Wallet')).toBe(true);
+    });
+
+    it('keeps the failed live metadata call before the emulated steps', async () => {
+      collab({ 'openid-credential-issuer': json(404, { error: 'not found' }) });
+      const { body } = await post('/issue', certifyBody);
+      expect(body.notice).toContain('Inji Certify metadata unavailable (HTTP 404)');
+      expect(body.protocolLogs.map((l: any) => [l.step, l.status, Boolean(l.live)])).toEqual([[1, 'FAILED', true], [2, 'SUCCESS', false], [3, 'SUCCESS', false]]);
+    });
+
+    it('streams each live step as soon as it completes', async () => {
+      const seen: string[] = [];
+      const onFrame = (frame: any) => seen.push(frame.action);
+      globalAuditBuffer.on('newFrame', onFrame);
+      let answerCredential: (value: unknown) => void = () => {};
+      // The credential request stays open until the metadata frame has been seen.
+      collab({ '/issuance/credential': new Promise(resolve => (answerCredential = resolve)) });
+      const pending = post('/issue', certifyBody);
+      await vi.waitFor(() => expect(seen).toEqual(['Fetch issuer metadata']));
+      answerCredential(json(403, { error: 'Forbidden' }));
+      await pending;
+      expect(seen.slice(0, 2)).toEqual(['Fetch issuer metadata', 'Credential request (no access token)']);
+      globalAuditBuffer.off('newFrame', onFrame);
     });
   });
 
@@ -294,6 +315,7 @@ describe('POST /verify', () => {
       const { body } = await post('/verify', injiBody);
       expect(body).toMatchObject({ isValid: false, verificationResult: { status, checks, verifiedClaims: {} } });
       expect(body.verificationResult.details).toContain(reported);
+      expect(body.protocolLogs[0]).toMatchObject({ status: 'FAILED', response: { status: 200 } });
     });
 
     it('sends a really tampered credential and marks the step', async () => {
