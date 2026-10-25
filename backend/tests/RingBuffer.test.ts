@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import globalAuditBuffer from '../src/utils/RingBuffer.js';
 
-// The module only exports the singleton; build small instances from its class.
 const AuditRingBuffer = (globalAuditBuffer as any).constructor;
 const frame = (i: number, extra: object = {}) => ({ i, transactionId: 'tx-a', sequenceNo: i, ...extra });
 
@@ -30,7 +29,6 @@ describe('AuditRingBuffer', () => {
 
   it('evicts the oldest frame once full', () => {
     [1, 2, 3, 4, 5].forEach(i => buf.add(frame(i)));
-    // Explicit limit: the default (50) exceeds this buffer's capacity, see the it.fails below.
     expect(buf.getLogs(3).map((f: any) => f.i)).toEqual([5, 4, 3]);
   });
 
@@ -56,9 +54,7 @@ describe('AuditRingBuffer', () => {
     expect(buf.getLogs().map((f: any) => f.i)).toEqual([7]);
   });
 
-  // Known bug: on a full buffer, a limit above capacity wraps around and
-  // returns duplicates ([3, 2, 1, 3, 2]). Flip to `it` once fixed.
-  it.fails('never returns a frame twice, even when limit > capacity', () => {
+  it('never returns a frame twice, even when limit > capacity', () => {
     [1, 2, 3].forEach(i => buf.add(frame(i)));
     expect(buf.getLogs(5).map((f: any) => f.i)).toEqual([3, 2, 1]);
   });

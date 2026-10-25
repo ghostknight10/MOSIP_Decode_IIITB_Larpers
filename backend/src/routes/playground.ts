@@ -8,6 +8,11 @@ import { v4 as uuidv4 } from 'uuid';
 export const playgroundRouter = Router();
 
 playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialRequest>, res: Response) => {
+  // B-3 FIX: Guard against missing JSON bodies crashing the Express router
+  if (!req.body || Object.keys(req.body).length === 0) {
+    return res.status(400).json({ success: false, error: 'JSON body is required' });
+  }
+
   const { issuer, wallet, format, credentialSubject, tamperPayload } = req.body;
   const transactionId = (req.headers['x-transaction-id'] as string) || `tx-${uuidv4().substring(0, 8)}`;
 
@@ -43,11 +48,19 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
         { timeout: 5000 }
       );
 
+      // B-4 FIX: Normalize the credential offer for the UI
+      const credentialOffer = {
+        credential_issuer: certifyUrl,
+        credential_configuration_ids: [format === 'sd-jwt' ? 'NationalId_SD_JWT' : 'NationalId_W3C_JSONLD'],
+        grants: { 'urn:ietf:params:oauth:grant-type:pre-authorized_code': { 'pre-authorized_code': 'sandbox-auth-code', user_pin_required: false } }
+      };
+
       return res.json({
         success: true,
         issuer,
         wallet,
         format,
+        credentialOffer,
         issuedCredential: response.data,
         protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
       });
@@ -57,7 +70,6 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
       
       mockResult.logs.forEach((log: any) => {
         log.transactionId = transactionId;
-        // B-9 FIX: Only overwrite labels for the external hop
         if (log.receiver === 'inji-certify' || log.destination === 'inji-certify') {
           log.receiver = 'Inji Certify (Collab Sandbox Emulated)';
         }
@@ -85,6 +97,11 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
 });
 
 playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialRequest>, res: Response) => {
+  // B-3 FIX: Guard against missing JSON bodies
+  if (!req.body || Object.keys(req.body).length === 0) {
+    return res.status(400).json({ success: false, error: 'JSON body is required' });
+  }
+
   const { verifier, wallet, format, credentialOrToken, tamperPayload } = req.body;
   const transactionId = (req.headers['x-transaction-id'] as string) || `tx-${uuidv4().substring(0, 8)}`;
 
@@ -117,12 +134,21 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
         { timeout: 5000 }
       );
 
+      // B-4 FIX: Normalize the Sandbox verification response structure
+      const isValid = response.data.verificationStatus === 'SUCCESS' || response.data.status === 'VALID';
+      const checks = response.data.checks || { signatureValid: isValid, notExpired: isValid };
+
       return res.json({
         success: true,
         verifier,
         wallet,
         format,
-        verificationResult: response.data,
+        isValid,
+        verificationResult: {
+          ...response.data,
+          status: isValid ? 'VALID' : 'INVALID',
+          checks
+        },
         protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
       });
     } catch (apiError: any) {
@@ -131,7 +157,6 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
 
       mockResult.logs.forEach((log: any) => {
         log.transactionId = transactionId;
-        // B-9 FIX: Only overwrite labels for the external hop
         if (log.sender === 'inji-verify' || log.origin === 'inji-verify') {
           log.sender = 'Inji Verify (Collab Sandbox Emulated)';
         }

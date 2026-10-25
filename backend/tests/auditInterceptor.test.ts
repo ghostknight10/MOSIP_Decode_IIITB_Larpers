@@ -5,7 +5,6 @@ import globalAuditBuffer from '../src/utils/RingBuffer.js';
 
 const buffer = globalAuditBuffer as any;
 
-/** Axios adapter that answers locally, so no network is involved. */
 const respond = (status: number, data: unknown, headers: Record<string, string> = {}) => async (config: any) => {
   const res = { data, status, statusText: String(status), headers, config };
   if (status >= 400) throw new AxiosError(`HTTP ${status}`, 'ERR_BAD_RESPONSE', config, null, res as any);
@@ -118,9 +117,7 @@ describe('createAuditClient', () => {
     expect(frames('tx-t')[0].tamperFlag).toEqual({ isTampered: true, message: 'signature flipped' });
   });
 
-  // Known bug: logFrame JSON.parses every request body, so form-encoded
-  // OpenID4VP direct_post submissions make the whole call reject.
-  it.fails('logs form-urlencoded requests (OpenID4VP direct_post)', async () => {
+  it('logs form-urlencoded requests (OpenID4VP direct_post)', async () => {
     const client = createAuditClient({ transactionId: 'tx-form', isSandbox: true });
     await client({
       method: 'post',

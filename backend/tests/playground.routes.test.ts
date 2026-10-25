@@ -5,6 +5,7 @@ import express from 'express';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { playgroundRouter } from '../src/routes/playground.js';
 import globalAuditBuffer from '../src/utils/RingBuffer.js';
+import { MockProtocolService } from '../src/mocks/mockService.js';
 
 vi.mock('axios', async importOriginal => {
   const actual = await importOriginal<typeof import('axios')>();
@@ -16,7 +17,6 @@ let server: Server;
 let base: string;
 
 beforeAll(async () => {
-  // Mirrors src/index.ts without app.listen side effects on import.
   const app = express();
   app.use(express.json());
   app.use('/api/playground', playgroundRouter);
@@ -86,9 +86,7 @@ describe('POST /issue', () => {
     expect(body.protocolLogs.every((l: any) => l.receiver === 'Inji Certify (Collab Sandbox Emulated)')).toBe(true);
   });
 
-  // Contract gap: a real Inji Certify response is passed through without a
-  // credentialOffer, which the UI needs for the offer QR.
-  it.fails('returns a credential offer for real Inji Certify issuance', async () => {
+  it('returns a credential offer for real Inji Certify issuance', async () => {
     postMock.mockResolvedValue({ data: { credential: 'from-certify' } });
     const { body } = await post('/issue', { ...issueBody, issuer: 'inji-certify' });
     expect(body.credentialOffer).toBeDefined();
@@ -99,9 +97,7 @@ describe('POST /issue', () => {
     expect(res.status).toBe(400);
   });
 
-  // Known bug: without a JSON body req.body is undefined in Express 5 and the
-  // destructuring throws before the try block, giving a 500 HTML page.
-  it.fails('answers a request without a JSON body with a JSON 400', async () => {
+  it('answers a request without a JSON body with a JSON 400', async () => {
     const res = await fetch(`${base}/issue`, { method: 'POST' });
     expect(res.status).toBe(400);
     expect(res.headers.get('content-type')).toContain('application/json');
@@ -109,8 +105,9 @@ describe('POST /issue', () => {
 });
 
 describe('POST /verify', () => {
-  const credential = { credentialSubject: { fullName: 'Priya Rao' } };
-  const verifyBody = { verifier: 'mock-openid4vp', wallet: 'mock-wallet', format: 'w3c-vc', credentialOrToken: credential };
+  // Fix: Generate an actual valid credential for the test instead of a dummy payload
+  const validCredential = MockProtocolService.issueCredential('w3c-vc').issuedCredential;
+  const verifyBody = { verifier: 'mock-openid4vp', wallet: 'mock-wallet', format: 'w3c-vc', credentialOrToken: validCredential };
 
   it('verifies through the mock OpenID4VP verifier', async () => {
     const { body } = await post('/verify', verifyBody, 'tx-v1');
@@ -136,7 +133,7 @@ describe('POST /verify', () => {
   it('forwards the vp_token to Inji Verify when reachable', async () => {
     postMock.mockResolvedValue({ data: { status: 'VALID' } });
     const { body } = await post('/verify', { ...verifyBody, verifier: 'inji-verify' });
-    expect(postMock).toHaveBeenCalledWith(expect.stringMatching(/\/v1\/verify\/presentation$/), { vp_token: credential }, { timeout: 5000 });
+    expect(postMock).toHaveBeenCalledWith(expect.stringMatching(/\/v1\/verify\/presentation$/), { vp_token: validCredential }, { timeout: 5000 });
     expect(body).toMatchObject({ success: true, verificationResult: { status: 'VALID' } });
   });
 
@@ -146,9 +143,7 @@ describe('POST /verify', () => {
     expect(body.protocolLogs.some((l: any) => l.sender === 'Inji Verify (Collab Sandbox Emulated)')).toBe(true);
   });
 
-  // Contract gap: real Inji Verify responses are passed through as-is,
-  // without isValid / checks / presentationDefinition the UI relies on.
-  it.fails('normalises real Inji Verify responses to the playground shape', async () => {
+  it('normalises real Inji Verify responses to the playground shape', async () => {
     postMock.mockResolvedValue({ data: { verificationStatus: 'SUCCESS' } });
     const { body } = await post('/verify', { ...verifyBody, verifier: 'inji-verify' });
     expect(body.isValid).toBe(true);

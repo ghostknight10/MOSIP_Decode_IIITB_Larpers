@@ -29,7 +29,7 @@ beforeAll(async () => {
       }
     });
   });
-  // TARGETS are resolved when the module loads, so point it at the stub first.
+  
   process.env.MOCK_URL = await listen(upstream);
   const { default: proxyRouter } = await import('../src/routes/proxyGateway.js');
   const app = express();
@@ -92,7 +92,6 @@ describe('proxy gateway', () => {
     expect(frame.packet.request.headers.authorization).toBe('[REDACTED]');
     expect(frame.packet.request.body).toEqual({ client_secret: '[REDACTED]' });
     expect(frame.packet.response.body.access_token).toBe('[REDACTED]');
-    // The caller still gets the upstream body as-is.
     expect(body.access_token).toBe('upstream-secret');
   });
 
@@ -103,9 +102,7 @@ describe('proxy gateway', () => {
     expect(body._auditTrail[0].packet.response.statusCode).toBe(404);
   });
 
-  // Known bug: non-JSON upstream bodies are object-spread, so "hello"
-  // comes back as {"0":"h","1":"e",...}.
-  it.fails('passes non-JSON upstream bodies through intact', async () => {
+  it('passes non-JSON upstream bodies through intact', async () => {
     const { body } = await call('/api/proxy/MOCK_ISSUER/text');
     expect(body).not.toHaveProperty('0');
   });
