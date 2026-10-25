@@ -12,26 +12,26 @@ import { parseSdJwt, ParsedSdJwt, verifyDisclosureDigests } from '../../lib/sdjw
 
 // Each segment gets a colour *and* a text label in the legend and tables.
 const SEGMENT = {
-  header: { label: 'Header', cls: 'text-rose-300' },
-  payload: { label: 'Payload', cls: 'text-violet-300' },
-  signature: { label: 'Signature', cls: 'text-sky-300' },
-  disclosure: { label: 'Disclosures', cls: 'text-emerald-300' }
+  header: { label: 'Header', cls: 'text-danger-ink' },
+  payload: { label: 'Payload', cls: 'text-accent' },
+  signature: { label: 'Signature', cls: 'text-ink-muted' },
+  disclosure: { label: 'Disclosures', cls: 'text-success-ink' }
 };
 
 const DigestCell: React.FC<{ result: boolean | 'unavailable' | undefined }> = ({ result }) => {
-  if (result === undefined) return <span className="text-slate-400">Checking…</span>;
+  if (result === undefined) return <span className="text-ink-muted">Checking…</span>;
   if (result === 'unavailable')
     return (
-      <span className="inline-flex items-center gap-1 text-slate-400" title="WebCrypto needs a secure context (https or localhost)">
+      <span className="inline-flex items-center gap-1 text-ink-muted" title="WebCrypto needs a secure context (https or localhost)">
         <HelpCircle className="h-3.5 w-3.5" /> Unavailable
       </span>
     );
   return result ? (
-    <span className="inline-flex items-center gap-1 text-emerald-300">
+    <span className="inline-flex items-center gap-1 text-success-ink">
       <CheckCircle2 className="h-3.5 w-3.5" /> Yes
     </span>
   ) : (
-    <span className="inline-flex items-center gap-1 text-rose-300">
+    <span className="inline-flex items-center gap-1 text-danger-ink">
       <XCircle className="h-3.5 w-3.5" /> No
     </span>
   );
@@ -50,14 +50,14 @@ const SdJwtView: React.FC<{ raw: string }> = ({ raw }) => {
     };
   }, [raw]); // parsed is derived from raw
 
-  if (!parsed) return <p className="text-xs text-rose-300">The SD-JWT could not be decoded.</p>;
+  if (!parsed) return <p className="text-xs text-danger-ink">The SD-JWT could not be decoded.</p>;
   const [h, p] = parsed.jwt.split('.');
   const digestFor = (i: number) => (digests === null ? undefined : digests === 'unavailable' ? 'unavailable' : digests[i]);
 
   return (
     <div className="space-y-3">
       <div>
-        <p aria-label="Encoded SD-JWT" className="font-mono text-xs break-all p-2 rounded-md bg-slate-950 border border-slate-800">
+        <p aria-label="Encoded SD-JWT" className="font-mono text-xs break-all p-2 rounded-md bg-surface-muted border border-line">
           <span className={SEGMENT.header.cls}>{h}</span>.<span className={SEGMENT.payload.cls}>{p}</span>.
           <span className={SEGMENT.signature.cls}>{parsed.signature}</span>
           {parsed.disclosures.map(d => (
@@ -70,7 +70,7 @@ const SdJwtView: React.FC<{ raw: string }> = ({ raw }) => {
         <ul aria-label="Token parts" className="flex flex-wrap gap-3 mt-1.5 text-xs">
           {Object.values(SEGMENT).map(s => (
             <li key={s.label} className={s.cls}>
-              ■ <span className="text-slate-300">{s.label}</span>
+              ■ <span className="text-ink-muted">{s.label}</span>
             </li>
           ))}
         </ul>
@@ -78,23 +78,23 @@ const SdJwtView: React.FC<{ raw: string }> = ({ raw }) => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <section aria-label="Header">
-          <h5 className="text-xs font-semibold text-slate-300 mb-1">Header</h5>
-          <JsonView value={parsed.header} className="p-2 rounded-md bg-slate-950 border border-slate-800" />
+          <h5 className="text-xs font-semibold text-ink-muted mb-1">Header</h5>
+          <JsonView value={parsed.header} className="p-2 rounded-md bg-surface-muted border border-line" />
         </section>
         <section aria-label="Payload">
-          <h5 className="text-xs font-semibold text-slate-300 mb-1">Payload</h5>
-          <JsonView value={parsed.payload} className="p-2 rounded-md bg-slate-950 border border-slate-800 max-h-48 overflow-auto" />
+          <h5 className="text-xs font-semibold text-ink-muted mb-1">Payload</h5>
+          <JsonView value={parsed.payload} className="p-2 rounded-md bg-surface-muted border border-line max-h-48 overflow-auto" />
         </section>
       </div>
 
       <section aria-label="Disclosures">
-        <h5 className="text-xs font-semibold text-slate-300 mb-1">Disclosures ({parsed.disclosures.length})</h5>
+        <h5 className="text-xs font-semibold text-ink-muted mb-1">Disclosures ({parsed.disclosures.length})</h5>
         {parsed.disclosures.length === 0 ? (
-          <p className="text-xs text-slate-400">No selectively disclosable claims.</p>
+          <p className="text-xs text-ink-muted">No selectively disclosable claims.</p>
         ) : (
-          <div className="overflow-x-auto rounded-md border border-slate-800">
+          <div className="overflow-x-auto rounded-md border border-line">
             <table className="w-full text-xs text-left">
-              <thead className="bg-slate-950 text-slate-400">
+              <thead className="bg-surface-muted text-ink-muted">
                 <tr>
                   <th className="p-2">Claim</th>
                   <th className="p-2">Value</th>
@@ -102,12 +102,12 @@ const SdJwtView: React.FC<{ raw: string }> = ({ raw }) => {
                   <th className="p-2">Digest in _sd</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800 text-slate-200">
+              <tbody className="divide-y divide-line text-ink">
                 {parsed.disclosures.map((d, i) => (
                   <tr key={d.raw}>
-                    <td className="p-2 font-mono">{d.error ? <span className="text-rose-300">{d.error}</span> : d.name ?? '(array element)'}</td>
+                    <td className="p-2 font-mono">{d.error ? <span className="text-danger-ink">{d.error}</span> : d.name ?? '(array element)'}</td>
                     <td className="p-2 font-mono break-all">{d.error ? '' : JSON.stringify(d.value)}</td>
-                    <td className="p-2 font-mono text-slate-400">{d.salt ?? ''}</td>
+                    <td className="p-2 font-mono text-ink-muted">{d.salt ?? ''}</td>
                     <td className="p-2">
                       <DigestCell result={digestFor(i)} />
                     </td>
@@ -118,7 +118,7 @@ const SdJwtView: React.FC<{ raw: string }> = ({ raw }) => {
           </div>
         )}
         {Array.isArray(digests) && digests.some(ok => !ok) && (
-          <p className="mt-1.5 text-xs text-amber-300">
+          <p className="mt-1.5 text-xs text-warning-ink">
             Some disclosures are not committed in the payload's <code>_sd</code> digests, so a strict verifier must reject them.
           </p>
         )}
@@ -126,8 +126,8 @@ const SdJwtView: React.FC<{ raw: string }> = ({ raw }) => {
 
       {parsed.keyBinding && (
         <section aria-label="Key binding">
-          <h5 className="text-xs font-semibold text-slate-300 mb-1">Key binding JWT</h5>
-          <JsonView value={parsed.keyBinding} className="p-2 rounded-md bg-slate-950 border border-slate-800" />
+          <h5 className="text-xs font-semibold text-ink-muted mb-1">Key binding JWT</h5>
+          <JsonView value={parsed.keyBinding} className="p-2 rounded-md bg-surface-muted border border-line" />
         </section>
       )}
     </div>
@@ -139,19 +139,19 @@ const W3cView: React.FC<{ credential: any }> = ({ credential }) => {
   return (
     <div className="space-y-3">
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-        <dt className="text-slate-500">@context</dt>
-        <dd className="font-mono text-slate-200 break-all">{[].concat(credential?.['@context'] ?? []).join(', ') || '—'}</dd>
-        <dt className="text-slate-500">Holder</dt>
-        <dd className="font-mono text-slate-200 break-all">{credential?.credentialSubject?.id ?? '—'}</dd>
+        <dt className="text-ink-subtle">@context</dt>
+        <dd className="font-mono text-ink break-all">{[].concat(credential?.['@context'] ?? []).join(', ') || '—'}</dd>
+        <dt className="text-ink-subtle">Holder</dt>
+        <dd className="font-mono text-ink break-all">{credential?.credentialSubject?.id ?? '—'}</dd>
       </dl>
       <section aria-label="Subject claims">
-        <h5 className="text-xs font-semibold text-slate-300 mb-1">Subject claims ({Object.keys(claims).length})</h5>
-        <div className="overflow-x-auto rounded-md border border-slate-800">
+        <h5 className="text-xs font-semibold text-ink-muted mb-1">Subject claims ({Object.keys(claims).length})</h5>
+        <div className="overflow-x-auto rounded-md border border-line">
           <table className="w-full text-xs text-left">
-            <tbody className="divide-y divide-slate-800 text-slate-200">
+            <tbody className="divide-y divide-line text-ink">
               {Object.entries(claims).map(([k, v]) => (
                 <tr key={k}>
-                  <th scope="row" className="p-2 font-mono font-normal text-slate-400">{k}</th>
+                  <th scope="row" className="p-2 font-mono font-normal text-ink-muted">{k}</th>
                   <td className="p-2 font-mono break-all">{JSON.stringify(v)}</td>
                 </tr>
               ))}
@@ -160,8 +160,8 @@ const W3cView: React.FC<{ credential: any }> = ({ credential }) => {
         </div>
       </section>
       <section aria-label="Proof">
-        <h5 className="text-xs font-semibold text-slate-300 mb-1">Proof</h5>
-        <JsonView value={credential?.proof ?? null} className="p-2 rounded-md bg-slate-950 border border-slate-800" />
+        <h5 className="text-xs font-semibold text-ink-muted mb-1">Proof</h5>
+        <JsonView value={credential?.proof ?? null} className="p-2 rounded-md bg-surface-muted border border-line" />
       </section>
     </div>
   );
@@ -175,13 +175,13 @@ export const CredentialInspector: React.FC<{ credential: any; format: Credential
         type="button"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className="text-xs text-slate-300 hover:text-white flex items-center gap-1"
+        className="text-xs text-ink-muted hover:text-ink flex items-center gap-1"
       >
         {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         Inspect credential
       </button>
       {open && (
-        <div className="mt-2 p-3 rounded-lg bg-slate-900 border border-slate-800">
+        <div className="mt-2 p-3 rounded-md bg-surface border border-line">
           {format === 'sd-jwt' && typeof credential?.rawToken === 'string' ? <SdJwtView raw={credential.rawToken} /> : <W3cView credential={credential} />}
         </div>
       )}

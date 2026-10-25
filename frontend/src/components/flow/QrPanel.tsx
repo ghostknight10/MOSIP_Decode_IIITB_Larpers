@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Check, Copy } from 'lucide-react';
 import { QR_MAX_BYTES } from '../../lib/credential';
+import { btnSmall } from '../ui';
 
 /** Scannable QR plus copy / same-device link for an OpenID4VC request URI. */
 export const QrPanel: React.FC<{ title: string; uri: string }> = ({ title, uri }) => {
@@ -17,32 +18,32 @@ export const QrPanel: React.FC<{ title: string; uri: string }> = ({ title, uri }
     });
   };
   return (
-    <div className="p-3 mb-4 rounded-lg bg-slate-900 border border-slate-800 flex flex-col sm:flex-row items-start gap-3">
+    <div className="p-3 mb-4 rounded-md bg-surface border border-line flex flex-col sm:flex-row items-start gap-3">
       {fits ? (
-        <div className="hidden sm:block p-2 bg-white rounded-md shrink-0">
+        <div className="hidden sm:block p-2 bg-surface border border-line rounded shrink-0">
           <QRCodeSVG value={uri} size={132} level="L" />
         </div>
       ) : (
-        <div className="p-3 rounded-md border border-amber-500/40 bg-amber-950/20 text-xs text-amber-200 w-full sm:w-36 shrink-0">
+        <div className="p-3 rounded-md border border-warning-line bg-warning-soft text-xs text-warning-ink w-full sm:w-36 shrink-0">
           Payload exceeds QR capacity ({QR_MAX_BYTES} bytes). Use the deep link or request_uri by reference.
         </div>
       )}
       <div className="flex-1 min-w-0">
-        <div className="text-xs font-semibold text-white">{title}</div>
-        <p className="text-xs text-slate-300 mt-1">
+        <div className="text-sm font-medium text-ink">{title}</div>
+        <p className="text-xs text-ink-muted mt-1">
           <span className="hidden sm:inline">Scan with the wallet app on your phone, or open the link if the wallet runs on this device.</span>
           <span className="sm:hidden">Open the link with the wallet app on this phone.</span>
         </p>
         {/* line-clamp needs display:-webkit-box, so it sits inside the responsive wrapper. */}
         <div className="hidden sm:block mt-1">
-          <div className="text-xs text-slate-400 font-mono break-all line-clamp-3">{uri}</div>
+          <div className="text-xs text-ink-subtle font-mono break-all line-clamp-3">{uri}</div>
         </div>
         <div className="flex gap-2 mt-2">
-          <button type="button" onClick={copy} className="px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 flex items-center gap-1">
-            {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+          <button type="button" onClick={copy} className={btnSmall}>
+            {copied ? <Check className="h-3 w-3 text-success-ink" aria-hidden="true" /> : <Copy className="h-3 w-3" aria-hidden="true" />}
             {copied ? 'Copied' : 'Copy link'}
           </button>
-          <a href={uri} className="px-2 py-1 rounded-md bg-sky-700 sm:bg-slate-800 hover:bg-slate-700 text-xs text-slate-100">
+          <a href={uri} className={btnSmall}>
             Open on this device
           </a>
         </div>

@@ -24,26 +24,26 @@ export const VerdictCard: React.FC<{ result: VerificationResult }> = ({ result }
   return (
     <div
       role="status"
-      className={`p-3 mb-4 rounded-lg border ${
-        isValid ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-300' : 'bg-rose-950/30 border-rose-500/40 text-rose-300'
+      className={`p-3 mb-4 rounded-md border ${
+        isValid ? 'bg-success-soft border-success-line text-success-ink' : 'bg-danger-soft border-danger-line text-danger-ink'
       }`}
     >
       <div className="flex items-center gap-3">
-        {isValid ? <CheckCircle className="h-6 w-6 text-emerald-400 shrink-0" /> : <AlertTriangle className="h-6 w-6 text-rose-400 shrink-0" />}
+        {isValid ? <CheckCircle className="h-5 w-5 shrink-0" aria-hidden="true" /> : <AlertTriangle className="h-5 w-5 shrink-0" aria-hidden="true" />}
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold uppercase">Result:</span>
-            <span className="text-xs font-extrabold font-mono px-2 py-0.5 rounded-sm bg-slate-900 border">{result.status}</span>
+            <span className="text-sm font-semibold">Result:</span>
+            <span className="text-xs font-semibold font-mono px-1.5 py-0.5 rounded bg-surface border border-current">{result.status}</span>
             <span className="text-xs">{validButExpired ? 'Valid but Expired' : STATUS_LABEL[result.status]}</span>
           </div>
-          <div className="text-xs text-slate-300 mt-0.5">{result.details}</div>
+          <div className="text-sm text-ink mt-0.5">{result.details}</div>
         </div>
       </div>
       <ul className="mt-3 grid grid-cols-2 gap-1.5 text-xs">
         {CHECK_LABELS.map(([key, label]) => {
           const ok = result.checks?.[key];
           return (
-            <li key={key} className={`flex items-center gap-1.5 ${ok ? 'text-emerald-300' : 'text-rose-300'}`}>
+            <li key={key} className={`flex items-center gap-1.5 ${ok ? 'text-success-ink' : 'text-danger-ink'}`}>
               {ok ? <CheckCircle className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
               {label}
             </li>

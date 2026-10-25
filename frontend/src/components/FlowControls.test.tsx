@@ -105,7 +105,7 @@ describe('FlowControls actions', () => {
   it('passes the chosen tamper options when tamper mode is on', async () => {
     const { onVerify, user } = renderControls({ phase: 'issued', issuedCredential: W3C_VC });
     await user.click(screen.getByRole('button', { name: 'Enable Tamper Mode' }));
-    expect(screen.getByRole('button', { name: /Tamper \/ Chaos Mode: ACTIVE/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /Tamper mode: on/ })).toHaveAttribute('aria-pressed', 'true');
     await user.click(screen.getByLabelText('Corrupt Cryptographic Signature'));
     await user.click(verifyButton());
     expect(onVerify).toHaveBeenCalledWith({ forceExpired: false, corruptSignature: true });
@@ -115,7 +115,7 @@ describe('FlowControls actions', () => {
     const { onVerify, user } = renderControls({ phase: 'issued', issuedCredential: W3C_VC });
     await user.click(screen.getByRole('button', { name: 'Enable Tamper Mode' }));
     await user.click(screen.getByLabelText('Expire Timestamp (Negative Path)'));
-    await user.click(screen.getByRole('button', { name: /ACTIVE/ }));
+    await user.click(screen.getByRole('button', { name: /Tamper mode: on/ }));
     await user.click(verifyButton());
     expect(onVerify).toHaveBeenCalledWith(undefined);
   });
@@ -233,20 +233,20 @@ describe('FlowControls verification result', () => {
     expect(status).toHaveTextContent('VALID');
     expect(status).toHaveTextContent('VALID details');
     for (const check of ['Format', 'Signature', 'Not expired', 'Schema']) {
-      expect(within(status).getByText(check)).toHaveClass('text-emerald-300');
+      expect(within(status).getByText(check)).toHaveClass('text-success-ink');
     }
   });
 
   it('labels an expired but correctly signed credential as Valid but Expired', () => {
     renderControls({ phase: 'failed', issuedCredential: W3C_VC, verificationResult: verdict('EXPIRED', { notExpired: false }) });
     expect(screen.getByText('Valid but Expired')).toBeInTheDocument();
-    expect(screen.getByText('Not expired')).toHaveClass('text-rose-300');
+    expect(screen.getByText('Not expired')).toHaveClass('text-danger-ink');
   });
 
   it('labels a signature mismatch and marks the failing check', () => {
     renderControls({ phase: 'failed', issuedCredential: W3C_VC, verificationResult: verdict('SIGNATURE_MISMATCH', { signatureValid: false }) });
     expect(screen.getByText('Signature mismatch')).toBeInTheDocument();
-    expect(screen.getByText('Signature')).toHaveClass('text-rose-300');
+    expect(screen.getByText('Signature')).toHaveClass('text-danger-ink');
   });
 });
 

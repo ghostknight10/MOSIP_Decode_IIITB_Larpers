@@ -31,43 +31,43 @@ export const SharedClaimsPanel: React.FC<SharedClaimsPanelProps> = ({ presentati
   const c = classifyClaims(requested, held, shared);
 
   const groups: Group[] = [
-    { key: 'ok', title: 'Requested and shared', hint: 'What the verifier needed', Icon: CheckCircle2, cls: 'text-emerald-300', claims: c.requestedShared },
-    { key: 'over', title: 'Shared without being requested', hint: 'More than the verifier asked for', Icon: AlertTriangle, cls: 'text-amber-300', claims: c.overShared },
-    { key: 'missing', title: 'Requested but not shared', hint: 'The verifier did not receive these', Icon: XCircle, cls: 'text-rose-300', claims: c.missing },
-    { key: 'private', title: 'Kept private', hint: 'Stayed in the wallet', Icon: Lock, cls: 'text-sky-300', claims: c.keptPrivate }
+    { key: 'ok', title: 'Requested and shared', hint: 'What the verifier needed', Icon: CheckCircle2, cls: 'text-success-ink', claims: c.requestedShared },
+    { key: 'over', title: 'Shared without being requested', hint: 'More than the verifier asked for', Icon: AlertTriangle, cls: 'text-warning-ink', claims: c.overShared },
+    { key: 'missing', title: 'Requested but not shared', hint: 'The verifier did not receive these', Icon: XCircle, cls: 'text-danger-ink', claims: c.missing },
+    { key: 'private', title: 'Kept private', hint: 'Stayed in the wallet', Icon: Lock, cls: 'text-ink', claims: c.keptPrivate }
   ];
 
   return (
-    <section aria-labelledby="shared-claims-heading" className="mb-4 p-3 rounded-lg bg-slate-900 border border-slate-800">
-      <h4 id="shared-claims-heading" className="text-xs font-semibold text-white">What was shared</h4>
-      <p className="text-xs text-slate-300 mt-1">
+    <section aria-labelledby="shared-claims-heading" className="mb-4 p-3 rounded-md bg-surface border border-line">
+      <h4 id="shared-claims-heading" className="text-sm font-semibold text-ink">What was shared</h4>
+      <p className="text-sm text-ink-muted mt-1">
         Issuer signed <strong>{held.length}</strong> claims → wallet holds <strong>{held.length}</strong> → verifier asked for{' '}
         <strong>{requested.length}</strong> and received <strong>{shared.length}</strong>.
       </p>
       <div className="grid grid-cols-2 gap-2 mt-3">
         {groups.map(g => (
-          <div key={g.key} role="group" aria-label={g.title} className="p-2 rounded-md bg-slate-950/60 border border-slate-800">
+          <div key={g.key} role="group" aria-label={g.title} className="p-2 rounded-md bg-surface-muted border border-line">
             <div className={`flex items-center gap-1.5 text-xs font-semibold ${g.cls}`}>
               <g.Icon className="h-3.5 w-3.5" aria-hidden="true" />
               {g.title} ({g.claims.length})
             </div>
-            <p className="hidden sm:block text-xs text-slate-400">{g.hint}</p>
+            <p className="hidden sm:block text-xs text-ink-muted">{g.hint}</p>
             {g.claims.length > 0 ? (
               <ul className="flex flex-wrap gap-1 mt-1.5">
                 {g.claims.map(name => (
-                  <li key={name} className="font-mono text-xs px-1.5 py-0.5 rounded-sm bg-slate-800 text-slate-200">
+                  <li key={name} className="font-mono text-xs px-1.5 py-0.5 rounded bg-surface border border-line text-ink">
                     {name}
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-xs text-slate-500 mt-1.5">None</p>
+              <p className="text-xs text-ink-subtle mt-1.5">None</p>
             )}
           </div>
         ))}
       </div>
       {c.overShared.length > 0 && (
-        <p className="mt-2 text-xs text-amber-300 flex items-start gap-1.5">
+        <p className="mt-2 text-xs text-warning-ink flex items-start gap-1.5">
           <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" aria-hidden="true" />
           The verifier received {c.overShared.length} claim{c.overShared.length === 1 ? '' : 's'} it did not ask for. With selective disclosure the wallet should
           only release what the presentation definition requests.

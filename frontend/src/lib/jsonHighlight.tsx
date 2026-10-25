@@ -11,11 +11,11 @@ const TOKEN = /("(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(?:true|false|nu
 export type JsonTokenKind = 'key' | 'string' | 'number' | 'boolean' | 'null';
 
 const CLASS: Record<JsonTokenKind, string> = {
-  key: 'text-sky-300',
-  string: 'text-emerald-300',
-  number: 'text-amber-300',
-  boolean: 'text-violet-300',
-  null: 'text-slate-400'
+  key: 'text-accent',
+  string: 'text-success-ink',
+  number: 'text-warning-ink',
+  boolean: 'text-danger-ink',
+  null: 'text-ink-subtle'
 };
 
 export const kindOf = (token: string): JsonTokenKind => {
@@ -40,5 +40,5 @@ export const JsonView: React.FC<{ value: unknown; className?: string }> = ({ val
     last = m.index! + m[0].length;
   }
   out.push(text.slice(last));
-  return <pre className={`font-mono text-xs leading-relaxed whitespace-pre-wrap break-all text-slate-300 ${className}`}>{out}</pre>;
+  return <pre className={`font-mono text-xs leading-relaxed whitespace-pre-wrap break-all text-ink ${className}`}>{out}</pre>;
 };

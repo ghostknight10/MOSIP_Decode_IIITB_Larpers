@@ -193,7 +193,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'TC-04 Corrupted signature' }));
 
     await waitFor(() => expect(screen.getAllByRole('status').some(s => s.textContent?.includes('SIGNATURE_MISMATCH'))).toBe(true));
-    expect(screen.getByRole('button', { name: /Tamper \/ Chaos Mode: ACTIVE/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /Tamper mode: on/ })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByLabelText('Corrupt Cryptographic Signature')).toBeChecked();
     expect(screen.getByLabelText('Expire Timestamp (Negative Path)')).not.toBeChecked();
 
