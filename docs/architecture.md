@@ -50,7 +50,13 @@ The **MOSIP Verifiable Credential (VC) Interoperability Playground** is an inter
 
 - **Inji Certify** (`/issue`, issuer `inji-certify`): fetch issuer metadata, find a configuration for the requested format, then send the credential request. Certify refuses it without an eSignet access token (403), so the BFF emulates the credential and returns a notice saying so, with `isSandboxFallback: true`. The credential endpoint is only called on the issuer's own origin.
 - **Mimoto** (wallet `inji-wallet`): look up the issuer in Mimoto's registry.
-- **Inji Verify** (`/verify`, verifier `inji-verify`): `POST /v1/verify/vc-verification` with the credential, as JSON-LD or a compact SD-JWT. In tamper mode the credential is really altered first (expired, re-typed or with a corrupted signature). `verificationStatus` `SUCCESS` / `EXPIRED` / `INVALID` becomes the verdict.
+- **Inji Verify** (`/verify`, verifier `inji-verify`): `POST /v1/verify/v2/vc-verification` with the credential (JSON-LD as a string, or a compact SD-JWT). It reports schema and signature, expiry and status checks separately, plus the claims; those become the verdict, checks and shared claims. Where v2 is missing, v1 (`/vc-verification`, one overall `verificationStatus`) is used. In tamper mode the wallet sends a really tampered credential first (see below).
+
+### Mock engine (real cryptography)
+
+- **Issuer** (`mocks/mockService.ts`, `mocks/crypto.ts`, `mocks/mdoc.ts`): W3C credentials signed with `Ed25519Signature2020` by a `did:key` issuer (inline JSON-LD context for the claims); SD-JWT VCs signed ES256 with a self-signed `x5c` certificate and the holder key in `cnf`; mDocs with a COSE_Sign1 Mobile Security Object. Keys are generated once per BFF process.
+- **Wallet** (`mocks/wallet.ts`): answers each authorization request with a presentation bound to its nonce: a signed W3C presentation (`challenge`, `domain`), an SD-JWT with only the requested disclosures and a key-binding JWT, or an mDoc DeviceResponse with a device signature. Tamper options are applied for real: the issuer re-issues an expired or wrong-type credential, signature bytes are altered, or an earlier nonce is reused.
+- **Verifier**: single-use nonces (10 minutes); checks holder binding, issuer signature and trust list (the mock issuer only), disclosures or element digests, expiry and type. The JSON-LD loader resolves bundled contexts and `did:key` only, so a credential can never make the BFF fetch a URL.
 
 When a Collab service is unreachable or answers without JSON, the BFF answers from the mock engine instead, relabels the emulated participant as "(Collab Sandbox Emulated)" and sets `isSandboxFallback: true` with a notice. The UI shows an **Emulated** badge and a banner with the BFF's reason, and the report flags those runs. What is live and what is emulated today is summarised in [known-issues.md](./known-issues.md#what-runs-live-today).
 
@@ -205,7 +211,7 @@ The **matrix** shows the latest *clean* run per combination (tampered runs are c
 | TC-02 | Happy path issuance & presentation (SD-JWT) | Valid + selective disclosure | Green `VALID`, disclosures counted |
 | TC-03 | Expired credential presentation | Rejected: expiry check | Red `EXPIRED`, "Valid but Expired", run PASS |
 | TC-04 | Corrupted signature | Rejected: signature mismatch | Red `SIGNATURE_MISMATCH`, diagram tamper note |
-| TC-05 | Cross-ecosystem matrix | Standards compliance holds across boundaries | Report: all 16 combinations tested |
+| TC-05 | Cross-ecosystem matrix | Standards compliance holds across boundaries | Report: all 20 supported combinations tested |
 | TC-06 | Re-present a held credential to another verifier | Same credential verified by both verifiers | Verifier switch keeps "Holding VC" |
 
 Step-by-step procedures are in [test-cases.md](./test-cases.md), and the automated coverage is in [testing.md](./testing.md).

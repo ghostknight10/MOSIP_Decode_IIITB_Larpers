@@ -7,7 +7,7 @@ This script covers the problem, live matrix execution, the wire inspector, negat
 - `docker compose up --build`, open <http://localhost:5173> and check the header shows **Online (Collab/Mock)**.
 - Clear old runs (**Interop Matrix Report → Clear**) so the report starts at 0 / 16.
 - Have a phone with a QR scanner ready for Segment 3.
-- Inji Verify, Inji Certify's metadata and Mimoto are called live (the **Live** chip in the inspector). Inji Certify's credential is emulated because it needs an eSignet login, and Inji Verify rejects it. Say so on camera (see the Segment 3 note) rather than hiding it.
+- Inji Verify, Inji Certify's metadata and Mimoto are called live (the **Live** chip in the inspector). Inji Certify's credential is emulated because it needs an eSignet login; the mock issuer signs it for real, and Inji Verify accepts it. Say so on camera (see the Segment 3 note) rather than hiding it.
 
 ---
 
@@ -18,12 +18,12 @@ This script covers the problem, live matrix execution, the wire inspector, negat
   > "Digital identity only works if a credential issued by one system can be held by another vendor's wallet and verified by a third party. Each MOSIP Inji module speaks open standards, but proving they interoperate with each other, and with implementations outside MOSIP, has meant stitching tools together by hand.
   > The MOSIP VC Interoperability Playground puts that in one screen: pick an issuer, a wallet and a verifier, run the full OpenID4VCI and OpenID4VP flow, see every payload, and get a pass/fail report."
 
-## Segment 2: The 3-column matrix & two formats (0:40 – 1:20)
+## Segment 2: The 3-column matrix & three formats (0:40 – 1:20)
 
 - **Visual:** hover across the three columns, then toggle the format.
 - **Speaker:**
   > "Column one is the issuer: Inji Certify, or our standards-based OpenID4VCI Draft 13 mock. Column two is the wallet: Inji Web or Mobile through Mimoto, or a simulated holder. Column three is the verifier: Inji Verify, or our OpenID4VP Draft 21 mock.
-  > At the top, we switch between W3C Verifiable Credentials with JSON-LD proofs and IETF SD-JWT with selective disclosure. Every run is labelled with its format."
+  > At the top, we switch between W3C Verifiable Credentials with JSON-LD proofs, IETF SD-JWT with selective disclosure, and ISO mDoc, the mobile driving licence format. Every credential is really signed, and every run is labelled with its format."
 
 ## Segment 3: Live issue → hold → present → verify (1:20 – 2:40)
 
@@ -38,7 +38,7 @@ This script covers the problem, live matrix execution, the wire inspector, negat
   > The verifier accepts it, and What was shared answers the question users ask most: who got which of my data? It asked for two claims and received exactly those two; the other three never left the wallet. If a verifier ever received more, this panel would flag it as over-disclosure.
   > On the right, the same transaction replays step by step: timeline, sequence diagram and every raw request and response."
 - **On the all-Inji run:**
-  > "These steps marked Live are real calls to the MOSIP Collab sandbox. Inji Certify publishes its metadata but won't issue without a citizen login, so the playground emulates that one credential and says so. Inji Verify then checks it for real and rejects it, because the emulated signature is fake. That's an honest result, and the report files it under the technical layer instead of pretending it passed."
+  > "These steps marked Live are real calls to the MOSIP Collab sandbox. Inji Certify publishes its metadata but won't issue without a citizen login, so the playground emulates that one credential and says so. Inji Verify then checks it for real: signature, expiry and status, each reported separately, and accepts it. Tamper with it and Inji Verify catches the expired or forged credential, but not a replayed one, because it verifies credentials, not presentations. The playground's own verifier catches that, and the report shows exactly where each verifier stands."
 
 ## Segment 4: Negative paths (2:40 – 3:20)
 
@@ -49,12 +49,12 @@ This script covers the problem, live matrix execution, the wire inspector, negat
 ## Segment 5: The interoperability report (3:20 – 4:30)
 
 - **Visual:**
-  1. Open **Interop Matrix Report** and click **Run All Combinations**. Let the counter reach 16 / 16.
+  1. Open **Interop Matrix Report** and click **Run All Combinations**. Let the counter reach 20 / 20.
   2. Show the **heatmap** (issuer × wallet by verifier × format) and the separate **Real** and **Emulated** scores.
   3. Open **Failure layers** to show the Technical / Syntactical / Semantic / Organizational legend.
   4. Click a cell to filter Run History to that combination, then click **Markdown** and open the export.
 - **Speaker:**
-  > "Run All Combinations exercises every issuer, wallet, verifier and format: sixteen in all. The heatmap shows where things work, and when something fails it says at which interoperability layer: transport and crypto, format, schema, or policy. Real MOSIP results and emulated ones are scored separately, so the numbers are honest.
+  > "Run All Combinations exercises every issuer, wallet, verifier and format: twenty supported combinations, and it marks the four Inji Verify cannot handle (mDoc) as not supported. The heatmap shows where things work, and when something fails it says at which interoperability layer: transport and crypto, format, schema, or policy. Real MOSIP results and emulated ones are scored separately, so the numbers are honest.
   > Click a cell to drill into its runs, and export everything as Markdown: that's our interoperability report."
 
 ## Segment 6: Close (4:30 – 4:50)

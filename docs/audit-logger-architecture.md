@@ -21,12 +21,11 @@ The design below is the target. This table describes what is wired up today:
 
 **Transaction IDs** come from the UI. The frontend generates one `tx-xxxxxxxx` per run and sends it as `x-transaction-id` on both `/issue` and `/verify`. The BFF generates one only when the header is missing.
 
-**Two frame shapes** currently share the buffer: the mock engine's `ProtocolLog` (`step`, `sender`, `receiver`, `action`, `request`, `response`), which the UI renders, and the audit client's frame (section 6), which comes back as `_auditTrail` from the proxy.
+**One readable shape.** Playground routes store `ProtocolLog` entries (`step`, `sender`, `receiver`, `action`, `request`, `response`). The audit client's frames (section 6), returned as `_auditTrail` by the proxy, keep their own schema and also carry those `ProtocolLog` fields, so proxied traffic shows up in the UI too.
 
 **Open issues** relevant to the logger (details in [known-issues.md](./known-issues.md)):
 
-- G-2: `mso_mdoc` is coerced to "W3C VC (JSON-LD)".
-- The two frame shapes above are not unified yet; the SSE stream carries both, and the UI ignores audit-client frames.
+- None specific to the logger. `mso_mdoc` is now labelled "ISO 18013-5 mDoc (mso_mdoc)".
 
 ---
 

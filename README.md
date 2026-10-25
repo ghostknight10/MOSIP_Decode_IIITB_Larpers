@@ -10,7 +10,7 @@ A visual workbench for testing whether verifiable credentials survive a full **i
 
 The MOSIP side covers Inji Certify, Inji Wallet / Inji Web (via Mimoto) and Inji Verify. The non-MOSIP side is a standards-compliant mock issuer, holder and verifier, so the matrix tests cross-ecosystem interoperability rather than only Inji-to-Inji.
 
-> **Sandbox status:** Inji Verify, Inji Certify's metadata and credential endpoint, and Mimoto's issuer registry are called **live** on the MOSIP Collab sandbox. Inji Certify won't issue without an eSignet user login, so that credential is emulated, and Inji Verify rejects mock-issued credentials because their signatures are placeholders. The UI labels emulated steps and the report flags them. See [docs/known-issues.md](docs/known-issues.md#what-runs-live-today).
+> **Sandbox status:** Inji Verify (v2 API), Inji Certify's metadata and credential endpoint, and Mimoto's issuer registry are called **live** on the MOSIP Collab sandbox. The mock issuer signs for real, so live Inji Verify accepts clean mock credentials and rejects tampered ones. Inji Certify won't issue without an eSignet citizen login, so its credential is emulated. You can import a credential you obtained from Inji yourself instead. The UI labels emulated steps and the report flags them. See [docs/known-issues.md](docs/known-issues.md#what-runs-live-today) and the [upstream issue drafts](docs/upstream-issues.md).
 
 ---
 
@@ -68,14 +68,17 @@ The design (protocols, frontend state model and data flow) is in [docs/architect
    - Each column shows a live status badge: Standby → In progress → Holding VC / Done / Rejected / Error.
    - Only the roles that were actually answered by the fallback show **Emulated**, and a banner names them in plain language.
 2. **One-click scenarios**
-   - Presets for TC-01 to TC-05: the happy paths for both formats, an expired credential, a corrupted signature, and both cross-ecosystem directions. A preset sets the matrix and the attack it applies, so you can see exactly what it ran.
-3. **Two credential formats, clearly labelled per run**
-   - **W3C VC (JSON-LD)** with an `Ed25519Signature2020` linked-data proof (`ldp_vc`).
-   - **IETF SD-JWT VC** with salted selective disclosures (`vc+sd-jwt`).
+   - Presets for TC-01 to TC-05, TC-07 and TC-08: the happy paths, an expired credential, a corrupted signature, both cross-ecosystem directions, an mDoc presentation and a replayed presentation. A preset sets the matrix and the attack it applies, so you can see exactly what it ran.
+3. **Three credential formats, really signed, clearly labelled per run**
+   - **W3C VC (JSON-LD)** with an `Ed25519Signature2020` proof from a `did:key` issuer (`ldp_vc`).
+   - **IETF SD-JWT VC**, ES256 with an `x5c` certificate, salted selective disclosures and a key-binding JWT (`vc+sd-jwt`).
+   - **ISO 18013-5 mDoc** with a COSE_Sign1 Mobile Security Object and a device-signed DeviceResponse (`mso_mdoc`).
+   - Presentations are bound to the verifier's single-use nonce (holder binding); the wallet discloses only the requested claims.
 4. **Live issue and present flows**
-   - Scannable `openid-credential-offer://` and `openid4vp://authorize` QR codes, with plain wording on which device does what. Phones lead with the same-device link, and a warning appears when a payload exceeds QR capacity.
-   - **Inspect credential:** SD-JWTs are split into labelled header, payload, signature and disclosure parts, with a per-disclosure check that its SHA-256 digest is in `_sd`. W3C credentials show subject claims and the proof.
-   - Verification card showing **Valid**, **Invalid**, **Expired** or **Signature mismatch**, plus **Valid but Expired** when only the expiry check failed, and the four individual checks.
+   - Scannable `openid-credential-offer://` and `openid4vp://authorize` QR codes, with plain wording on which device does what. Phones lead with the same-device link, and payloads too large for a QR code are passed by reference (`credential_offer_uri`, `presentation_definition_uri`).
+   - **Inspect credential:** SD-JWTs are split into labelled header, payload, signature and disclosure parts, with a per-disclosure check that its SHA-256 digest is in `_sd`. W3C credentials show subject claims and the proof; mDocs show docType, validity and data elements.
+   - **Use a credential from outside the playground:** paste a W3C credential, SD-JWT or mDoc (for example from Inji Web) and present it to either verifier.
+   - Verification card showing **Valid**, **Invalid**, **Expired** or **Signature mismatch**, plus **Valid but Expired** when only the expiry check failed, and the individual checks (holder binding where the verifier checks it).
    - **What was shared:** the claims the verifier asked for, received and never saw, including any over-disclosure.
 5. **Protocol transparency, beside the controls**
    - On wide screens the live protocol view stays next to the buttons. It shows the current run by default, with an "All runs" toggle.
@@ -84,7 +87,7 @@ The design (protocols, frontend state model and data flow) is in [docs/architect
 6. **Tamper / chaos mode (negative paths)**
    - Expire the timestamp or corrupt the signature at presentation time to show that the verifier rejects the credential.
 7. **Interoperability report**
-   - A heatmap of all **16** combinations (issuer × wallet rows, verifier × format columns), built from real runs. Untested cells say **UNTESTED**, and clicking a cell filters the run history. A list view is also available.
+   - A heatmap of all **20** supported combinations (issuer × wallet rows, verifier × format columns), built from real runs. Untested cells say **UNTESTED**, and clicking a cell filters the run history. A list view is also available.
    - Real and emulated results are scored separately ("Real: x/y pass · Emulated: x/y pass"), so a pass against the mock engine is never presented as an Inji result.
    - Failures are tagged with the interoperability layer they broke at: Technical, Syntactical, Semantic or Organizational, after Schumm et al. (2025).
    - **Run All Combinations**, filters (format, outcome, mode, layer), and **Markdown / JSON export** (the Markdown is the submission's interop matrix).
@@ -115,12 +118,12 @@ npm run dev:backend    # terminal 1, BFF on :4000 (tsx watch)
 npm run dev:frontend   # terminal 2, Vite on :5173, proxies /api to the BFF
 ```
 
-Copy `.env.example` to `.env` to point the BFF at other MOSIP endpoints (`MOSIP_INJI_CERTIFY_URL`, `MOSIP_INJI_MIMOTO_URL`, `MOSIP_INJI_VERIFY_URL`) or to allow other origins (`FRONTEND_URL`, comma-separated).
+Set `PLAYGROUND_TOKEN` in `.env` to make the BFF answer only the frontend's proxy (recommended for any shared deployment). Copy `.env.example` to `.env` to point the BFF at other MOSIP endpoints (`MOSIP_INJI_CERTIFY_URL`, `MOSIP_INJI_MIMOTO_URL`, `MOSIP_INJI_VERIFY_URL`) or to allow other origins (`FRONTEND_URL`, comma-separated).
 
 ### 3. Try it
 1. Click a **Quick scenario** (e.g. **TC-01 Happy path · W3C VC**), or pick nodes yourself and press **Run Full Flow**.
 2. Open **Inspect credential** and **What was shared**, then use the replay controls in the live protocol view to step through the exchange.
-3. Run **TC-03** or **TC-04** (or turn on **Enable Tamper Mode** yourself) to see the verifier reject a bad credential.
+3. Run **TC-03**, **TC-04** or **TC-08** (or turn on **Enable Tamper Mode** yourself) to see the verifier reject an expired, forged or replayed presentation.
 4. Open **Interop Matrix Report**, click **Run All Combinations**, select heatmap cells to drill in, then export the report as **Markdown**.
 
 ---
@@ -167,7 +170,7 @@ Runs the OpenID4VCI issuance flow.
 | --- | --- |
 | `issuer` | `inji-certify`, `mock-openid4vci` |
 | `wallet` | `inji-wallet`, `mock-wallet` |
-| `format` | `w3c-vc`, `sd-jwt` |
+| `format` | `w3c-vc`, `sd-jwt`, `mso-mdoc` |
 
 Response: `{ success, issuer, wallet, format, credentialOffer, issuedCredential, proofType, protocolLogs[] }`. With `inji-certify` the credential is emulated (see E-1), so the response also includes `isSandboxFallback: true` and a `notice` explaining what ran live.
 
@@ -186,11 +189,15 @@ Runs the OpenID4VP presentation and verification flow.
 ```
 Response: `{ success, isValid, verificationResult: { status, checks: { formatCheck, signatureValid, notExpired, schemaCompliant }, details, verifiedClaims }, presentationDefinition, client_id, nonce, protocolLogs[] }`.
 - `status` is one of `VALID`, `INVALID`, `EXPIRED`, `SIGNATURE_MISMATCH`. With `inji-verify` it comes from Inji Verify's live `verificationStatus`.
-- `tamperPayload` flags: `forceExpired`, `corruptSignature`, `wrongCredentialType`. With Inji Verify, the credential is really altered before it is sent.
+- `tamperPayload` flags: `forceExpired`, `corruptSignature`, `wrongCredentialType`, `replayPresentation`. Tampering is real: the mock issuer re-issues an expired or wrong-type credential, the signature bytes are altered, or the wallet answers with an earlier request's nonce.
+- With `inji-verify` the credential goes to Inji Verify's `/v2/vc-verification` (v1 as a fallback), which reports the checks separately. It verifies a credential, not a presentation, so there is no nonce or holder binding to check.
 - `protocolLogs` contains the **whole transaction**, issuance frames included.
 
 ### `GET /api/playground/logs` · `DELETE /api/playground/logs`
 `GET` returns the latest 100 audit frames (newest first) as `{ count, logs }`. `DELETE` clears the buffer.
+
+### `GET /api/playground/ref/:id`
+Serves a credential offer or presentation definition by reference (`credentialOfferUri` / `presentationDefinitionUri` in `/issue` and `/verify` responses), for 10 minutes.
 
 ### `GET /api/playground/logs/stream`
 Server-Sent Events: each new frame as it is recorded, `{ "action": "CLEAR_LOGS" }` when cleared, and a comment heartbeat every 25 s. Live Collab steps carry `live: true`.
@@ -214,7 +221,10 @@ A static list of 8 pre-wired combinations, kept for compatibility. The UI comput
 │   │   ├── routes/proxyGateway.js  audited proxy to Collab / mocks
 │   │   ├── middleware/auditInterceptor.js  axios client that records audit frames
 │   │   ├── services/collab.ts   live calls to Inji Certify, Mimoto and Inji Verify
-│   │   ├── mocks/mockService.ts OpenID4VCI / OpenID4VP mock engine
+│   │   ├── mocks/mockService.ts OpenID4VCI issuer and OpenID4VP verifier (real signatures, nonces)
+│   │   ├── mocks/wallet.ts      simulated holder: tampering, presentations, selective disclosure
+│   │   ├── mocks/crypto.ts      mock keys, Ed25519 Data Integrity, ES256 JWT
+│   │   ├── mocks/mdoc.ts        ISO 18013-5 mDoc issue, present, verify
 │   │   └── utils/               RingBuffer.js, redactor.js
 │   ├── scripts/test-interop.ts  TC-01 to TC-05 runner
 │   └── tests/                   Vitest unit + HTTP tests
@@ -256,8 +266,9 @@ A static list of 8 pre-wired combinations, kept for compatibility. The UI comput
 | [docs/architecture.md](docs/architecture.md) | Protocols, components, frontend state model and data flow |
 | [docs/audit-logger-architecture.md](docs/audit-logger-architecture.md) | Ring buffer, redaction pipeline, audit frame schema |
 | [docs/testing.md](docs/testing.md) | Automated test suites, conventions, known-bug tests |
-| [docs/test-cases.md](docs/test-cases.md) | Manual scenarios TC-01 to TC-06 |
-| [docs/known-issues.md](docs/known-issues.md) | Open bugs and interoperability gaps found during testing |
+| [docs/test-cases.md](docs/test-cases.md) | Manual scenarios TC-01 to TC-08 |
+| [docs/known-issues.md](docs/known-issues.md) | What runs live, open issues and interoperability findings |
+| [docs/upstream-issues.md](docs/upstream-issues.md) | Draft reports for MOSIP / Inji (one to report privately) |
 | [docs/ui-design.md](docs/ui-design.md) | UI research: comparable tools, papers, and the design decisions they led to |
 | [docs/design-tokens.md](docs/design-tokens.md) | Colours, type and visual rules (read before changing any UI) |
 | [docs/video-demo-script.md](docs/video-demo-script.md) | 3–5 minute demo script |

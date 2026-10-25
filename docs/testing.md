@@ -4,8 +4,8 @@ The playground has three layers of tests:
 
 | Layer | Tool | Command | Count |
 | --- | --- | --- | --- |
-| Frontend unit, component and integration | Vitest 5 + Testing Library + jsdom | `npm --prefix frontend test` | 345 |
-| Backend unit and HTTP | Vitest 5 (node) | `npm --prefix backend test` | 138 |
+| Frontend unit, component and integration | Vitest 5 + Testing Library + jsdom | `npm --prefix frontend test` | 371 |
+| Backend unit and HTTP | Vitest 5 (node) | `npm --prefix backend test` | 163 |
 | Protocol scenarios TC-01 to TC-05 | `backend/scripts/test-interop.ts` | `npm run test:interop` | 5 |
 
 `npm test` at the repo root runs the frontend suite, then the backend suite. CI runs it on every push and pull request to `main`, after both builds and before the interop scenarios. Manual UI procedures are in [test-cases.md](./test-cases.md).
@@ -21,17 +21,18 @@ Configured in `frontend/vite.config.ts` (`test.environment: 'jsdom'`, setup file
 | `config/nodes.test.ts` | 10 | Registry integrity (roles, unique IDs, MOSIP and non-MOSIP per role, verifier `client_id`s), wire formats, lookups, `allCombinations()` product and keys |
 | `config/scenarios.test.ts` | 4 | Presets: unique IDs, valid combinations, TC-01 to TC-05 coverage, both cross-ecosystem directions |
 | `api/client.test.ts` | 13 | Request shape, `x-transaction-id` header, `ApiError` mapping for `success:false` / non-2xx / non-JSON, unreachable BFF message, transaction ID format, live log stream (SSE): only protocol logs passed on, unsubscribe, no-op without `EventSource` |
-| `hooks/usePlaygroundRun.test.ts` | 47 | Issue/verify success and failure, PASS/FAIL semantics (clean vs tampered), transaction ID reuse, log de-duplication and newest-first order, per-phase sandbox fallback, failed checks, selection reset rules, busy locking, full flow, batch runs, history persistence and 200-run cap, clear/reset, `getProofType`, `mergeLogs`, streamed frames of the run in flight (duplicates, other runs and idle frames ignored) |
-| `lib/credential.test.ts` | 4 | JWT payload decoding (base64url, disclosures ignored, malformed input) |
+| `hooks/usePlaygroundRun.test.ts` | 51 | Issue/verify success and failure, PASS/FAIL semantics (clean vs tampered), transaction ID reuse, log de-duplication and newest-first order, per-phase sandbox fallback, failed checks, selection reset rules, busy locking, full flow, batch runs, history persistence and 200-run cap, clear/reset, `getProofType`, `mergeLogs`, streamed frames of the run in flight (duplicates, other runs and idle frames ignored) |
+| `lib/credential.test.ts` | 5 | JWT payload decoding (base64url, disclosures ignored, malformed input) |
 | `lib/sdjwt.test.ts` | 9 | SD-JWT parsing (the mock token's real disclosure, array-element and malformed disclosures, key-binding JWT), `_sd` digest checks via WebCrypto, unavailable WebCrypto |
-| `lib/claims.test.ts` | 13 | JSONPath claim names, requested / held / shared claims (W3C and SD-JWT), four-way classification |
-| `lib/failureLayer.test.ts` | 11 | Layer per failure cause, lowest broken layer wins, legend |
+| `lib/claims.test.ts` | 15 | JSONPath claim names, requested / held / shared claims (W3C and SD-JWT), four-way classification |
+| `lib/failureLayer.test.ts` | 12 | Layer per failure cause, lowest broken layer wins, legend |
 | `lib/participants.test.ts` | 12 | Role mapping for generic and MOSIP product names, chronological order, replay slice |
+| `lib/importCredential.test.ts` | 7 | Importing an outside credential: W3C (bare and wrapped), SD-JWT with decoded disclosures, base64url mDoc, error messages |
 | `lib/fallback.test.ts` | 4 | Plain-language emulation notice per phase |
 | `lib/jsonHighlight.test.tsx` | 11 | Token kinds, exact text preserved, escaped quotes, primitives |
-| `components/MatrixSelector.test.tsx` | 22 | Registry-driven radios and `aria-checked`, selection callbacks, locking while running, per-role status (table-driven `columnStatus`), verifier verdict, per-role Emulated badge |
-| `components/FlowControls.test.tsx` | 37 | Action wiring, edited subject, tamper options (including wrong credential type and "tamper mode on, nothing ticked" → no payload), scenarios, offer and OpenID4VP QR/deep links, clipboard, oversize-QR warning, W3C and SD-JWT summaries, verdict card with "Valid but Expired", URI builders, `activeTamper` |
-| `components/flow/CredentialInspector.test.tsx` | 6 | Collapsed by default, W3C claims and proof, labelled SD-JWT parts, decoded disclosures with digest result, unavailable WebCrypto, undecodable token |
+| `components/MatrixSelector.test.tsx` | 24 | Registry-driven radios and `aria-checked`, selection callbacks, locking while running, per-role status (table-driven `columnStatus`), verifier verdict, per-role Emulated badge |
+| `components/FlowControls.test.tsx` | 45 | Action wiring, edited subject, tamper options (wrong type, replay, "tamper mode on, nothing ticked" → no payload), scenarios, credential import (hand-off, error, imported label), offer and OpenID4VP QR/deep links, by-reference QR for oversized payloads, clipboard, W3C and SD-JWT summaries, verdict card with "Valid but Expired" and the optional holder-binding check, URI builders, `activeTamper` |
+| `components/flow/CredentialInspector.test.tsx` | 7 | Collapsed by default, W3C claims and proof, labelled SD-JWT parts, decoded disclosures with digest result, unavailable WebCrypto, undecodable token |
 | `components/flow/SharedClaimsPanel.test.tsx` | 5 | Custody summary, minimal sharing, over-disclosure warning, missing claims, labelled groups |
 | `components/RunTimeline.test.tsx` | 5 | Protocol order, role mapping for emulated services, status and tamper in text, current/not-yet steps |
 | `components/RunPlayer.test.tsx` | 8 | Live state, stepping, slider, back to live, autoplay with fake timers, pause, reduced motion |
@@ -57,11 +58,12 @@ Configured in `backend/vitest.config.ts`. Tests live outside `src/`, so `tsc` do
 | --- | --- | --- |
 | `RingBuffer.test.ts` | 9 | Ordering, limits, eviction, no duplicates past capacity, per-transaction lookup and sort, clear, singleton capacity |
 | `redactor.test.ts` | 26 | Every sensitive key including OpenID4VCI grant secrets (`pre-authorized_code`, `tx_code`, `code`) and API keys, case-insensitive, nested, in arrays; VC artefacts kept but still scanned; no input mutation |
-| `auditInterceptor.test.ts` | 16 | Audit frame fields, sequence numbers, redaction, form-urlencoded bodies, HTTP and network errors, protocol and format normalisation, tamper annotations (a local axios adapter, no network) |
-| `mockService.test.ts` | 30 | Draft 13 offer, W3C and SD-JWT credentials (real `_sd` digests), Draft 21 presentation definition, negative paths, only requested claims shared; the verifier rejects forged or foreign disclosures, malformed tokens and empty presentations, and skips a key-binding JWT |
-| `collab.test.ts` | 5 | `tamperCredential`: SD-JWT expiry/type in the signed payload, signature-only corruption, W3C copies not mutated, undecodable tokens left alone |
-| `playground.routes.test.ts` | 39 | `/api/playground/*` over real HTTP with axios mocked as the Collab sandbox: request validation, transaction IDs, generic 500s, SSE stream; live Inji Certify discovery, Mimoto lookup, unsupported format, same-origin credential endpoint, incremental recording; live Inji Verify verdicts, real tampering, SD-JWT body; fallback when unreachable, HTML or 5xx |
+| `auditInterceptor.test.ts` | 18 | Audit frame fields plus the ProtocolLog fields the UI reads, sequence numbers, redaction, form-urlencoded bodies, HTTP and network errors, protocol and format normalisation (including mDoc), tamper annotations (local axios adapter, no network) |
+| `mockService.test.ts` | 43 | Real signatures: Ed25519Signature2020 / did:key (W3C), ES256 + x5c + cnf (SD-JWT), COSE_Sign1 MSO (mDoc); expired and wrong-type variants still validly signed; claim aliases; the verifier for every format × tamper (expired, corrupt signature, wrong type, replay), single-use nonces, holder binding (W3C presentation proof, SD-JWT key-binding JWT, mDoc device signature), forged disclosures, malformed input |
+| `collab.test.ts` | 5 | What Inji Verify receives in tamper mode: re-issued expired credential, SD-JWT signature-only corruption, foreign credentials edited in place without mutation |
+| `playground.routes.test.ts` | 43 | `/api/playground/*` over real HTTP with axios mocked as the Collab sandbox: request validation, transaction IDs, generic 500s, SSE stream, references (`/ref/:id`); live Inji Certify discovery, Mimoto lookup, unsupported format, same-origin credential endpoint, incremental recording; Inji Verify v2 verdict and check mapping, v1 fallback, real tampering, SD-JWT body; fallback when unreachable, HTML or 5xx |
 | `proxyGateway.test.ts` | 13 | Proxy against a local upstream server: forwarding, query strings, non-canonical JSON (no hang), header allowlist (no cookies), no GET body, percent-encoded prefix, case-insensitive targets and sandbox flag, redacted `_auditTrail`, error statuses, no internal error text |
+| `requireToken.test.ts` | 6 | Optional `PLAYGROUND_TOKEN`: open when unset, 401 for missing, wrong or prefix tokens, accepts the right one, `/api/health` stays open |
 
 ### Known-bug tests (`it.fails`)
 

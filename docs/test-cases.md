@@ -4,14 +4,14 @@ These scenarios validate cross-ecosystem interoperability and protocol conforman
 
 **Setup:** run `docker compose up --build` (or `npm run dev:backend` + `npm run dev:frontend`) and open <http://localhost:5173>. The header should show **BFF: Online (Collab/Mock)**.
 
-**Shortcut:** each test case below has a **Quick scenario** button (TC-01, TC-02, TC-03, TC-04, TC-05a, TC-05b) that selects the nodes, sets the tamper options and runs the full flow. The manual steps remain the reference.
+**Shortcut:** each test case below has a **Quick scenario** button (TC-01, TC-02, TC-03, TC-04, TC-05a, TC-05b, TC-07, TC-08) that selects the nodes, sets the tamper options and runs the full flow. The manual steps remain the reference.
 
 **Reading results:**
 
 - The verdict card shows the verifier status (`VALID`, `INVALID`, `EXPIRED`, `SIGNATURE_MISMATCH`) and the four checks.
 - Every run is recorded in **Interop Matrix Report → Run History**. **PASS** means the verifier behaved as expected: it accepted a clean credential, or rejected a tampered one.
 - Inji nodes showing **Emulated** were answered by the mock engine; the banner says why (Collab unreachable, or Inji Certify needing a user login). Steps with a **Live** chip in the inspector were real Collab traffic. Record both alongside the result.
-- **Inji Verify verifies for real.** The credentials the playground can obtain today are emulated and not really signed (M-1 in [known-issues.md](./known-issues.md)), so Inji Verify answers `INVALID` even for a clean run. Clean runs ending at Inji Verify are therefore expected to be **FAIL** until M-1 or E-1 is fixed; the expected results below say so where it applies.
+- **Inji Verify verifies for real.** The mock issuer signs for real, so clean W3C and SD-JWT credentials pass live Inji Verify, and expired or corrupted ones are rejected. Inji Verify checks a credential, not a presentation, so **wrong type** and **replay** attacks are accepted by it and recorded as FAIL (G-8). Its service has no mDoc support (G-10), so that format is disabled for it.
 
 ---
 
@@ -33,9 +33,9 @@ These scenarios validate cross-ecosystem interoperability and protocol conforman
   - **What was shared** lists exactly `fullName` and `nationalId`.
   - Run History records a **PASS** row.
 - **Expected result (all Inji, the preset):**
-  - The inspector shows **Live** steps: `Fetch issuer metadata`, `Look up issuer in Mimoto registry`, `Credential request (no access token)` (Failed, HTTP 403), then the emulated `Credential Request (/credential)` and the live `Submit credential for verification (/vc-verification)`.
-  - The banner says Inji Certify answered live but needs an eSignet access token.
-  - Inji Verify answers `INVALID` (the emulated credential isn't really signed), so Run History records **FAIL** with layer TECH. This is the expected result until M-1 / E-1 is fixed.
+  - The inspector shows **Live** steps: `Fetch issuer metadata`, `Look up issuer in Mimoto registry`, `Credential request (no access token)` (Failed, HTTP 403), then the emulated `Credential Request (/credential)` and the live `Verify credential (/v2/vc-verification)`.
+  - The banner says Inji Certify answered live but needs an eSignet access token, so the credential is emulated (signed by the mock issuer).
+  - Inji Verify returns `VALID` with its individual checks (schema and signature, expiry, status), and Run History records **PASS** marked † (emulated issuer).
 
 ---
 
@@ -86,11 +86,11 @@ These scenarios validate cross-ecosystem interoperability and protocol conforman
 
 - **Objective:** interoperability across heterogeneous implementations, in both directions.
 - **Spot checks:**
-  - Combination A: `Mock OpenID4VCI` → `Inji Web / Mobile` → `Inji Verify`. Expected today: live `INVALID` from Inji Verify, **FAIL** (M-1).
+  - Combination A: `Mock OpenID4VCI` → `Inji Web / Mobile` → `Inji Verify`: a live `VALID` from Inji Verify, **PASS**.
   - Combination B: `Inji Certify` → `Simulated Holder` → `Mock OpenID4VP`
 - **Full matrix:**
-  1. Open **Interop Matrix Report** and click **Run All Combinations**. The button shows progress (`Running n/16…`).
-  2. When it finishes, check **Combinations Tested** reads **16 / 16**.
+  1. Open **Interop Matrix Report** and click **Run All Combinations**. The button shows progress (`Running n/20…`).
+  2. When it finishes, check **Combinations Tested** reads **20 / 20**. The four Inji Verify × mDoc cells read **Not supported**.
   3. Click **Markdown** to export the report.
 - **Expected result:**
   - The heatmap has an outcome in every cell. Scores are shown separately for **Real** and **Emulated** runs; cells marked † did not reach the real Collab services.
@@ -106,5 +106,37 @@ These scenarios validate cross-ecosystem interoperability and protocol conforman
   1. Issue a credential (any issuer and format), then present to **Inji Verify**.
   2. Switch the verifier column to **Mock OpenID4VP**. The wallet keeps **Holding VC** and the transaction ID stays the same.
   3. Click **Trigger "Present & Verify" Flow** again.
-- **Expected result:** the mock verifier returns `VALID`. Inji Verify returns `INVALID` today (M-1). Run History shows both rows with the same transaction ID and different verifiers.
+- **Expected result:** both verifications are `VALID`, and Run History shows two PASS rows with the same transaction ID and different verifiers.
 - **Contrast:** changing the issuer, wallet or format instead resets the run (all badges return to **Standby**).
+
+---
+
+## TC-07: mDoc (ISO 18013-5) presentation
+
+- **Objective:** issue and present the third format, with selective disclosure and device binding.
+- **Nodes:** `Mock OpenID4VCI` → `Inji Web / Mobile` (or `Simulated Holder`) → `Mock OpenID4VP` · Format `mDoc (ISO 18013-5) mso_mdoc` (preset **TC-07**).
+- **Steps:** run the preset, then open **Inspect credential**.
+- **Expected result:**
+  - The inspector shows the docType `org.mosip.playground.nationalid.1`, validity dates and the data elements; the proof type is `COSE_Sign1 (ES256)`.
+  - The verdict is `VALID` with **Holder binding** green. **What was shared** lists exactly `fullName` and `nationalId`; the other elements stay in the wallet.
+  - With **Inji Verify** selected, the mDoc format is disabled (Inji Verify's service accepts no mDoc, G-10).
+
+---
+
+## TC-08: Replayed presentation
+
+- **Objective:** the verifier rejects a presentation made for an earlier request (nonce binding, replay protection).
+- **Steps:** run any flow once, then run preset **TC-08** (or tick **Replay an Earlier Presentation** in tamper mode) with **Mock OpenID4VP**.
+- **Expected result:** `INVALID`, with **Holder binding** red and a message that the nonce does not match. Run History records a tampered **PASS** with layer TECH. Against Inji Verify, the same attack is accepted (it has no nonce) and recorded as FAIL (G-8).
+
+---
+
+## TC-09: A credential from outside the playground
+
+- **Objective:** verify a real credential obtained from Inji (E-1), end to end.
+- **Steps:**
+  1. Get a credential from Inji, for example from Inji Web (`injiweb.collab.mosip.net`) after signing in with eSignet, as JSON, an SD-JWT or a base64url mDoc.
+  2. In Phase 1, open **Use a credential from outside the playground**, paste it and click **Hold this credential**. The format switches to match.
+  3. Choose **Inji Verify** (or the mock verifier) and click **Trigger "Present & Verify" Flow**.
+- **Expected result:** Inji Verify returns its live verdict. Run History marks the run "(imported credential)". The mock verifier rejects it as not in its trust list, which is correct: it only trusts the mock issuer.
+
