@@ -2,7 +2,7 @@ import React from 'react';
 import { ArrowRight, RefreshCw } from 'lucide-react';
 import { CredentialFormat, RunPhase, VerificationResult, VerifierType } from '../../types';
 import { getNode } from '../../config/nodes';
-import { buildVpRequestUri } from '../../lib/credential';
+import { absoluteUrl, buildVpRequestUri, buildVpRequestUriByReference } from '../../lib/credential';
 import { QrPanel } from './QrPanel';
 import { btnPrimary } from '../ui';
 import { VerdictCard } from './VerdictCard';
@@ -15,6 +15,7 @@ interface PresentPhaseProps {
   transactionId: string | null;
   issuedCredential: any;
   presentationDefinition: any;
+  presentationDefinitionUri?: string | null;
   presentationRequest?: { clientId: string; nonce: string } | null;
   verificationResult: VerificationResult | null;
   onVerify: () => void;
@@ -28,12 +29,15 @@ export const PresentPhase: React.FC<PresentPhaseProps> = ({
   transactionId,
   issuedCredential,
   presentationDefinition,
+  presentationDefinitionUri,
   presentationRequest,
   verificationResult,
   onVerify
 }) => {
   const busy = phase === 'issuing' || phase === 'verifying';
   const clientId = getNode(verifier)?.clientId ?? 'https://verifier.example';
+  const requestClientId = presentationRequest?.clientId ?? clientId;
+  const requestNonce = presentationRequest?.nonce ?? transactionId ?? 'nonce';
 
   return (
     <section aria-label="Phase 2: present and verify" className="p-4 rounded-md border border-line bg-surface flex flex-col justify-between">
@@ -49,11 +53,12 @@ export const PresentPhase: React.FC<PresentPhaseProps> = ({
         {presentationDefinition && (
           <QrPanel
             title="Authorization Request (cross-device QR / same-device link)"
-            uri={buildVpRequestUri(
-              presentationDefinition,
-              presentationRequest?.clientId ?? clientId,
-              presentationRequest?.nonce ?? transactionId ?? 'nonce'
-            )}
+            uri={buildVpRequestUri(presentationDefinition, requestClientId, requestNonce)}
+            referenceUri={
+              presentationDefinitionUri
+                ? buildVpRequestUriByReference(absoluteUrl(presentationDefinitionUri), requestClientId, requestNonce)
+                : undefined
+            }
           />
         )}
         {verificationResult && <VerdictCard result={verificationResult} />}

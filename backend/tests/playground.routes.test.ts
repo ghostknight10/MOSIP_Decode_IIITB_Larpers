@@ -352,6 +352,24 @@ describe('POST /verify', () => {
   });
 });
 
+describe('GET /ref/:id (passing by reference)', () => {
+  it('serves the credential offer and presentation definition a response points to', async () => {
+    const issued = (await post('/issue', issueBody)).body;
+    expect(issued.credentialOfferUri).toMatch(/^\/api\/playground\/ref\/[0-9a-f-]{36}$/);
+    const offer = await (await fetch(`${base}${issued.credentialOfferUri.replace('/api/playground', '')}`)).json();
+    expect(offer).toEqual(issued.credentialOffer);
+
+    const verified = (await post('/verify', { verifier: 'mock-openid4vp', wallet: 'mock-wallet', format: 'w3c-vc', credentialOrToken: issued.issuedCredential })).body;
+    const pd = await (await fetch(`${base}${verified.presentationDefinitionUri.replace('/api/playground', '')}`)).json();
+    expect(pd).toEqual(verified.presentationDefinition);
+  });
+
+  it('answers 404 for unknown references', async () => {
+    const res = await fetch(`${base}/ref/00000000-0000-0000-0000-000000000000`);
+    expect(res.status).toBe(404);
+  });
+});
+
 describe('logs and matrix endpoints', () => {
   it('returns recent frames newest-first and clears them', async () => {
     await post('/issue', issueBody, 'tx-l1');

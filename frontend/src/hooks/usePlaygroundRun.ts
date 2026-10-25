@@ -36,9 +36,11 @@ interface PlaygroundState {
   transactionId: string | null;
   startedAt: string | null;
   credentialOffer: any;
+  credentialOfferUri: string | null;
   issuedCredential: any;
   issuedProofType: string | null;
   presentationDefinition: any;
+  presentationDefinitionUri: string | null;
   presentationRequest: { clientId: string; nonce: string } | null;
   verificationResult: VerificationResult | null;
   /** Inji Certify / Inji Verify answered from the emulated sandbox in this run. */
@@ -57,9 +59,9 @@ interface PlaygroundState {
 type Action =
   | { type: 'select'; patch: Partial<Selection> }
   | { type: 'issueStart'; transactionId: string }
-  | { type: 'issueDone'; credentialOffer: any; issuedCredential: any; proofType?: string; logs?: ProtocolLog[]; fallback?: boolean; notice?: string; imported?: boolean }
+  | { type: 'issueDone'; credentialOffer: any; credentialOfferUri?: string; issuedCredential: any; proofType?: string; logs?: ProtocolLog[]; fallback?: boolean; notice?: string; imported?: boolean }
   | { type: 'verifyStart' }
-  | { type: 'verifyDone'; verificationResult: VerificationResult; presentationDefinition: any; client_id?: string; nonce?: string; logs?: ProtocolLog[]; fallback?: boolean; notice?: string }
+  | { type: 'verifyDone'; verificationResult: VerificationResult; presentationDefinition: any; presentationDefinitionUri?: string; client_id?: string; nonce?: string; logs?: ProtocolLog[]; fallback?: boolean; notice?: string }
   | { type: 'streamed'; log: ProtocolLog }
   | { type: 'fail'; error: string }
   | { type: 'record'; record: RunRecord }
@@ -72,9 +74,11 @@ const emptyRun = {
   transactionId: null,
   startedAt: null,
   credentialOffer: null,
+  credentialOfferUri: null,
   issuedCredential: null,
   issuedProofType: null,
   presentationDefinition: null,
+  presentationDefinitionUri: null,
   presentationRequest: null,
   verificationResult: null,
   issueFallback: false,
@@ -121,6 +125,7 @@ function reducer(state: PlaygroundState, action: Action): PlaygroundState {
           phase: 'issued',
           verificationResult: null,
           presentationDefinition: null,
+          presentationDefinitionUri: null,
           presentationRequest: null,
           error: null,
           verifyFallback: false,
@@ -136,6 +141,7 @@ function reducer(state: PlaygroundState, action: Action): PlaygroundState {
         ...state,
         phase: 'issued',
         credentialOffer: action.credentialOffer ?? null,
+        credentialOfferUri: action.credentialOfferUri ?? null,
         issuedCredential: action.issuedCredential,
         issuedProofType: action.proofType ?? null,
         imported: Boolean(action.imported),
@@ -153,6 +159,7 @@ function reducer(state: PlaygroundState, action: Action): PlaygroundState {
         phase: action.verificationResult.status === 'VALID' ? 'verified' : 'failed',
         verificationResult: action.verificationResult,
         presentationDefinition: action.presentationDefinition ?? null,
+        presentationDefinitionUri: action.presentationDefinitionUri ?? null,
         presentationRequest: action.client_id && action.nonce
           ? { clientId: action.client_id, nonce: action.nonce }
           : null,
@@ -255,6 +262,7 @@ export function usePlaygroundRun() {
       dispatch({
         type: 'issueDone',
         credentialOffer: data.credentialOffer,
+        credentialOfferUri: data.credentialOfferUri,
         issuedCredential: data.issuedCredential,
         proofType: data.proofType,
         logs: data.protocolLogs,
@@ -302,6 +310,7 @@ export function usePlaygroundRun() {
         type: 'verifyDone',
         verificationResult: data.verificationResult,
         presentationDefinition: data.presentationDefinition,
+        presentationDefinitionUri: data.presentationDefinitionUri,
         client_id: data.client_id,
         nonce: data.nonce,
         logs: data.protocolLogs,

@@ -4,12 +4,19 @@ import { Check, Copy } from 'lucide-react';
 import { QR_MAX_BYTES } from '../../lib/credential';
 import { btnSmall } from '../ui';
 
-/** Scannable QR plus copy / same-device link for an OpenID4VC request URI. */
-export const QrPanel: React.FC<{ title: string; uri: string }> = ({ title, uri }) => {
+/**
+ * Scannable QR plus copy / same-device link for an OpenID4VC request URI.
+ * When the by-value URI is too large for a QR code and a by-reference URI is
+ * available (G-1), the QR and links use that instead.
+ */
+export const QrPanel: React.FC<{ title: string; uri: string; referenceUri?: string }> = ({ title, uri: byValue, referenceUri }) => {
   // Cross-device signposting (Korir et al., SOUPS 2022): say which device does
   // what. A QR on the phone you are holding cannot be scanned, so small screens
   // lead with the same-device link instead.
   const [copied, setCopied] = useState(false);
+  const fitsByValue = new TextEncoder().encode(byValue).length <= QR_MAX_BYTES;
+  const byReference = !fitsByValue && Boolean(referenceUri);
+  const uri = byReference ? referenceUri! : byValue;
   const fits = new TextEncoder().encode(uri).length <= QR_MAX_BYTES;
   const copy = () => {
     navigator.clipboard?.writeText(uri).then(() => {
@@ -30,6 +37,7 @@ export const QrPanel: React.FC<{ title: string; uri: string }> = ({ title, uri }
       )}
       <div className="flex-1 min-w-0">
         <div className="text-sm font-medium text-ink">{title}</div>
+        {byReference && <p className="text-xs text-ink-muted mt-1">Too large for a QR code by value, so it is passed by reference.</p>}
         <p className="text-xs text-ink-muted mt-1">
           <span className="hidden sm:inline">Scan with the wallet app on your phone, or open the link if the wallet runs on this device.</span>
           <span className="sm:hidden">Open the link with the wallet app on this phone.</span>

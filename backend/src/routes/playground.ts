@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import globalAuditBuffer from '../utils/RingBuffer.js';
+import { getReference, storeReference } from '../utils/references.js';
 import { MockProtocolService, claimsOf, sharedClaims } from '../mocks/mockService.js';
 import { presentToMockVerifier } from '../mocks/wallet.js';
 import { CollabUnavailable, certifyDiscovery, collabTargets, injiVerify } from '../services/collab.js';
@@ -74,6 +75,7 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
         wallet,
         format,
         credentialOffer: mockResult.credentialOffer,
+        credentialOfferUri: storeReference(mockResult.credentialOffer),
         issuedCredential: mockResult.issuedCredential,
         proofType: mockResult.proofType,
         protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
@@ -98,6 +100,7 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
       .map(log => (log.receiver === 'Issuer (OpenID4VCI)' ? { ...log, receiver: 'Inji Certify (Collab Sandbox Emulated)' } : log));
     record(transactionId, emulated);
 
+    const credentialOffer = discovery?.credentialOffer ?? mockResult.credentialOffer;
     return res.json({
       success: true,
       issuer,
@@ -105,7 +108,8 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
       format,
       isSandboxFallback: true,
       notice: discovery?.notice ?? `${unavailable}, so its responses are emulated by the mock engine.`,
-      credentialOffer: discovery?.credentialOffer ?? mockResult.credentialOffer,
+      credentialOffer,
+      credentialOfferUri: storeReference(credentialOffer),
       issuedCredential: mockResult.issuedCredential,
       proofType: mockResult.proofType,
       protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
@@ -142,6 +146,7 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
             verifiedClaims: isValid ? sharedClaims(presentationDefinition, claimsOf(format, credentialOrToken)) : {}
           },
           presentationDefinition,
+          presentationDefinitionUri: storeReference(presentationDefinition),
           client_id: new URL(collabTargets().verify).origin,
           nonce: uuidv4(),
           protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
@@ -162,6 +167,7 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
           isValid: mockResult.isValid,
           verificationResult: mockResult.verificationResult,
           presentationDefinition: mockResult.presentationDefinition,
+          presentationDefinitionUri: storeReference(mockResult.presentationDefinition),
           client_id: mockResult.client_id,
           nonce: mockResult.nonce,
           protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
@@ -179,6 +185,7 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
       isValid: result.isValid,
       verificationResult: result.verificationResult,
       presentationDefinition: result.presentationDefinition,
+      presentationDefinitionUri: storeReference(result.presentationDefinition),
       client_id: result.client_id,
       nonce: result.nonce,
       protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
@@ -186,6 +193,13 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
   } catch (err) {
     return serverError(res, 'Verification', err);
   }
+});
+
+/** Credential offers and presentation definitions passed by reference (G-1). */
+playgroundRouter.get('/ref/:id', (req: Request<{ id: string }>, res: Response) => {
+  const body = getReference(req.params.id);
+  if (body === undefined) return res.status(404).json({ success: false, error: 'Unknown or expired reference' });
+  return res.json(body);
 });
 
 /**

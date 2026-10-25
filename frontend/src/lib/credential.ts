@@ -21,6 +21,25 @@ export const buildVpRequestUri = (pd: any, clientId: string, nonce: string) =>
     presentation_definition: JSON.stringify(pd)
   }).toString();
 
+/** A BFF reference path as an absolute URL a phone on the same network can fetch. */
+export const absoluteUrl = (path: string, origin = typeof window === 'undefined' ? 'http://localhost' : window.location.origin) =>
+  new URL(path, origin).href;
+
+/** The offer passed by reference (G-1), for offers too large for a QR code. */
+export const buildOfferUriByReference = (offerUrl: string) =>
+  `openid-credential-offer://?credential_offer_uri=${encodeURIComponent(offerUrl)}`;
+
+/** The authorization request with presentation_definition_uri instead of the definition itself. */
+export const buildVpRequestUriByReference = (pdUrl: string, clientId: string, nonce: string) =>
+  'openid4vp://authorize?' +
+  new URLSearchParams({
+    response_type: 'vp_token',
+    response_mode: 'direct_post',
+    client_id: clientId,
+    nonce,
+    presentation_definition_uri: pdUrl
+  }).toString();
+
 /** Decodes the payload of the JWT part of a (SD-)JWT, or null if malformed. */
 export const decodeJwtPayload = (jwt: string) => {
   try {

@@ -61,6 +61,8 @@ export interface IssueResponse {
   wallet: WalletType;
   format: CredentialFormat;
   credentialOffer?: any;
+  /** BFF path serving the offer, for credential_offer_uri. */
+  credentialOfferUri?: string;
   issuedCredential: any;
   proofType?: string;
   protocolLogs?: ProtocolLog[];
@@ -77,6 +79,8 @@ export interface VerifyResponse {
   isValid?: boolean;
   verificationResult: VerificationResult;
   presentationDefinition?: any;
+  /** BFF path serving the definition, for presentation_definition_uri. */
+  presentationDefinitionUri?: string;
   client_id?: string;
   nonce?: string;
   protocolLogs?: ProtocolLog[];

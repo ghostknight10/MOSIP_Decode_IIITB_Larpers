@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, Play, RefreshCw } from 'lucide-react';
 import { CredentialFormat, CredentialSubjectInput, RunPhase } from '../../types';
 import { FORMATS } from '../../config/nodes';
-import { buildOfferUri } from '../../lib/credential';
+import { absoluteUrl, buildOfferUri, buildOfferUriByReference } from '../../lib/credential';
 import { QrPanel } from './QrPanel';
 import { btnPrimary, btnSecondary } from '../ui';
 import { CredentialSummary } from './CredentialSummary';
@@ -13,6 +13,7 @@ interface IssuePhaseProps {
   phase: RunPhase;
   format: CredentialFormat;
   credentialOffer: any;
+  credentialOfferUri?: string | null;
   issuedCredential: any;
   subject: CredentialSubjectInput;
   onSubjectChange: (subject: CredentialSubjectInput) => void;
@@ -23,7 +24,7 @@ interface IssuePhaseProps {
 }
 
 /** Phase 1 (OpenID4VCI): subject claims, offer QR, credential summary, issue button. */
-export const IssuePhase: React.FC<IssuePhaseProps> = ({ phase, format, credentialOffer, issuedCredential, subject, onSubjectChange, onIssue, onImport, imported }) => {
+export const IssuePhase: React.FC<IssuePhaseProps> = ({ phase, format, credentialOffer, credentialOfferUri, issuedCredential, subject, onSubjectChange, onIssue, onImport, imported }) => {
   const [subjectOpen, setSubjectOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState('');
@@ -89,7 +90,13 @@ export const IssuePhase: React.FC<IssuePhaseProps> = ({ phase, format, credentia
           </div>
         )}
 
-        {credentialOffer && <QrPanel title="Credential Offer (scan with Inji Wallet)" uri={buildOfferUri(credentialOffer)} />}
+        {credentialOffer && (
+          <QrPanel
+            title="Credential Offer (scan with Inji Wallet)"
+            uri={buildOfferUri(credentialOffer)}
+            referenceUri={credentialOfferUri ? buildOfferUriByReference(absoluteUrl(credentialOfferUri)) : undefined}
+          />
+        )}
         {imported && <p className="mb-4 text-xs text-ink-muted">Imported credential: issued outside the playground.</p>}
         {issuedCredential && !credentialOffer && !imported && (
           <p className="mb-4 text-xs text-warning-ink">Issuer returned a credential without a credential offer payload.</p>

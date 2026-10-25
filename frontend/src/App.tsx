@@ -120,7 +120,9 @@ export const App: React.FC = () => {
                 transactionId={run.transactionId}
                 issuedCredential={run.issuedCredential}
                 credentialOffer={run.credentialOffer}
+                credentialOfferUri={run.credentialOfferUri}
                 presentationDefinition={run.presentationDefinition}
+                presentationDefinitionUri={run.presentationDefinitionUri}
                 presentationRequest={run.presentationRequest}
                 onImport={run.importCredential}
                 imported={run.imported}

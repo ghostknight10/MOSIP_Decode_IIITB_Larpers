@@ -20,7 +20,9 @@ interface FlowControlsProps {
   transactionId: string | null;
   issuedCredential: any;
   credentialOffer: any;
+  credentialOfferUri?: string | null;
   presentationDefinition: any;
+  presentationDefinitionUri?: string | null;
   presentationRequest?: { clientId: string; nonce: string } | null;
   verificationResult: VerificationResult | null;
   format: CredentialFormat;
@@ -55,7 +57,9 @@ export const FlowControls: React.FC<FlowControlsProps> = ({
   transactionId,
   issuedCredential,
   credentialOffer,
+  credentialOfferUri,
   presentationDefinition,
+  presentationDefinitionUri,
   presentationRequest,
   verificationResult,
   format,
@@ -119,6 +123,7 @@ export const FlowControls: React.FC<FlowControlsProps> = ({
           phase={phase}
           format={format}
           credentialOffer={credentialOffer}
+          credentialOfferUri={credentialOfferUri}
           issuedCredential={issuedCredential}
           subject={subjectData}
           onSubjectChange={subject => onInputsChange({ ...inputs, subject })}
@@ -133,6 +138,7 @@ export const FlowControls: React.FC<FlowControlsProps> = ({
           transactionId={transactionId}
           issuedCredential={issuedCredential}
           presentationDefinition={presentationDefinition}
+          presentationDefinitionUri={presentationDefinitionUri}
           presentationRequest={presentationRequest}
           verificationResult={verificationResult}
           onVerify={() => onVerify(tamper)}

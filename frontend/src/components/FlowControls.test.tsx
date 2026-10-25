@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { activeTamper, buildOfferUri, buildVpRequestUri, FlowControls, QR_MAX_BYTES, summarise } from './FlowControls';
+import { buildVpRequestUriByReference } from '../lib/credential';
 import { DEFAULT_SUBJECT } from '../config/nodes';
 import { SCENARIOS } from '../config/scenarios';
 import { RunInputs, VerificationResult } from '../types';
@@ -208,6 +209,28 @@ describe('FlowControls QR codes', () => {
     renderControls({ phase: 'issued', credentialOffer: huge, issuedCredential: W3C_VC });
     expect(screen.getByText(/exceeds QR capacity/)).toBeInTheDocument();
     expect(document.querySelector('svg[height="132"]')).toBeNull();
+  });
+
+  it('passes an oversized offer by reference when the BFF provides one', () => {
+    const huge = { ...OFFER, padding: 'x'.repeat(QR_MAX_BYTES) };
+    renderControls({ phase: 'issued', credentialOffer: huge, credentialOfferUri: '/api/playground/ref/abc', issuedCredential: W3C_VC });
+    expect(screen.getByText(/passed by reference/)).toBeInTheDocument();
+    expect(screen.queryByText(/exceeds QR capacity/)).not.toBeInTheDocument();
+    const href = screen.getByRole('link', { name: 'Open on this device' }).getAttribute('href')!;
+    expect(href).toBe(`openid-credential-offer://?credential_offer_uri=${encodeURIComponent(`${window.location.origin}/api/playground/ref/abc`)}`);
+  });
+
+  it('keeps a small offer by value even when a reference exists', () => {
+    renderControls({ phase: 'issued', credentialOffer: OFFER, credentialOfferUri: '/api/playground/ref/abc', issuedCredential: W3C_VC });
+    expect(screen.getByRole('link', { name: 'Open on this device' }).getAttribute('href')).toBe(buildOfferUri(OFFER));
+  });
+
+  it('builds the authorization request with presentation_definition_uri by reference', () => {
+    const uri = buildVpRequestUriByReference('https://host/api/playground/ref/pd', 'https://verifier', 'n-1');
+    const params = new URLSearchParams(uri.split('?')[1]);
+    expect(params.get('presentation_definition_uri')).toBe('https://host/api/playground/ref/pd');
+    expect(params.get('presentation_definition')).toBeNull();
+    expect(params.get('nonce')).toBe('n-1');
   });
 
   it('notes when the issuer returned no credential offer', () => {
