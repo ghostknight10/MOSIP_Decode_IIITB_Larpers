@@ -11,6 +11,8 @@ services:
       - PORT=4000
       - NODE_ENV=development
       - FRONTEND_URL=http://localhost:5173
+      # Optional: set in .env to make the BFF answer only the frontend's proxy.
+      - PLAYGROUND_TOKEN=${PLAYGROUND_TOKEN:-}
       - MOSIP_INJI_CERTIFY_URL=https://injicertify-mosipid.collab.mosip.net
       - MOSIP_INJI_MIMOTO_URL=https://api.collab.mosip.net
       - MOSIP_INJI_VERIFY_URL=https://injiverify.collab.mosip.net
@@ -32,6 +34,7 @@ services:
       # The Vite dev server proxies /api to the BFF over the compose network;
       # localhost here would be the frontend container itself.
       - VITE_BFF_URL=http://bff:4000
+      - PLAYGROUND_TOKEN=${PLAYGROUND_TOKEN:-}
     volumes:
       - ./frontend:/app
       - /app/node_modules

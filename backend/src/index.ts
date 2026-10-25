@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import proxyGateway from './routes/proxyGateway.js';
 import { playgroundRouter } from './routes/playground.js';
 import { collabTargets } from './services/collab.js';
+import { requireToken } from './middleware/requireToken.js';
 
 dotenv.config({ quiet: true });
 
@@ -15,7 +16,7 @@ const PORT = process.env.PORT || 4000;
 app.use(cors({
   origin: (process.env.FRONTEND_URL || 'http://localhost:5173').split(',').map(o => o.trim()),
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-transaction-id']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-transaction-id', 'x-playground-token']
 }));
 
 // Credentials and presentations are a few KB; 1 MB leaves ample headroom.
@@ -28,6 +29,9 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   console.log(`[BFF] ${timestamp} | ${req.method} ${req.originalUrl}`);
   next();
 });
+
+// Optional shared token (PLAYGROUND_TOKEN); /api/health stays open for health checks.
+app.use(requireToken);
 
 // Proxy gateway (after the logger, so proxied calls are logged too)
 app.use('/', proxyGateway);

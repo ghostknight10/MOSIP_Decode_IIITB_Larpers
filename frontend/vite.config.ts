@@ -13,7 +13,9 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: process.env.VITE_BFF_URL || 'http://localhost:4000',
-        changeOrigin: true
+        changeOrigin: true,
+        // Added server-side, so the browser never sees the token (S-2).
+        headers: process.env.PLAYGROUND_TOKEN ? { 'x-playground-token': process.env.PLAYGROUND_TOKEN } : {}
       }
     }
   },
