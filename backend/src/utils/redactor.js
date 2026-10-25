@@ -4,7 +4,9 @@ const SENSITIVE_KEYS = new Set([
   'id_token', 'client_assertion',
   // OpenID4VCI grant secrets: whoever holds these can redeem the credential.
   'pre-authorized_code', 'tx_code', 'user_pin', 'code', 'code_verifier',
-  'password', 'proxy-authorization', 'x-api-key', 'api_key'
+  'password', 'proxy-authorization', 'x-api-key', 'api_key',
+  // eSignet login: CSRF token and the OTP / PIN sent as an auth challenge.
+  'x-xsrf-token', 'challenge'
 ]);
 
 // VC artefacts (vp_token, credential, proof) are kept for the inspector: none

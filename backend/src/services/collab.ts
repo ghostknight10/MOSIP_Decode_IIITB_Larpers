@@ -28,6 +28,8 @@ interface LiveCallOptions {
   url: string;
   body?: unknown;
   contentType?: string;
+  /** Extra request headers (logged redacted). */
+  headers?: Record<string, string>;
   sender: string;
   receiver: string;
   protocol: ProtocolLog['protocol'];
@@ -35,9 +37,9 @@ interface LiveCallOptions {
   tampered?: boolean;
 }
 
-export async function liveCall({ method, url, body, contentType, sender, receiver, protocol, action, tampered }: LiveCallOptions) {
+export async function liveCall({ method, url, body, contentType, headers: extra = {}, sender, receiver, protocol, action, tampered }: LiveCallOptions) {
   const started = Date.now();
-  const headers: Record<string, string> = contentType ? { 'Content-Type': contentType } : {};
+  const headers: Record<string, string> = { ...(contentType ? { 'Content-Type': contentType } : {}), ...extra };
   let response;
   try {
     response = await axios.request({ method, url, data: body, headers, timeout: TIMEOUT_MS, validateStatus: () => true });
@@ -57,13 +59,13 @@ export async function liveCall({ method, url, body, contentType, sender, receive
     protocol,
     action,
     status: response.status < 400 ? 'SUCCESS' : 'FAILED',
-    request: { method, url, headers, ...(body === undefined ? {} : { body: redactPayload(body) }) },
+    request: { method, url, headers: redactPayload(headers), ...(body === undefined ? {} : { body: redactPayload(body) }) },
     response: { status: response.status, headers: { 'content-type': responseType }, body: redactPayload(response.data) },
     durationMs: Date.now() - started,
     live: true,
     ...(tampered ? { tampered: true } : {})
   };
-  return { status: response.status, data: response.data, log };
+  return { status: response.status, data: response.data, headers: response.headers ?? {}, log };
 }
 
 const isObject = (v: unknown): v is Record<string, any> => typeof v === 'object' && v !== null && !Array.isArray(v);

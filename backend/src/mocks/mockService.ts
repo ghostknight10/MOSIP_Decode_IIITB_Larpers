@@ -130,6 +130,9 @@ async function checkLdpPresentation(vp: any, nonce: string, clientId: string): P
   }
   const vpProblem = await ldpProofProblem(vp, { challenge: nonce, domain: clientId });
   if (vpProblem) return reject('holderBinding', `Presentation proof failed: ${vpProblem}`);
+  if (!credential.credentialSubject.id) {
+    return reject('holderBinding', 'The credential is not bound to a holder (no credentialSubject.id), so possession cannot be proved.');
+  }
   if (vp.holder !== credential.credentialSubject.id) {
     return reject('holderBinding', 'The presenter is not the holder the credential was issued to.');
   }

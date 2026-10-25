@@ -4,6 +4,7 @@ import { getReference, storeReference } from '../utils/references.js';
 import { MockProtocolService, claimsOf, sharedClaims } from '../mocks/mockService.js';
 import { presentToMockVerifier } from '../mocks/wallet.js';
 import { CollabUnavailable, certifyDiscovery, collabTargets, injiVerify } from '../services/collab.js';
+import { InjiIssuanceRefused, issueFromInjiCertify, realIssuanceEnabled } from '../services/injiIssuance.js';
 import { IssueCredentialRequest, ProtocolLog, VerifyCredentialRequest } from '../types/index.js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -82,8 +83,32 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
       });
     }
 
-    // Inji Certify: discovery and the credential request are live; the
-    // credential needs an eSignet user login, so it is always emulated.
+    // Inji Certify with a Collab test identity: the real login and issuance (E-1).
+    let refusal = '';
+    if (format === 'w3c-vc' && realIssuanceEnabled()) {
+      try {
+        const real = await issueFromInjiCertify(log => record(transactionId, [log]));
+        return res.json({
+          success: true,
+          issuer,
+          wallet,
+          format,
+          notice: real.notice,
+          credentialOffer: real.credentialOffer,
+          credentialOfferUri: storeReference(real.credentialOffer),
+          issuedCredential: real.credential,
+          proofType: real.credential.proof?.type ?? 'unknown',
+          protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
+        });
+      } catch (err) {
+        if (!(err instanceof CollabUnavailable || err instanceof InjiIssuanceRefused)) throw err;
+        refusal = `${err.message}. `;
+        console.warn(`[BFF] Real Inji issuance failed: ${err.message}. Emulating the credential.`);
+      }
+    }
+
+    // Inji Certify without a test identity (or after a refusal): discovery and
+    // the credential request are live; the credential itself is emulated.
     let discovery: Awaited<ReturnType<typeof certifyDiscovery>> | null = null;
     let unavailable = '';
     try {
@@ -107,7 +132,7 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
       wallet,
       format,
       isSandboxFallback: true,
-      notice: discovery?.notice ?? `${unavailable}, so its responses are emulated by the mock engine.`,
+      notice: refusal + (discovery?.notice ?? `${unavailable}, so its responses are emulated by the mock engine.`),
       credentialOffer,
       credentialOfferUri: storeReference(credentialOffer),
       issuedCredential: mockResult.issuedCredential,

@@ -8,7 +8,7 @@ describe('redactPayload', () => {
 
   it.each([
     'authorization', 'Authorization', 'DPoP', 'cookie', 'Set-Cookie', 'client_secret', 'access_token', 'refresh_token', 'id_token', 'client_assertion',
-    'pre-authorized_code', 'tx_code', 'user_pin', 'code', 'code_verifier', 'password', 'Proxy-Authorization', 'X-API-Key'
+    'pre-authorized_code', 'tx_code', 'user_pin', 'code', 'code_verifier', 'password', 'Proxy-Authorization', 'X-API-Key', 'X-XSRF-TOKEN', 'challenge'
   ])(
     'masks %s',
     key => {

@@ -41,13 +41,41 @@ const didKeyDriver = didKey.driver();
 didKeyDriver.use({ multibaseMultikeyHeader: 'z6Mk', fromMultibase: Ed25519VerificationKey2020.from });
 
 /**
- * Resolves bundled contexts and did:key only. URLs inside a presented
- * credential are never fetched, so a credential can't make the BFF call out.
+ * MOSIP publishes its JSON-LD contexts and Collab issuer DID documents on
+ * inji.github.io; only that origin is ever fetched (cached, 5 s timeout), so a
+ * credential can't make the BFF call arbitrary URLs.
  */
+const MOSIP_DOCUMENTS = /^https:\/\/inji\.github\.io\/inji-config\/[\w./-]+$/;
+const MOSIP_DID_WEB = /^did:web:inji\.github\.io(:[\w-]+)+$/;
+const fetched = new Map<string, Promise<any>>();
+const fetchJson = (url: string) => {
+  if (!fetched.has(url)) {
+    const request = fetch(url, { signal: AbortSignal.timeout(5000) }).then(res => {
+      if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+      return res.json();
+    });
+    request.catch(() => fetched.delete(url)); // retry next time
+    fetched.set(url, request);
+  }
+  return fetched.get(url)!;
+};
+
+async function resolveDidWeb(url: string) {
+  const [did] = url.split('#');
+  const document = await fetchJson(`https://${did.slice('did:web:'.length).split(':').join('/')}/did.json`);
+  if (url === did) return document;
+  const method = (document.verificationMethod ?? []).find((vm: any) => vm.id === url || `${did}${vm.id}` === url);
+  if (!method) throw new Error(`Verification method ${url} not found in ${did}`);
+  return { '@context': document['@context'], ...method };
+}
+
+/** Bundled contexts, did:key, and MOSIP's published documents on inji.github.io. */
 export const documentLoader = async (url: string) => {
   const document = CONTEXTS.get(url);
   if (document) return { contextUrl: null, documentUrl: url, document };
   if (url.startsWith('did:key:')) return { contextUrl: null, documentUrl: url, document: await didKeyDriver.get({ url }) };
+  if (MOSIP_DID_WEB.test(url.split('#')[0])) return { contextUrl: null, documentUrl: url, document: await resolveDidWeb(url) };
+  if (MOSIP_DOCUMENTS.test(url)) return { contextUrl: null, documentUrl: url, document: await fetchJson(url) };
   throw new Error(`Unsupported JSON-LD document or verification method: ${url}`);
 };
 

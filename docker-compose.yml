@@ -16,6 +16,8 @@ services:
       - MOSIP_INJI_CERTIFY_URL=https://injicertify-mosipid.collab.mosip.net
       - MOSIP_INJI_MIMOTO_URL=https://api.collab.mosip.net
       - MOSIP_INJI_VERIFY_URL=https://injiverify.collab.mosip.net
+      # Optional: a Collab test identity for real Inji Certify issuance (E-1).
+      - COLLAB_TEST_INDIVIDUAL_ID=${COLLAB_TEST_INDIVIDUAL_ID:-}
     volumes:
       - ./backend:/app
       - /app/node_modules

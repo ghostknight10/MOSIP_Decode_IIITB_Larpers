@@ -2,7 +2,7 @@ import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 import axios from 'axios';
 import express from 'express';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { playgroundRouter } from '../src/routes/playground.js';
 import globalAuditBuffer from '../src/utils/RingBuffer.js';
 import { MockProtocolService } from '../src/mocks/mockService.js';
@@ -194,6 +194,82 @@ describe('POST /issue', () => {
     const res = await fetch(`${base}/issue`, { method: 'POST' });
     expect(res.status).toBe(400);
     expect(res.headers.get('content-type')).toContain('application/json');
+  });
+});
+
+describe('POST /issue with a Collab test identity (real Inji issuance)', () => {
+  const LAND = 'https://injicertify-landregistry.collab.mosip.net';
+  const REAL_VC = { '@context': ['https://www.w3.org/2018/credentials/v1'], type: ['VerifiableCredential', 'LandStatementCredential'], issuer: 'did:web:injicertify-landregistry.collab.mosip.net', credentialSubject: { RuralPropertyName: 'Saint Helena Farm' }, proof: { type: 'Ed25519Signature2020', proofValue: 'z123' } };
+  const login = (overrides: Record<string, unknown> = {}) =>
+    collab({
+      '/csrf/token': { status: 200, data: { token: 'x' }, headers: { 'content-type': 'application/json', 'set-cookie': ['XSRF-TOKEN=csrf-1; Path=/'] } },
+      '/oauth-details': json(200, { response: { transactionId: 'tx-esignet' }, errors: [] }),
+      '/send-otp': json(200, { response: { transactionId: 'tx-esignet' }, errors: [] }),
+      '/authenticate': json(200, { response: { transactionId: 'tx-esignet' }, errors: [] }),
+      '/auth-code': json(200, { response: { code: 'auth-code-1' }, errors: [] }),
+      '/get-token/Land': json(200, { access_token: 'secret-token', token_type: 'Bearer' }),
+      '/certify/nonce': json(200, { c_nonce: 'certify-nonce' }),
+      '/issuance/credential': json(200, { credentials: [{ credential: REAL_VC }] }),
+      ...overrides
+    });
+  const body = { ...issueBody, issuer: 'inji-certify', wallet: 'inji-wallet' };
+
+  beforeEach(() => {
+    process.env.COLLAB_TEST_INDIVIDUAL_ID = '8267411578';
+  });
+  afterEach(() => {
+    delete process.env.COLLAB_TEST_INDIVIDUAL_ID;
+  });
+
+  it('logs in to eSignet, gets a token through Mimoto and returns the real credential', async () => {
+    login();
+    const { body: res } = await post('/issue', body, 'tx-real');
+    expect(res).toMatchObject({ success: true, issuedCredential: REAL_VC, proofType: 'Ed25519Signature2020' });
+    expect(res.isSandboxFallback).toBeUndefined();
+    expect(res.notice).toContain('Real credential');
+    expect(res.credentialOffer).toMatchObject({ credential_issuer: LAND, credential_configuration_ids: ['LandStatementCredential'] });
+    expect(res.protocolLogs.map((l: any) => l.action)).toEqual([
+      'Authorization request (eSignet oauth-details)',
+      'Send OTP to the test identity',
+      'Authenticate with OTP',
+      'Authorization code',
+      'Token request (via Mimoto)',
+      'Nonce request',
+      'Credential request (/credential)'
+    ]);
+    expect(res.protocolLogs.every((l: any) => l.live)).toBe(true);
+  });
+
+  it('binds eSignet calls to the XSRF cookie and the authorization details', async () => {
+    login();
+    await post('/issue', body);
+    const otp = requestMock.mock.calls.find(([c]: any[]) => c.url.endsWith('/send-otp'))![0] as any;
+    expect(otp.headers).toMatchObject({ Cookie: 'XSRF-TOKEN=csrf-1', 'X-XSRF-TOKEN': 'csrf-1', 'oauth-details-key': 'tx-esignet' });
+    expect(otp.headers['oauth-details-hash']).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    const credential = requestMock.mock.calls.find(([c]: any[]) => c.url.endsWith('/issuance/credential'))![0] as any;
+    expect(credential.headers.Authorization).toBe('Bearer secret-token');
+    expect(credential.data).toMatchObject({ credential_configuration_id: 'LandStatementCredential', proofs: { jwt: [expect.any(String)] } });
+  });
+
+  it('keeps the OTP, CSRF token, code and access token out of the logs', async () => {
+    login();
+    const { body: res } = await post('/issue', body);
+    const logs = JSON.stringify(res.protocolLogs);
+    for (const secret of ['111111', 'csrf-1', 'auth-code-1', 'secret-token']) expect(logs).not.toContain(secret);
+  });
+
+  it('falls back to discovery and emulation, saying which step refused', async () => {
+    login({ '/issuance/credential': json(400, { error: 'ERROR_FETCHING_IDENTITY_DATA' }) });
+    const { body: res } = await post('/issue', body);
+    expect(res).toMatchObject({ success: true, isSandboxFallback: true });
+    expect(res.notice).toMatch(/^Certify credential request refused: ERROR_FETCHING_IDENTITY_DATA\. /);
+    expect(res.issuedCredential.issuer).toMatch(/^did:key:/);
+  });
+
+  it('only runs for W3C credentials', async () => {
+    login();
+    await post('/issue', { ...body, format: 'sd-jwt' });
+    expect(requestMock.mock.calls.some(([c]: any[]) => c.url.includes('esignet'))).toBe(false);
   });
 });
 
