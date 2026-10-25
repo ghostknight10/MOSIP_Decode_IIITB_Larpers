@@ -2,6 +2,60 @@ import { createHash } from 'node:crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { CredentialFormat, ProtocolLog } from '../types/index.js';
 
+type PresentationCheck = 'formatCheck' | 'signatureValid';
+
+const decodeJson = (segment: string): unknown => {
+  try {
+    return JSON.parse(Buffer.from(segment, 'base64url').toString('utf8'));
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * Reads the claims a wallet presented and reports the first structural
+ * problem. For SD-JWT every disclosure must hash to a digest in the issuer
+ * JWT's `_sd`, so a disclosure the issuer never signed is rejected. A trailing
+ * key-binding JWT (`~<kb-jwt>`) is not a disclosure and is skipped.
+ */
+export function readPresentation(
+  format: CredentialFormat,
+  presented: any
+): { claims: Record<string, unknown>; problem?: { check: PresentationCheck; message: string } } {
+  const fail = (check: PresentationCheck, message: string) => ({ claims: {}, problem: { check, message } });
+
+  if (format === 'sd-jwt') {
+    const token = typeof presented === 'string' ? presented : presented?.rawToken;
+    if (typeof token !== 'string' || !token.includes('~')) {
+      return fail('formatCheck', 'No SD-JWT presented: expected <issuer-jwt>~<disclosure>~...');
+    }
+    const [issuerJwt, ...rest] = token.split('~');
+    const payload = decodeJson(issuerJwt.split('.')[1] ?? '') as { _sd?: unknown } | undefined;
+    if (issuerJwt.split('.').length !== 3 || !payload || typeof payload !== 'object') {
+      return fail('formatCheck', 'Malformed SD-JWT: the issuer JWT could not be decoded.');
+    }
+    const digests = new Set(Array.isArray(payload._sd) ? payload._sd : []);
+    const claims: Record<string, unknown> = {};
+    for (const encoded of rest.filter(part => part && !part.includes('.'))) {
+      const disclosure = decodeJson(encoded);
+      if (!Array.isArray(disclosure) || disclosure.length !== 3 || typeof disclosure[1] !== 'string') {
+        return fail('formatCheck', 'Malformed SD-JWT disclosure.');
+      }
+      if (!digests.has(createHash('sha256').update(encoded).digest('base64url'))) {
+        return fail('signatureValid', `Disclosure for "${disclosure[1]}" is not covered by the issuer's _sd digests.`);
+      }
+      claims[disclosure[1]] = disclosure[2];
+    }
+    return { claims };
+  }
+
+  const subject = presented?.credentialSubject;
+  if (!subject || typeof subject !== 'object') {
+    return fail('formatCheck', 'No W3C credential presented: credentialSubject is missing.');
+  }
+  return { claims: subject };
+}
+
 export class MockProtocolService {
   /**
    * Generates a realistic OpenID4VCI Draft 13 Credential Offer & Issued VC
@@ -212,21 +266,22 @@ export class MockProtocolService {
     const clientId = 'https://verify.mock.mosip.net';
     const nonce = uuidv4();
 
-    // Check tampering simulation
-    let isExpired = false;
-    let signatureMismatch = false;
+    // Structural checks on what the wallet actually presented.
+    const presented = readPresentation(format, presentedTokenOrVC);
+
+    // Tampering simulation
+    const isExpired = Boolean(tamperPayload?.forceExpired);
+    const signatureMismatch = Boolean(tamperPayload?.corruptSignature);
     const wrongCredentialType = Boolean(tamperPayload?.wrongCredentialType);
 
-    if (tamperPayload) {
-      if (tamperPayload.forceExpired) isExpired = true;
-      if (tamperPayload.corruptSignature) signatureMismatch = true;
-    }
-
-    const isValid = !isExpired && !signatureMismatch && !wrongCredentialType;
+    const isValid = !presented.problem && !isExpired && !signatureMismatch && !wrongCredentialType;
     let statusText: 'VALID' | 'INVALID' | 'EXPIRED' | 'SIGNATURE_MISMATCH' = 'VALID';
     let details = 'All cryptographic signatures, schemas, and trust anchors verified successfully against MOSIP root.';
 
-    if (isExpired) {
+    if (presented.problem) {
+      statusText = presented.problem.check === 'signatureValid' ? 'SIGNATURE_MISMATCH' : 'INVALID';
+      details = presented.problem.message;
+    } else if (isExpired) {
       statusText = 'EXPIRED';
       details = 'Credential expiration check failed: validity period exceeded.';
     } else if (signatureMismatch) {
@@ -237,37 +292,21 @@ export class MockProtocolService {
       details = 'Credential type check failed: the presented credential is not a National Identity credential.';
     }
 
-    const sampleClaims = {
-      fullName: 'Aaditya Sharma',
-      nationalId: 'MOSIP-IND-9876-5432-1098',
-      country: 'IND'
-    };
-    let presentedClaims: Record<string, unknown> | undefined;
-    if (format === 'sd-jwt' && typeof presentedTokenOrVC?.rawToken === 'string') {
-      presentedClaims = {};
-      for (const encoded of presentedTokenOrVC.rawToken.split('~').slice(1).filter(Boolean)) {
-        const disclosure = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
-        if (Array.isArray(disclosure) && disclosure.length === 3 && typeof disclosure[1] === 'string') {
-          presentedClaims[disclosure[1]] = disclosure[2];
-        }
-      }
-    } else {
-      presentedClaims = presentedTokenOrVC?.credentialSubject ??
-        presentedTokenOrVC?.decoded?.payload?.claims ??
-        sampleClaims;
-    }
+    const presentedClaims = presented.claims;
     const requestedClaimNames = presentationDefinition.input_descriptors[0].constraints.fields
       .map((field: { path: string[] }) => field.path[0].split('.').pop());
-    const verifiedClaims = Object.fromEntries(
-      requestedClaimNames
-        .filter((claim): claim is string => typeof claim === 'string' && claim in (presentedClaims ?? {}))
-        .map(claim => [claim, presentedClaims![claim]])
-    );
+    const verifiedClaims = isValid
+      ? Object.fromEntries(
+          requestedClaimNames
+            .filter((claim): claim is string => typeof claim === 'string' && claim in presentedClaims)
+            .map(claim => [claim, presentedClaims[claim]])
+        )
+      : {};
     const verificationResult = {
       status: statusText,
       checks: {
-        formatCheck: !wrongCredentialType,
-        signatureValid: !signatureMismatch,
+        formatCheck: !wrongCredentialType && presented.problem?.check !== 'formatCheck',
+        signatureValid: !signatureMismatch && presented.problem?.check !== 'signatureValid',
         notExpired: !isExpired,
         schemaCompliant: true
       },

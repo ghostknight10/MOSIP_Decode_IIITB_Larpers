@@ -177,10 +177,50 @@ describe('MockProtocolService.verifyPresentation (OpenID4VP Draft 21)', () => {
     });
   });
 
-  it('falls back to sample claims when nothing is presented', () => {
-    expect(MockProtocolService.verifyPresentation('w3c-vc', undefined).verificationResult.verifiedClaims).toEqual({
-      fullName: 'Aaditya Sharma',
-      nationalId: 'MOSIP-IND-9876-5432-1098'
+  it('rejects a presentation with no credential', () => {
+    const { isValid, verificationResult } = MockProtocolService.verifyPresentation('w3c-vc', undefined);
+    expect(isValid).toBe(false);
+    expect(verificationResult).toMatchObject({ status: 'INVALID', checks: { formatCheck: false }, verifiedClaims: {} });
+  });
+
+  describe('SD-JWT disclosures', () => {
+    const issued = () => MockProtocolService.issueCredential('sd-jwt').issuedCredential;
+    const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
+
+    it('accepts the disclosures the issuer signed', () => {
+      const { isValid, verificationResult } = MockProtocolService.verifyPresentation('sd-jwt', issued());
+      expect(isValid).toBe(true);
+      expect(verificationResult.verifiedClaims).toEqual({ fullName: 'Aaditya Sharma', nationalId: 'MOSIP-IND-9876-5432-1098' });
+    });
+
+    it('rejects a disclosure whose digest is not in _sd', () => {
+      const { rawToken } = issued();
+      const forged = `${rawToken}${encode(['salt', 'fullName', 'Mallory'])}~`;
+      const { isValid, verificationResult } = MockProtocolService.verifyPresentation('sd-jwt', { rawToken: forged });
+      expect(isValid).toBe(false);
+      expect(verificationResult).toMatchObject({ status: 'SIGNATURE_MISMATCH', checks: { signatureValid: false }, verifiedClaims: {} });
+      expect(verificationResult.details).toContain('fullName');
+    });
+
+    it('rejects disclosures attached to a made-up issuer JWT', () => {
+      const result = MockProtocolService.verifyPresentation('sd-jwt', { rawToken: `x.y.z~${encode(['s', 'fullName', 'Mallory'])}~` });
+      expect(result.isValid).toBe(false);
+    });
+
+    it('skips a trailing key-binding JWT instead of crashing', () => {
+      const withKb = `${issued().rawToken}eyJhbGciOiJFUzI1NiJ9.e30.sig`;
+      expect(MockProtocolService.verifyPresentation('sd-jwt', { rawToken: withKb }).isValid).toBe(true);
+    });
+
+    it.each([
+      ['no token', {}],
+      ['a token without disclosures separator', { rawToken: 'a.b.c' }],
+      ['an undecodable disclosure', { rawToken: 'a.e30.c~!!!~' }]
+    ])('rejects %s as a format error', (_label, presented) => {
+      expect(MockProtocolService.verifyPresentation('sd-jwt', presented).verificationResult).toMatchObject({
+        status: 'INVALID',
+        checks: { formatCheck: false }
+      });
     });
   });
 
