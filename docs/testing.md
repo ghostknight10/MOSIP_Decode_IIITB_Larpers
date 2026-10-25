@@ -4,8 +4,8 @@ The playground has three layers of tests:
 
 | Layer | Tool | Command | Count |
 | --- | --- | --- | --- |
-| Frontend unit, component and integration | Vitest 5 + Testing Library + jsdom | `npm --prefix frontend test` | 372 |
-| Backend unit and HTTP | Vitest 5 (node) | `npm --prefix backend test` | 170 |
+| Frontend unit, component and integration | Vitest 5 + Testing Library + jsdom | `npm --prefix frontend test` | 375 |
+| Backend unit and HTTP | Vitest 5 (node) | `npm --prefix backend test` | 175 |
 | Protocol scenarios TC-01 to TC-05 | `backend/scripts/test-interop.ts` | `npm run test:interop` | 5 |
 
 `npm test` at the repo root runs the frontend suite, then the backend suite. CI runs it on every push and pull request to `main`, after both builds and before the interop scenarios. Manual UI procedures are in [test-cases.md](./test-cases.md).
@@ -21,7 +21,7 @@ Configured in `frontend/vite.config.ts` (`test.environment: 'jsdom'`, setup file
 | `config/nodes.test.ts` | 10 | Registry integrity (roles, unique IDs, MOSIP and non-MOSIP per role, verifier `client_id`s), wire formats, lookups, `allCombinations()` product and keys |
 | `config/scenarios.test.ts` | 4 | Presets: unique IDs, valid combinations, TC-01 to TC-05 coverage, both cross-ecosystem directions |
 | `api/client.test.ts` | 13 | Request shape, `x-transaction-id` header, `ApiError` mapping for `success:false` / non-2xx / non-JSON, unreachable BFF message, transaction ID format, live log stream (SSE): only protocol logs passed on, unsubscribe, no-op without `EventSource` |
-| `hooks/usePlaygroundRun.test.ts` | 51 | Issue/verify success and failure, PASS/FAIL semantics (clean vs tampered), transaction ID reuse, log de-duplication and newest-first order, per-phase sandbox fallback, failed checks, selection reset rules, busy locking, full flow, batch runs, history persistence and 200-run cap, clear/reset, `getProofType`, `mergeLogs`, streamed frames of the run in flight (duplicates, other runs and idle frames ignored) |
+| `hooks/usePlaygroundRun.test.ts` | 52 | Issue/verify success and failure, PASS/FAIL semantics (clean vs tampered), transaction ID reuse, log de-duplication and newest-first order, per-phase sandbox fallback, failed checks, selection reset rules, busy locking, full flow, batch runs, history persistence and 200-run cap, clear/reset, `getProofType`, `mergeLogs`, streamed frames of the run in flight (duplicates, other runs and idle frames ignored), runs stamped with the component build |
 | `lib/credential.test.ts` | 5 | JWT payload decoding (base64url, disclosures ignored, malformed input) |
 | `lib/sdjwt.test.ts` | 9 | SD-JWT parsing (the mock token's real disclosure, array-element and malformed disclosures, key-binding JWT), `_sd` digest checks via WebCrypto, unavailable WebCrypto |
 | `lib/claims.test.ts` | 15 | JSONPath claim names, requested / held / shared claims (W3C and SD-JWT), four-way classification |
@@ -36,7 +36,7 @@ Configured in `frontend/vite.config.ts` (`test.environment: 'jsdom'`, setup file
 | `components/flow/SharedClaimsPanel.test.tsx` | 5 | Custody summary, minimal sharing, over-disclosure warning, missing claims, labelled groups |
 | `components/RunTimeline.test.tsx` | 5 | Protocol order, role mapping for emulated services, status and tamper in text, current/not-yet steps |
 | `components/RunPlayer.test.tsx` | 8 | Live state, stepping, slider, back to live, autoplay with fake timers, pause, reduced motion |
-| `components/InteropMatrixReport.test.tsx` | 33 | Heatmap (cells, accessible names, combination filter), list view, UNTESTED coverage, latest clean run per combination, real vs emulated scores and warning, negative-path stats, filters including layer, batch progress, Markdown/JSON export with layers, confirm-before-clear, `scoreMatrix`, `toMarkdown` escaping |
+| `components/InteropMatrixReport.test.tsx` | 35 | Heatmap (cells, accessible names, combination filter), list view, UNTESTED coverage, latest clean run per combination, real vs emulated scores and warning, negative-path stats, filters including layer, batch progress, Markdown/JSON export with layers, confirm-before-clear, `scoreMatrix`, `toMarkdown` escaping, component-build filter |
 | `components/Header.test.tsx` | 7 | Connecting / Online / Offline, view tabs and `aria-current`, run count |
 | `components/SequenceDiagram.test.tsx` | 12 | (mermaid mocked) light token theme, placeholder, arrival order with each run kept contiguous, one phase note per protocol per run, participant mapping including emulated Inji Verify, tamper note, action sanitising, re-render, render error |
 | `components/ProtocolInspector.test.tsx` | 11 | Empty state, list contents, default newest selection, switching logs, request tab, copy JSON, clear callback, request/response headers, Live chip for Collab traffic, scrolling only its own list (no `scrollIntoView`) |
@@ -63,11 +63,21 @@ Configured in `backend/vitest.config.ts`. Tests live outside `src/`, so `tsc` do
 | `collab.test.ts` | 5 | What Inji Verify receives in tamper mode: re-issued expired credential, SD-JWT signature-only corruption, foreign credentials edited in place without mutation |
 | `playground.routes.test.ts` | 48 | `/api/playground/*` over real HTTP with axios mocked as the Collab sandbox: request validation, transaction IDs, generic 500s, SSE stream, references (`/ref/:id`); live Inji Certify discovery, Mimoto lookup, unsupported format, same-origin credential endpoint, incremental recording; Inji Verify v2 verdict and check mapping, v1 fallback, real tampering, SD-JWT body; fallback when unreachable, HTML or 5xx; real Inji issuance with a test identity (eSignet cookie and detail binding, Mimoto token, OpenID4VCI 1.0 request, no secrets in logs, fallback naming the refusing step) |
 | `proxyGateway.test.ts` | 13 | Proxy against a local upstream server: forwarding, query strings, non-canonical JSON (no hang), header allowlist (no cookies), no GET body, percent-encoded prefix, case-insensitive targets and sandbox flag, redacted `_auditTrail`, error statuses, no internal error text |
+| `components.test.ts` | 5 | Collab component fingerprints: API generation, UI build, protocol and hashes; v1 / Draft 13 detection; login Certify; caching; unreachable services |
 | `requireToken.test.ts` | 6 | Optional `PLAYGROUND_TOKEN`: open when unset, 401 for missing, wrong or prefix tokens, accepts the right one, `/api/health` stays open |
 
 ### Known-bug tests (`it.fails`)
 
 None are open. To pin a newly found bug, write the test for the correct behaviour as `it.fails(...)`, which passes while the bug exists, and list the bug in [known-issues.md](./known-issues.md). Whoever fixes it changes `it.fails(` to `it(` in the same commit.
+
+## Interoperability report (`npm run report:interop`)
+
+`backend/scripts/interop-report.ts` runs every supported combination clean and every attack against each verifier through a running BFF (`BFF_URL`, default `http://localhost:4000`), and writes Markdown and JSON. The committed [interop-report.md](./interop-report.md) is a live run against the Collab sandbox with real Inji issuance. The nightly workflow regenerates it and posts it to the GitHub Actions run summary.
+
+```bash
+npm run dev:backend   # with COLLAB_TEST_INDIVIDUAL_ID in .env for real issuance
+npm run report:interop -- --out "$PWD/docs/interop-report.md" --json "$PWD/docs/interop-report.json"
+```
 
 ## Protocol scenarios (`npm run test:interop`)
 

@@ -141,9 +141,10 @@ Before sharing a running instance with others, set `PLAYGROUND_TOKEN` in `.env` 
 | `npm test` | All unit, component and HTTP tests (Vitest), frontend then backend |
 | `npm --prefix frontend run test:watch` | Frontend tests in watch mode |
 | `npm run test:interop` | The TC-01 to TC-05 protocol scenarios against a live BFF (falls back to the mock engine) |
+| `npm run report:interop` | Every combination and attack against a running BFF; writes the interop report (`-- --out docs/interop-report.md --json docs/interop-report.json`) |
 | `npm run build` | Type-checks and builds both workspaces |
 
-CI (`.github/workflows/ci.yml`, Node 26) runs `npm ci`, both builds, `npm test`, `docker compose config`, a Docker Compose smoke test (BFF health through the frontend's proxy) and `npm run test:interop` on every push and pull request to `main`. All tests run offline: Collab calls are mocked.
+CI (`.github/workflows/ci.yml`, Node 26) runs `npm ci`, both builds, `npm test`, `docker compose config`, a Docker Compose smoke test (BFF health through the frontend's proxy) and `npm run test:interop` on every push and pull request to `main`. A nightly workflow (`.github/workflows/nightly-interop.yml`) runs the interop report against the Collab sandbox and posts the matrix to the run summary. All tests run offline: Collab calls are mocked.
 
 A newly found bug can be pinned with `it.fails`, which passes while the bug exists; whoever fixes it switches it to `it`. None are open. See [docs/testing.md](docs/testing.md) for the full guide and [docs/test-cases.md](docs/test-cases.md) for the manual scenarios.
 
@@ -201,6 +202,9 @@ Response: `{ success, isValid, verificationResult: { status, checks: { formatChe
 
 ### `GET /api/playground/logs` · `DELETE /api/playground/logs`
 `GET` returns the latest 100 audit frames (newest first) as `{ count, logs }`. `DELETE` clears the buffer.
+
+### `GET /api/playground/components`
+Fingerprint of the Collab component builds (Collab exposes no version numbers): `{ label, injiVerify: { api, uiBuild }, injiCertify: { url, protocol, metadata }, mimoto: { registry }, checkedAt }`, cached 10 minutes. Each run record stores the `label`, and the report filters by it.
 
 ### `GET /api/playground/ref/:id`
 Serves a credential offer or presentation definition by reference (`credentialOfferUri` / `presentationDefinitionUri` in `/issue` and `/verify` responses), for 10 minutes.
@@ -272,7 +276,9 @@ A static list of 8 pre-wired combinations, kept for compatibility. The UI comput
 | [docs/architecture.md](docs/architecture.md) | Protocols, components, frontend state model and data flow |
 | [docs/audit-logger-architecture.md](docs/audit-logger-architecture.md) | Ring buffer, redaction pipeline, audit frame schema |
 | [docs/testing.md](docs/testing.md) | Automated test suites, conventions, known-bug tests |
-| [docs/test-cases.md](docs/test-cases.md) | Manual scenarios TC-01 to TC-08 |
+| [docs/test-cases.md](docs/test-cases.md) | Manual scenarios TC-01 to TC-09 |
+| [docs/interop-report.md](docs/interop-report.md) | Results of a live run of every combination and attack (regenerated nightly in CI) |
+| [docs/test-data.md](docs/test-data.md) | Test identities, settings and sample credentials |
 | [docs/known-issues.md](docs/known-issues.md) | What runs live, open issues and interoperability findings |
 | [docs/upstream-issues.md](docs/upstream-issues.md) | Draft reports for MOSIP / Inji (one to report privately) |
 | [docs/ui-design.md](docs/ui-design.md) | UI research: comparable tools, papers, and the design decisions they led to |

@@ -1,6 +1,6 @@
 # MOSIP VC Interoperability Playground — Manual Test Cases
 
-These scenarios validate cross-ecosystem interoperability and protocol conformance through the UI. They mirror the automated `npm run test:interop` suite (TC-01 to TC-05), and the same behaviour is covered by the unit and component tests described in [testing.md](./testing.md).
+These scenarios validate cross-ecosystem interoperability and protocol conformance through the UI. Test identities and sample credentials are in [test-data.md](./test-data.md); results of a live run of every combination are in [interop-report.md](./interop-report.md). They mirror the automated `npm run test:interop` suite (TC-01 to TC-05), and the same behaviour is covered by the unit and component tests described in [testing.md](./testing.md).
 
 **Setup:** run `docker compose up --build` (or `npm run dev:backend` + `npm run dev:frontend`) and open <http://localhost:5173>. The header should show **BFF: Online (Collab/Mock)**.
 

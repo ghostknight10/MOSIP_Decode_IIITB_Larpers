@@ -1,0 +1,38 @@
+{
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+    "https://w3id.org/security/suites/ed25519-2020/v1",
+    {
+      "MosipNationalIdentityCredential": "https://playground.mosip.example/vocab#MosipNationalIdentityCredential",
+      "UnrelatedCredential": "https://playground.mosip.example/vocab#UnrelatedCredential",
+      "fullName": "https://schema.org/name",
+      "nationalId": "https://schema.org/identifier",
+      "dob": "https://schema.org/birthDate",
+      "email": "https://schema.org/email",
+      "country": "https://schema.org/addressCountry"
+    }
+  ],
+  "id": "urn:uuid:acec6d0e-7b5c-4a89-bb0c-5f0d28600c52",
+  "type": [
+    "VerifiableCredential",
+    "MosipNationalIdentityCredential"
+  ],
+  "issuer": "did:key:z6MkqoBwJNetheAHmsbB3m47TnubFVV57WGMYCoFLbMKGZ5t",
+  "issuanceDate": "2026-10-25T11:53:23.364Z",
+  "expirationDate": "2027-10-25T11:53:23.364Z",
+  "credentialSubject": {
+    "id": "did:key:z6MkpzFJbaVnr99n8doQVXpLpQ7dTfQvSGiM4svqkdbAWE2R",
+    "nationalId": "MOSIP-IND-9876-5432-1098",
+    "fullName": "Aaditya Sharma",
+    "dob": "1995-08-15",
+    "country": "IND",
+    "email": "aaditya.sharma@example.org"
+  },
+  "proof": {
+    "type": "Ed25519Signature2020",
+    "created": "2026-10-25T11:53:23Z",
+    "verificationMethod": "did:key:z6MkqoBwJNetheAHmsbB3m47TnubFVV57WGMYCoFLbMKGZ5t#z6MkqoBwJNetheAHmsbB3m47TnubFVV57WGMYCoFLbMKGZ5t",
+    "proofPurpose": "assertionMethod",
+    "proofValue": "z4joWBKg4JtJ6jZwF46dF7wgG2EtDai9VPBi1qvpVt2dJwGmthunrxxYbReWKHqJXYnW2MDR38NuGmUzA5QMjBLTC"
+  }
+}
