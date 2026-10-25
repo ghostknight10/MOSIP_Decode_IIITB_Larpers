@@ -70,6 +70,7 @@ export const PresentPhase: React.FC<PresentPhaseProps> = ({
       <button
         onClick={onVerify}
         disabled={busy || !issuedCredential}
+        title={!issuedCredential ? "Issue a credential first" : undefined}
         className={`w-full ${btnPrimary}`}
       >
         {phase === 'verifying' ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}

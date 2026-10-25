@@ -339,9 +339,26 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
         </p>
       )}
       {history.length === 0 ? (
-        <p className="text-xs text-ink-muted p-6 text-center border border-dashed border-line-strong rounded-md">
-          No runs yet. Run a flow in the Playground or click “Run All Combinations”.
-        </p>
+        <div className="flex flex-col items-center gap-4 p-10 border border-dashed border-line-strong rounded-md text-center">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 64 64"
+            className="w-14 h-14 text-ink-subtle opacity-60"
+            fill="none"
+            aria-hidden="true"
+          >
+            <rect x="6" y="14" width="16" height="36" rx="3" stroke="currentColor" strokeWidth="2.5" />
+            <rect x="24" y="22" width="16" height="28" rx="3" stroke="currentColor" strokeWidth="2.5" />
+            <rect x="42" y="30" width="16" height="20" rx="3" stroke="currentColor" strokeWidth="2.5" />
+            <path d="M8 42 L22 30 L28 36 L40 22 L58 14" stroke="currentColor" strokeWidth="2" strokeDasharray="4 2" strokeLinecap="round" />
+          </svg>
+          <div>
+            <p className="text-sm font-semibold text-ink mb-1">No runs yet</p>
+            <p className="text-xs text-ink-muted max-w-xs">
+              Run a flow in the Playground or use <strong>Run All Combinations</strong> above to test all 16 issuer × wallet × verifier × format combinations.
+            </p>
+          </div>
+        </div>
       ) : (
         <div className="overflow-x-auto rounded-md border border-line">
           <table className="w-full text-left text-xs">

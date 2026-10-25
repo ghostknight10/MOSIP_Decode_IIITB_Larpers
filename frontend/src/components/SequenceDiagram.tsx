@@ -53,12 +53,20 @@ export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ logs }) => {
 
     if (logs.length === 0) {
       setSvgContent('');
-      containerRef.current.innerHTML = `
-        <div class="py-6 flex flex-col items-center justify-center text-center text-sm text-ink-muted gap-1">
-          <span>No sequence events recorded yet.</span>
-          <span class="text-xs text-ink-subtle">Run a flow to see the message exchange.</span>
-        </div>
-      `;
+      if (containerRef.current) {
+        containerRef.current.innerHTML = `
+          <div class="py-8 flex flex-col items-center justify-center text-center gap-3">
+            <div style="display:flex;flex-direction:column;gap:8px;width:100%;max-width:280px;animation:sd-pulse 1.8s ease-in-out infinite">
+              <div style="height:12px;background:var(--color-surface-muted);border-radius:4px;width:75%;margin:0 auto"></div>
+              <div style="height:8px;background:var(--color-line);border-radius:4px;width:100%"></div>
+              <div style="height:8px;background:var(--color-line);border-radius:4px;width:83%;margin:0 auto"></div>
+              <div style="height:8px;background:var(--color-line);border-radius:4px;width:66%;margin:0 auto"></div>
+            </div>
+            <span class="text-sm font-medium text-ink-muted">No sequence events recorded yet.</span>
+            <span class="text-xs text-ink-subtle">Run a flow to see the message exchange.</span>
+          </div>
+        `;
+      }
       return;
     }
 
@@ -76,15 +84,22 @@ export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ logs }) => {
     diagram += '  participant Wallet as Wallet (Holder)\n';
     diagram += '  participant Verifier as Verifier (OpenID4VP)\n\n';
 
-    sorted.forEach((l) => {
+    sorted.forEach((l, idx) => {
       const from = participantOf(l.sender) ?? 'Wallet';
       const to = participantOf(l.receiver) ?? 'Issuer';
 
       const statusEmoji = l.status === 'SUCCESS' ? '✓' : '✗';
       const cleanAction = l.action.replace(/[^a-zA-Z0-9_\- ]/g, '');
 
+      // Protocol phase demarcation — insert a note before the first VCI and VP steps
+      if (idx === 0 && l.protocol === 'OpenID4VCI') {
+        diagram += `  Note over Issuer,Verifier: 🔵 Phase: OpenID4VCI\n`;
+      } else if (idx > 0 && l.protocol === 'OpenID4VP' && sorted[idx - 1]?.protocol !== 'OpenID4VP') {
+        diagram += `  Note over Issuer,Verifier: 🟢 Phase: OpenID4VP\n`;
+      }
+
       if (l.tampered) {
-        diagram += '  rect rgb(255, 245, 227)\n'; // warning-soft
+        diagram += '  rect rgb(253, 238, 238)\n'; // danger-soft
       }
 
       diagram += `  ${from}->>${to}: ${cleanAction} [${statusEmoji} ${l.status}]\n`;
