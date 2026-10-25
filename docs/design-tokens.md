@@ -95,6 +95,13 @@ Sizes: `text-xs` (12px) is the minimum, `text-sm` (14px) is body text in panels,
 - raw palette colours such as `text-emerald-300` or `bg-slate-900` (use tokens)
 - `transition-all`
 - text smaller than 12px
+- inline `…-gradient(` or `animation:` in style attributes or HTML strings
+
+It also checks `frontend/src/index.css`, where a theme regression lands first:
+
+- no raw colours (hex or `rgb()`) outside `@theme`; use `var(--color-…)`
+- no gradients, `@keyframes` or extra Google Fonts imports
+- the body background is `var(--color-canvas)`, `--font-sans` starts with Inter, and `:focus-visible` uses the `accent` outline
 
 If you have a real need for an exception, change the rule here first and explain why.
 

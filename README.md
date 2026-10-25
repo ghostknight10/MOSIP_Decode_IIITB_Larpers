@@ -10,7 +10,7 @@ A visual workbench for testing whether verifiable credentials survive a full **i
 
 The MOSIP side covers Inji Certify, Inji Wallet / Inji Web (via Mimoto) and Inji Verify. The non-MOSIP side is a standards-compliant mock issuer, holder and verifier, so the matrix tests cross-ecosystem interoperability rather than only Inji-to-Inji.
 
-> **Sandbox status:** the MOSIP Collab hostnames currently configured do not resolve, so Inji nodes fall back to emulated responses. The UI labels these runs **Emulated** and the report flags them. See [docs/known-issues.md](docs/known-issues.md).
+> **Sandbox status:** Inji Verify, Inji Certify's metadata and credential endpoint, and Mimoto's issuer registry are called **live** on the MOSIP Collab sandbox. Inji Certify won't issue without an eSignet user login, so that credential is emulated, and Inji Verify rejects mock-issued credentials because their signatures are placeholders. The UI labels emulated steps and the report flags them. See [docs/known-issues.md](docs/known-issues.md#what-runs-live-today).
 
 ---
 
@@ -115,7 +115,7 @@ npm run dev:backend    # terminal 1, BFF on :4000 (tsx watch)
 npm run dev:frontend   # terminal 2, Vite on :5173, proxies /api to the BFF
 ```
 
-Copy `.env.example` to `.env` to point the BFF at other MOSIP endpoints (`MOSIP_INJI_CERTIFY_URL`, `MOSIP_MIMOTO_URL`, `MOSIP_INJI_VERIFY_URL`).
+Copy `.env.example` to `.env` to point the BFF at other MOSIP endpoints (`MOSIP_INJI_CERTIFY_URL`, `MOSIP_INJI_MIMOTO_URL`, `MOSIP_INJI_VERIFY_URL`) or to allow other origins (`FRONTEND_URL`, comma-separated).
 
 ### 3. Try it
 1. Click a **Quick scenario** (e.g. **TC-01 Happy path · W3C VC**), or pick nodes yourself and press **Run Full Flow**.
@@ -134,9 +134,9 @@ Copy `.env.example` to `.env` to point the BFF at other MOSIP endpoints (`MOSIP_
 | `npm run test:interop` | The TC-01 to TC-05 protocol scenarios against a live BFF (falls back to the mock engine) |
 | `npm run build` | Type-checks and builds both workspaces |
 
-CI (`.github/workflows/ci.yml`, Node 26) runs `npm ci`, both builds, `npm test`, `docker compose config` and `npm run test:interop` on every push and pull request to `main`.
+CI (`.github/workflows/ci.yml`, Node 26) runs `npm ci`, both builds, `npm test`, `docker compose config`, a Docker Compose smoke test (BFF health through the frontend's proxy) and `npm run test:interop` on every push and pull request to `main`. All tests run offline: Collab calls are mocked.
 
-Some backend tests are marked `it.fails`. Each one pins a **known bug**: the test passes while the bug exists and fails once it's fixed, so whoever fixes it switches it to `it`. See [docs/testing.md](docs/testing.md) for the full guide and [docs/test-cases.md](docs/test-cases.md) for the manual scenarios.
+A newly found bug can be pinned with `it.fails`, which passes while the bug exists; whoever fixes it switches it to `it`. None are open. See [docs/testing.md](docs/testing.md) for the full guide and [docs/test-cases.md](docs/test-cases.md) for the manual scenarios.
 
 ---
 
@@ -169,7 +169,9 @@ Runs the OpenID4VCI issuance flow.
 | `wallet` | `inji-wallet`, `mock-wallet` |
 | `format` | `w3c-vc`, `sd-jwt` |
 
-Response: `{ success, issuer, wallet, format, credentialOffer, issuedCredential, protocolLogs[] }`. When Inji Certify is unreachable, it also includes `isSandboxFallback: true` and a `notice`.
+Response: `{ success, issuer, wallet, format, credentialOffer, issuedCredential, proofType, protocolLogs[] }`. With `inji-certify` the credential is emulated (see E-1), so the response also includes `isSandboxFallback: true` and a `notice` explaining what ran live.
+
+Invalid bodies get a JSON `400` naming the field: unknown `issuer`/`wallet`/`format`, a non-string subject field, or non-boolean tamper flags. Internal errors get a generic `500`.
 
 ### `POST /api/playground/verify`
 Runs the OpenID4VP presentation and verification flow.
@@ -182,18 +184,22 @@ Runs the OpenID4VP presentation and verification flow.
   "tamperPayload": { "forceExpired": false, "corruptSignature": true }
 }
 ```
-Response: `{ success, isValid, verificationResult: { status, checks: { formatCheck, signatureValid, notExpired, schemaCompliant }, details, verifiedClaims }, presentationDefinition, protocolLogs[] }`.
-- `status` is one of `VALID`, `INVALID`, `EXPIRED`, `SIGNATURE_MISMATCH`.
+Response: `{ success, isValid, verificationResult: { status, checks: { formatCheck, signatureValid, notExpired, schemaCompliant }, details, verifiedClaims }, presentationDefinition, client_id, nonce, protocolLogs[] }`.
+- `status` is one of `VALID`, `INVALID`, `EXPIRED`, `SIGNATURE_MISMATCH`. With `inji-verify` it comes from Inji Verify's live `verificationStatus`.
+- `tamperPayload` flags: `forceExpired`, `corruptSignature`, `wrongCredentialType`. With Inji Verify, the credential is really altered before it is sent.
 - `protocolLogs` contains the **whole transaction**, issuance frames included.
 
 ### `GET /api/playground/logs` · `DELETE /api/playground/logs`
 `GET` returns the latest 100 audit frames (newest first) as `{ count, logs }`. `DELETE` clears the buffer.
 
+### `GET /api/playground/logs/stream`
+Server-Sent Events: each new frame as it is recorded, `{ "action": "CLEAR_LOGS" }` when cleared, and a comment heartbeat every 25 s. Live Collab steps carry `live: true`.
+
 ### `GET /api/playground/matrix-status`
 A static list of 8 pre-wired combinations, kept for compatibility. The UI computes its report from real runs instead.
 
-### Proxy gateway (`backend/src/routes/proxyGateway.js`, not mounted yet)
-`ALL /api/proxy/:target/*splat` forwards to `INJI_CERTIFY`, `INJI_VERIFY`, `MOCK_ISSUER` or `MOCK_VERIFIER` through the audit client. It returns the upstream body plus `_auditTrail`.
+### Proxy gateway (`backend/src/routes/proxyGateway.js`)
+`ALL /api/proxy/:target/*splat` forwards to `INJI_CERTIFY`, `INJI_VERIFY`, `INJI_MIMOTO`, `MOCK_ISSUER` or `MOCK_VERIFIER` through the audit client. It returns the upstream body plus `_auditTrail`. Only `Accept`, `Accept-Language`, `Content-Type`, `Authorization`, `DPoP`, `x-transaction-id` and `X-Audit-*` headers are forwarded.
 
 ---
 
@@ -207,6 +213,7 @@ A static list of 8 pre-wired combinations, kept for compatibility. The UI comput
 │   │   ├── routes/playground.ts /issue, /verify, /logs, /matrix-status
 │   │   ├── routes/proxyGateway.js  audited proxy to Collab / mocks
 │   │   ├── middleware/auditInterceptor.js  axios client that records audit frames
+│   │   ├── services/collab.ts   live calls to Inji Certify, Mimoto and Inji Verify
 │   │   ├── mocks/mockService.ts OpenID4VCI / OpenID4VP mock engine
 │   │   └── utils/               RingBuffer.js, redactor.js
 │   ├── scripts/test-interop.ts  TC-01 to TC-05 runner

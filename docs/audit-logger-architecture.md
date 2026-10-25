@@ -15,19 +15,18 @@ The design below is the target. This table describes what is wired up today:
 | Ring buffer (350 frames, singleton) | `backend/src/utils/RingBuffer.js` | Implemented and tested. Used by all playground routes. |
 | Redactor | `backend/src/utils/redactor.js` | Implemented and tested. |
 | Audit client (`createAuditClient`, axios interceptors) | `backend/src/middleware/auditInterceptor.js` | Implemented and tested. Used only by the proxy gateway. |
-| Proxy gateway (`/api/proxy/:target/*splat`) | `backend/src/routes/proxyGateway.js` | Implemented and tested, **not yet mounted** in `index.ts`. |
-| Playground routes (`/api/playground/issue`, `/verify`) | `backend/src/routes/playground.ts` | Store the mock engine's `ProtocolLog` entries in the ring buffer, tagged with the caller's `x-transaction-id`. Collab calls use plain axios, not the audit client. |
+| Proxy gateway (`/api/proxy/:target/*splat`) | `backend/src/routes/proxyGateway.js` | Mounted in `index.ts` after the request logger. Forwards an allowlist of headers (no cookies or original `Content-Length`), targets read from the environment at request time. |
+| Playground routes (`/api/playground/issue`, `/verify`) | `backend/src/routes/playground.ts` | Store `ProtocolLog` entries in the ring buffer, tagged with the caller's `x-transaction-id` and numbered per transaction. Live Collab calls go through `backend/src/services/collab.ts` (`liveCall`), which records each one as a `ProtocolLog` with `live: true` as soon as it returns. |
+| Live stream (`GET /api/playground/logs/stream`) | `backend/src/routes/playground.ts` | Server-Sent Events: every new frame, plus `CLEAR_LOGS`; 25 s heartbeat. The UI's run hook subscribes and shows frames of the run in flight. |
 
 **Transaction IDs** come from the UI. The frontend generates one `tx-xxxxxxxx` per run and sends it as `x-transaction-id` on both `/issue` and `/verify`. The BFF generates one only when the header is missing.
 
 **Two frame shapes** currently share the buffer: the mock engine's `ProtocolLog` (`step`, `sender`, `receiver`, `action`, `request`, `response`), which the UI renders, and the audit client's frame (section 6), which comes back as `_auditTrail` from the proxy.
 
-**Known issues** (pinned by `it.fails` tests in `backend/tests/`, details in [known-issues.md](./known-issues.md)):
+**Open issues** relevant to the logger (details in [known-issues.md](./known-issues.md)):
 
-- B-1: the audit client rejects form-urlencoded bodies (OpenID4VP `direct_post`).
-- B-2: the proxy mangles non-JSON upstream bodies.
-- B-5: `getLogs(limit)` repeats frames when `limit` exceeds the capacity.
 - G-2: `mso_mdoc` is coerced to "W3C VC (JSON-LD)".
+- The two frame shapes above are not unified yet; the SSE stream carries both, and the UI ignores audit-client frames.
 
 ---
 
@@ -180,8 +179,8 @@ flowchart TD
         UI_SYNC["UI Protocol Inspector & Sequence Visualizer<br/>(Synchronous render upon action completion)"]:::ui
     end
 
-    subgraph PHASE2["Phase 2: Server-Sent Events / SSE (Roadmap)"]
-        SSE_ENDPOINT["Persistent SSE Stream<br/>(GET /api/v1/audit/stream)"]:::model
+    subgraph PHASE2["Phase 2: Server-Sent Events / SSE (Implemented)"]
+        SSE_ENDPOINT["Persistent SSE Stream<br/>(GET /api/playground/logs/stream)"]:::model
         UI_ASYNC["Live Telemetry Inspector Dashboard<br/>(Real-time reactive streaming push)"]:::ui
     end
 
@@ -264,7 +263,7 @@ Every frame in the ring buffer adheres to the normalized schema below:
     "latencyMs": 142,
     "request": {
       "method": "POST",
-      "url": "https://verify.collab.mosip.net/v1/verify/presentation",
+      "url": "https://injiverify.collab.mosip.net/v1/verify/vc-verification",
       "headers": {
         "content-type": "application/x-www-form-urlencoded",
         "authorization": "[REDACTED]"

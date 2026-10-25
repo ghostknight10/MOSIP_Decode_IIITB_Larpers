@@ -4,8 +4,8 @@ The playground has three layers of tests:
 
 | Layer | Tool | Command | Count |
 | --- | --- | --- | --- |
-| Frontend unit, component and integration | Vitest 5 + Testing Library + jsdom | `npm --prefix frontend test` | 331 |
-| Backend unit and HTTP | Vitest 5 (node) | `npm --prefix backend test` | 89 (83 + 6 known-bug) |
+| Frontend unit, component and integration | Vitest 5 + Testing Library + jsdom | `npm --prefix frontend test` | 345 |
+| Backend unit and HTTP | Vitest 5 (node) | `npm --prefix backend test` | 138 |
 | Protocol scenarios TC-01 to TC-05 | `backend/scripts/test-interop.ts` | `npm run test:interop` | 5 |
 
 `npm test` at the repo root runs the frontend suite, then the backend suite. CI runs it on every push and pull request to `main`, after both builds and before the interop scenarios. Manual UI procedures are in [test-cases.md](./test-cases.md).
@@ -20,8 +20,8 @@ Configured in `frontend/vite.config.ts` (`test.environment: 'jsdom'`, setup file
 | --- | --- | --- |
 | `config/nodes.test.ts` | 10 | Registry integrity (roles, unique IDs, MOSIP and non-MOSIP per role, verifier `client_id`s), wire formats, lookups, `allCombinations()` product and keys |
 | `config/scenarios.test.ts` | 4 | Presets: unique IDs, valid combinations, TC-01 to TC-05 coverage, both cross-ecosystem directions |
-| `api/client.test.ts` | 11 | Request shape, `x-transaction-id` header, `ApiError` mapping for `success:false` / non-2xx / non-JSON, unreachable BFF message, transaction ID format |
-| `hooks/usePlaygroundRun.test.ts` | 44 | Issue/verify success and failure, PASS/FAIL semantics (clean vs tampered), transaction ID reuse, log de-duplication and newest-first order, per-phase sandbox fallback, failed checks, selection reset rules, busy locking, full flow, batch runs, history persistence and 200-run cap, clear/reset, `getProofType`, `mergeLogs` |
+| `api/client.test.ts` | 13 | Request shape, `x-transaction-id` header, `ApiError` mapping for `success:false` / non-2xx / non-JSON, unreachable BFF message, transaction ID format, live log stream (SSE): only protocol logs passed on, unsubscribe, no-op without `EventSource` |
+| `hooks/usePlaygroundRun.test.ts` | 47 | Issue/verify success and failure, PASS/FAIL semantics (clean vs tampered), transaction ID reuse, log de-duplication and newest-first order, per-phase sandbox fallback, failed checks, selection reset rules, busy locking, full flow, batch runs, history persistence and 200-run cap, clear/reset, `getProofType`, `mergeLogs`, streamed frames of the run in flight (duplicates, other runs and idle frames ignored) |
 | `lib/credential.test.ts` | 4 | JWT payload decoding (base64url, disclosures ignored, malformed input) |
 | `lib/sdjwt.test.ts` | 9 | SD-JWT parsing (the mock token's real disclosure, array-element and malformed disclosures, key-binding JWT), `_sd` digest checks via WebCrypto, unavailable WebCrypto |
 | `lib/claims.test.ts` | 13 | JSONPath claim names, requested / held / shared claims (W3C and SD-JWT), four-way classification |
@@ -37,9 +37,9 @@ Configured in `frontend/vite.config.ts` (`test.environment: 'jsdom'`, setup file
 | `components/RunPlayer.test.tsx` | 8 | Live state, stepping, slider, back to live, autoplay with fake timers, pause, reduced motion |
 | `components/InteropMatrixReport.test.tsx` | 33 | Heatmap (cells, accessible names, combination filter), list view, UNTESTED coverage, latest clean run per combination, real vs emulated scores and warning, negative-path stats, filters including layer, batch progress, Markdown/JSON export with layers, confirm-before-clear, `scoreMatrix`, `toMarkdown` escaping |
 | `components/Header.test.tsx` | 7 | Connecting / Online / Offline, view tabs and `aria-current`, run count |
-| `components/SequenceDiagram.test.tsx` | 10 | (mermaid mocked) light token theme, placeholder, chronological arrows, participant mapping including emulated Inji Verify (F-1), tamper note, action sanitising, re-render, render error |
-| `components/ProtocolInspector.test.tsx` | 9 | Empty state, list contents, default newest selection, switching logs, request tab, copy JSON, clear callback, request/response headers |
-| `test/design.test.ts` | 41 | Design system: every token used, WCAG contrast for each text pairing (4.5:1) and for focus rings and icons (3:1), and a guardrail that fails on banned patterns (gradients, large/coloured shadows, pulses, wide tracking, blur, oversized radii, raw palette colours, `transition-all`, text under 12px). See [design-tokens.md](./design-tokens.md) |
+| `components/SequenceDiagram.test.tsx` | 12 | (mermaid mocked) light token theme, placeholder, arrival order with each run kept contiguous, one phase note per protocol per run, participant mapping including emulated Inji Verify, tamper note, action sanitising, re-render, render error |
+| `components/ProtocolInspector.test.tsx` | 11 | Empty state, list contents, default newest selection, switching logs, request tab, copy JSON, clear callback, request/response headers, Live chip for Collab traffic, scrolling only its own list (no `scrollIntoView`) |
+| `test/design.test.ts` | 46 | Design system: every token used, WCAG contrast for each text pairing (4.5:1) and for focus rings and icons (3:1), a guardrail that fails on banned patterns in components (gradients, large/coloured shadows, pulses, wide tracking, blur, oversized radii, raw palette colours, `transition-all`, text under 12px, inline gradients and animations), and checks on `index.css` (no raw colours outside `@theme`, no gradients, keyframes or extra fonts; canvas background, Inter and the accent focus ring). See [design-tokens.md](./design-tokens.md) |
 | `App.test.tsx` | 15 | Whole app against a stubbed BFF (`fetch`): health states, issue → verify with one transaction ID, report recording clean and tampered runs, error and emulation banners, run-all, compact empty state, current-run vs all-runs scope, presets (tamper and matrix), replay, phone raw-message toggle |
 
 Conventions:
@@ -55,27 +55,17 @@ Configured in `backend/vitest.config.ts`. Tests live outside `src/`, so `tsc` do
 
 | File | Tests | Covers |
 | --- | --- | --- |
-| `RingBuffer.test.ts` | 9 | Ordering, limits, eviction, per-transaction lookup and sort, clear, singleton capacity |
-| `redactor.test.ts` | 16 | Every sensitive key (case-insensitive, nested, in arrays), VC artefacts kept verbatim, no input mutation |
-| `auditInterceptor.test.ts` | 16 | Audit frame fields, sequence numbers, redaction, HTTP and network errors, protocol and format normalisation, tamper annotations (a local axios adapter, no network) |
-| `mockService.test.ts` | 19 | Draft 13 offer, W3C and SD-JWT credentials (JWT segments decoded and checked), Draft 21 presentation definition, expired / signature / both negative paths, logs |
-| `playground.routes.test.ts` | 18 | `/api/playground/*` over real HTTP on an ephemeral port, with axios mocked for Collab calls: mock and Inji paths, wire-format mapping, sandbox fallback, transaction IDs, logs, matrix-status, malformed JSON |
-| `proxyGateway.test.ts` | 7 | Proxy against a local upstream server: forwarding, query strings, case-insensitive targets, redacted `_auditTrail`, error statuses |
+| `RingBuffer.test.ts` | 9 | Ordering, limits, eviction, no duplicates past capacity, per-transaction lookup and sort, clear, singleton capacity |
+| `redactor.test.ts` | 26 | Every sensitive key including OpenID4VCI grant secrets (`pre-authorized_code`, `tx_code`, `code`) and API keys, case-insensitive, nested, in arrays; VC artefacts kept but still scanned; no input mutation |
+| `auditInterceptor.test.ts` | 16 | Audit frame fields, sequence numbers, redaction, form-urlencoded bodies, HTTP and network errors, protocol and format normalisation, tamper annotations (a local axios adapter, no network) |
+| `mockService.test.ts` | 30 | Draft 13 offer, W3C and SD-JWT credentials (real `_sd` digests), Draft 21 presentation definition, negative paths, only requested claims shared; the verifier rejects forged or foreign disclosures, malformed tokens and empty presentations, and skips a key-binding JWT |
+| `collab.test.ts` | 5 | `tamperCredential`: SD-JWT expiry/type in the signed payload, signature-only corruption, W3C copies not mutated, undecodable tokens left alone |
+| `playground.routes.test.ts` | 39 | `/api/playground/*` over real HTTP with axios mocked as the Collab sandbox: request validation, transaction IDs, generic 500s, SSE stream; live Inji Certify discovery, Mimoto lookup, unsupported format, same-origin credential endpoint, incremental recording; live Inji Verify verdicts, real tampering, SD-JWT body; fallback when unreachable, HTML or 5xx |
+| `proxyGateway.test.ts` | 13 | Proxy against a local upstream server: forwarding, query strings, non-canonical JSON (no hang), header allowlist (no cookies), no GET body, percent-encoded prefix, case-insensitive targets and sandbox flag, redacted `_auditTrail`, error statuses, no internal error text |
 
 ### Known-bug tests (`it.fails`)
 
-`it.fails` passes while the assertion fails. Each one pins a bug that is still open:
-
-| Test | Bug | Owner |
-| --- | --- | --- |
-| `auditInterceptor` › logs form-urlencoded requests | `JSON.parse(config.data)` throws, so OpenID4VP `direct_post` calls through the audit client reject | Aatraya |
-| `proxyGateway` › passes non-JSON upstream bodies through intact | Text bodies are object-spread into `{"0":"h",…}` | Aatraya |
-| `playground.routes` › answers a request without a JSON body with a JSON 400 | `req.body` is undefined in Express 5, so the route returns 500 with an HTML stack trace | Aatraya |
-| `playground.routes` › returns a credential offer for real Inji Certify issuance | Real Certify responses aren't normalised (no `credentialOffer`) | Aatraya |
-| `playground.routes` › normalises real Inji Verify responses | No `isValid` / `checks` on real Verify responses | Aatraya |
-| `RingBuffer` › never returns a frame twice | `getLogs(limit > capacity)` wraps and returns duplicates | Aatraya |
-
-**When you fix one,** the test turns red. Change `it.fails(` to `it(` and commit it with the fix. Details are in [known-issues.md](./known-issues.md).
+None are open. To pin a newly found bug, write the test for the correct behaviour as `it.fails(...)`, which passes while the bug exists, and list the bug in [known-issues.md](./known-issues.md). Whoever fixes it changes `it.fails(` to `it(` in the same commit.
 
 ## Protocol scenarios (`npm run test:interop`)
 
@@ -84,6 +74,6 @@ Configured in `backend/vitest.config.ts`. Tests live outside `src/`, so `tsc` do
 ## Writing new tests
 
 - Frontend: put `Thing.test.tsx` next to `Thing.tsx`. Backend: put it in `backend/tests/`.
-- Keep tests offline: mock `fetch` or axios, or start a local server on port `0`.
+- Keep tests offline: mock `fetch` or axios (the route tests answer Collab calls by URL fragment with `collab()`), or start a local server on port `0`.
 - Run `npm --prefix frontend run test:watch` while developing.
 - `npm run build` type-checks frontend tests too (they're in `src/`), so type errors in tests fail the build.

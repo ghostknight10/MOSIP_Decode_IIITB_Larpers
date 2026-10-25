@@ -7,7 +7,7 @@ This script covers the problem, live matrix execution, the wire inspector, negat
 - `docker compose up --build`, open <http://localhost:5173> and check the header shows **Online (Collab/Mock)**.
 - Clear old runs (**Interop Matrix Report → Clear**) so the report starts at 0 / 16.
 - Have a phone with a QR scanner ready for Segment 3.
-- If the Collab sandbox is still unreachable, Inji nodes show **Emulated**. Say so on camera (see the Segment 3 note) rather than hiding it.
+- Inji Verify, Inji Certify's metadata and Mimoto are called live (the **Live** chip in the inspector). Inji Certify's credential is emulated because it needs an eSignet login, and Inji Verify rejects it. Say so on camera (see the Segment 3 note) rather than hiding it.
 
 ---
 
@@ -35,10 +35,10 @@ This script covers the problem, live matrix execution, the wire inspector, negat
   5. In the live view, press **First step**, then **Play**. The timeline, sequence diagram and raw inspector replay the exchange step by step.
 - **Speaker:**
   > "One click runs a documented scenario. The issuer produces a pre-authorized credential offer, the QR code a phone wallet scans. Inspect credential splits the SD-JWT into its parts and checks every disclosure against the issuer's signed digests.
-  > The verifier accepts it, and What was shared answers the question users ask most: who got which of my data? It asked for two claims and received five. That's the over-disclosure a real deployment must not have, and the playground makes it visible.
+  > The verifier accepts it, and What was shared answers the question users ask most: who got which of my data? It asked for two claims and received exactly those two; the other three never left the wallet. If a verifier ever received more, this panel would flag it as over-disclosure.
   > On the right, the same transaction replays step by step: timeline, sequence diagram and every raw request and response."
-- **If Inji nodes show Emulated:**
-  > "Where the Inji services weren't reachable, the playground says so by name and marks those results as emulated rather than pretending they passed against MOSIP."
+- **On the all-Inji run:**
+  > "These steps marked Live are real calls to the MOSIP Collab sandbox. Inji Certify publishes its metadata but won't issue without a citizen login, so the playground emulates that one credential and says so. Inji Verify then checks it for real and rejects it, because the emulated signature is fake. That's an honest result, and the report files it under the technical layer instead of pretending it passed."
 
 ## Segment 4: Negative paths (2:40 – 3:20)
 

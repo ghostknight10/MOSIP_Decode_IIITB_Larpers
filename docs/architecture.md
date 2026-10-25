@@ -44,7 +44,15 @@ The **MOSIP Verifiable Credential (VC) Interoperability Playground** is an inter
 +-----------------------------------+       +---------------------------------------+
 ```
 
-When a Collab call fails, the BFF answers from the mock engine instead, relabels the log participants as "(Collab Sandbox Emulated)" and sets `isSandboxFallback: true`. The UI surfaces this as an **Emulated** badge and banner, and the report flags those runs.
+### Live MOSIP Collab calls
+
+`backend/src/services/collab.ts` talks to the Collab sandbox (endpoints from `collabTargets()`, overridable with `MOSIP_INJI_*_URL`). Each call is recorded as a `ProtocolLog` with `live: true` as soon as it returns, so it also reaches the UI over SSE.
+
+- **Inji Certify** (`/issue`, issuer `inji-certify`): fetch issuer metadata, find a configuration for the requested format, then send the credential request. Certify refuses it without an eSignet access token (403), so the BFF emulates the credential and returns a notice saying so, with `isSandboxFallback: true`. The credential endpoint is only called on the issuer's own origin.
+- **Mimoto** (wallet `inji-wallet`): look up the issuer in Mimoto's registry.
+- **Inji Verify** (`/verify`, verifier `inji-verify`): `POST /v1/verify/vc-verification` with the credential, as JSON-LD or a compact SD-JWT. In tamper mode the credential is really altered first (expired, re-typed or with a corrupted signature). `verificationStatus` `SUCCESS` / `EXPIRED` / `INVALID` becomes the verdict.
+
+When a Collab service is unreachable or answers without JSON, the BFF answers from the mock engine instead, relabels the emulated participant as "(Collab Sandbox Emulated)" and sets `isSandboxFallback: true` with a notice. The UI shows an **Emulated** badge and a banner with the BFF's reason, and the report flags those runs. What is live and what is emulated today is summarised in [known-issues.md](./known-issues.md#what-runs-live-today).
 
 > **Subsystem deep-dive:** specifications and Mermaid diagrams for the audit logger are in [audit-logger-architecture.md](./audit-logger-architecture.md).
 
@@ -67,7 +75,7 @@ When a Collab call fails, the BFF answers from the mock engine instead, relabels
 
 - **Authorization request:**
   - URI: `openid4vp://authorize?response_type=vp_token&response_mode=direct_post&client_id=…&nonce=…&presentation_definition=…`
-  - The UI renders it as a QR code (cross-device) and a deep link (same-device). The mock verifier returns its `nonce` and `client_id` alongside the presentation definition; the UI uses these values, with registry/transaction fallbacks for response shapes that omit them.
+  - The UI renders it as a QR code (cross-device) and a deep link (same-device). `/verify` returns the verifier's `nonce` and `client_id` alongside the presentation definition (for Inji Verify, its origin); the UI uses these values, with registry/transaction fallbacks for response shapes that omit them. The nonce is not yet bound to the presentation (S-1).
   - The presentation definition requests `fullName` and `nationalId` and accepts the `ES256` and `EdDSA` algorithms.
 - **Presentation submission:**
   - Envelope: `vp_token` posted to the verifier's response endpoint
