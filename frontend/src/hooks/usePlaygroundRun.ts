@@ -108,7 +108,8 @@ const loadHistory = (): RunRecord[] => {
  */
 export const mergeLogs = (existing: ProtocolLog[], incoming: ProtocolLog[] | undefined, txId: string | null) => {
   if (!incoming?.length) return existing;
-  return [...incoming].reverse().concat(existing.filter(l => l.transactionId !== txId));
+  const tagged = txId ? incoming.map(l => (l.transactionId ? l : { ...l, transactionId: txId })) : incoming;
+  return [...tagged].reverse().concat(existing.filter(l => l.transactionId !== txId));
 };
 
 const isBusy = (phase: RunPhase) => phase === 'issuing' || phase === 'verifying';

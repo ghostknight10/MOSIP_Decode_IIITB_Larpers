@@ -40,8 +40,8 @@ export const App: React.FC = () => {
     run.select(scenario.selection);
     void run.runFullFlow(inputs.subject, scenario.tamper ?? undefined, scenario.selection);
   };
-  const txCount = new Set(run.logs.map(l => l.transactionId)).size;
-  const visibleLogs = logScope === 'all' ? run.logs : run.logs.filter(l => l.transactionId && l.transactionId === run.transactionId);
+  const txCount = new Set(run.logs.map(l => l.transactionId).filter(Boolean)).size;
+  const visibleLogs = logScope === 'all' ? run.logs : run.logs.filter(l => !l.transactionId || !run.transactionId || l.transactionId === run.transactionId);
   // Replay position over the visible logs; null follows the live run.
   const [revealed, setRevealed] = useState<number | null>(null);
   // Phones: raw messages are collapsed by default; the timeline gives the overview.
