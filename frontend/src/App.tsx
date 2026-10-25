@@ -96,10 +96,16 @@ export const App: React.FC = () => {
                 {run.error}
               </div>
             )}
-            {emulatedNotice && (
-              <div role="note" className="mb-5 p-3 rounded-md border border-warning-line border-l-4 bg-warning-soft text-warning-ink text-sm flex items-center gap-2">
-                <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
-                {emulatedNotice}
+            {(emulatedNotice || run.notices.length > 0) && (
+              <div role="note" className="mb-5 p-3 rounded-md border border-warning-line border-l-4 bg-warning-soft text-warning-ink text-sm flex items-start gap-2">
+                <Info className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
+                <div className="space-y-1">
+                  {emulatedNotice && <p>{emulatedNotice}</p>}
+                  {/* The BFF says why: sandbox unreachable, or a step that needs a user login. */}
+                  {run.notices.map(notice => (
+                    <p key={notice} className="text-xs">{notice}</p>
+                  ))}
+                </div>
               </div>
             )}
 

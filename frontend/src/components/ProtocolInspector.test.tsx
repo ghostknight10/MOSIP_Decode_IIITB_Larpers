@@ -28,6 +28,12 @@ const renderInspector = (props: Partial<React.ComponentProps<typeof ProtocolInsp
 const payload = () => document.querySelector('pre')!.textContent!;
 
 describe('ProtocolInspector', () => {
+  it('marks real Collab traffic as Live', () => {
+    render(<ProtocolInspector logs={[makeLog({ id: 'live', live: true, action: 'Fetch issuer metadata' }), ...logs]} />);
+    expect(screen.getAllByText('Live')).toHaveLength(1);
+    expect(screen.getByTitle('Real traffic to the MOSIP Collab sandbox')).toBeInTheDocument();
+  });
+
   it('scrolls only its own list to the newest entry when a log arrives', () => {
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;

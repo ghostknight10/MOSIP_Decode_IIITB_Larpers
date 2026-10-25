@@ -9,9 +9,39 @@ import { MockProtocolService } from '../src/mocks/mockService.js';
 
 vi.mock('axios', async importOriginal => {
   const actual = await importOriginal<typeof import('axios')>();
-  return { ...actual, default: { ...actual.default, post: vi.fn() } };
+  return { ...actual, default: { ...actual.default, post: vi.fn(), request: vi.fn() } };
 });
 const postMock = vi.mocked(axios.post);
+const requestMock = vi.mocked(axios.request);
+
+const json = (status: number, data: unknown) => ({ status, data, headers: { 'content-type': 'application/json' } });
+const CERTIFY = 'https://injicertify-mosipid.collab.mosip.net';
+const METADATA = {
+  credential_issuer: CERTIFY,
+  credential_endpoint: `${CERTIFY}/v1/certify/issuance/credential`,
+  authorization_servers: ['https://esignet-mosipid.collab.mosip.net'],
+  credential_configurations_supported: {
+    MOSIPVerifiableCredential: { format: 'ldp_vc', credential_definition: { type: ['VerifiableCredential', 'MOSIPVerifiableCredential'] } }
+  }
+};
+const unreachable = () => Object.assign(new Error('getaddrinfo ENOTFOUND'), { code: 'ENOTFOUND' });
+
+/** Answers live Collab calls by URL fragment; overrides win. */
+const collab = (overrides: Record<string, unknown> = {}) =>
+  requestMock.mockImplementation((async ({ url }: { url: string }) => {
+    const answers: Record<string, unknown> = {
+      'openid-credential-issuer': json(200, METADATA),
+      '/issuance/credential': json(403, { status: 403, error: 'Forbidden' }),
+      '/mimoto/issuers': json(200, { response: { issuers: [{ issuer_id: 'Mosip', credential_issuer_host: CERTIFY }] } }),
+      '/vc-verification': json(200, { verificationStatus: 'SUCCESS' }),
+      ...overrides
+    };
+    const match = Object.keys(answers).find(part => url.includes(part));
+    const answer = match ? answers[match] : unreachable();
+    if (answer instanceof Error) throw answer;
+    return answer;
+  }) as any);
+const requestedUrls = () => requestMock.mock.calls.map(([config]: any[]) => config.url);
 
 let server: Server;
 let base: string;
@@ -28,7 +58,8 @@ afterAll(() => server.close());
 
 beforeEach(() => {
   (globalAuditBuffer as any).clearLogs();
-  postMock.mockReset().mockRejectedValue(new Error('getaddrinfo ENOTFOUND'));
+  postMock.mockReset().mockRejectedValue(unreachable());
+  requestMock.mockReset().mockRejectedValue(unreachable());
   vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
 
@@ -66,33 +97,71 @@ describe('POST /issue', () => {
     expect(body.protocolLogs[0].transactionId).toMatch(/^tx-[0-9a-f]{8}$/);
   });
 
-  it.each([
-    ['w3c-vc', 'ldp_vc'],
-    ['sd-jwt', 'vc+sd-jwt']
-  ])('calls Inji Certify with the %s wire format', async (format, wire) => {
-    postMock.mockResolvedValue({ data: { credential: 'from-certify' } });
-    const { body } = await post('/issue', { ...issueBody, issuer: 'inji-certify', format });
-    expect(postMock).toHaveBeenCalledWith(
-      expect.stringMatching(/\/v1\/certify\/credentials\/issue$/),
-      { format: wire, claims: { fullName: 'Priya Rao' } },
-      { timeout: 5000 }
-    );
-    expect(body).toMatchObject({ success: true, issuedCredential: { credential: 'from-certify' } });
-  });
+  describe('with Inji Certify', () => {
+    const certifyBody = { ...issueBody, issuer: 'inji-certify' };
 
-  it('falls back to an emulated Inji Certify when the sandbox is unreachable', async () => {
-    const { body } = await post('/issue', { ...issueBody, issuer: 'inji-certify' }, 'tx-i3');
-    expect(body).toMatchObject({ success: true, isSandboxFallback: true, notice: expect.stringContaining('emulated') });
-    expect(body.credentialOffer).toBeDefined();
-    // FIX: Using .some() instead of .every() to respect the preserved wallet hops
-    expect(body.protocolLogs.some((l: any) => l.receiver === 'Inji Certify (Collab Sandbox Emulated)')).toBe(true);
-    expect(body.protocolLogs.every((l: any) => l.sender === 'Wallet')).toBe(true);
-  });
+    it('fetches live metadata and tries the credential endpoint, then emulates the credential', async () => {
+      collab();
+      const { body } = await post('/issue', certifyBody, 'tx-c1');
+      expect(requestedUrls()).toEqual([`${CERTIFY}/v1/certify/.well-known/openid-credential-issuer`, METADATA.credential_endpoint]);
+      expect(body.protocolLogs.map((l: any) => [l.step, l.action, l.status, Boolean(l.live)])).toEqual([
+        [1, 'Fetch issuer metadata', 'SUCCESS', true],
+        [2, 'Credential request (no access token)', 'FAILED', true],
+        [3, 'Credential Request (/credential)', 'SUCCESS', false]
+      ]);
+      expect(body.protocolLogs[2].receiver).toBe('Inji Certify (Collab Sandbox Emulated)');
+      expect(body).toMatchObject({ success: true, isSandboxFallback: true });
+      expect(body.notice).toBe('Inji Certify answered live, but its credential endpoint needs an eSignet access token (HTTP 403). The credential itself is emulated.');
+      expect(body.credentialOffer).toEqual({
+        credential_issuer: CERTIFY,
+        credential_configuration_ids: ['MOSIPVerifiableCredential'],
+        grants: { authorization_code: { authorization_server: 'https://esignet-mosipid.collab.mosip.net' } }
+      });
+      expect(body.issuedCredential.credentialSubject.fullName).toBe('Priya Rao');
+    });
 
-  it('returns a credential offer for real Inji Certify issuance', async () => {
-    postMock.mockResolvedValue({ data: { credential: 'from-certify' } });
-    const { body } = await post('/issue', { ...issueBody, issuer: 'inji-certify' });
-    expect(body.credentialOffer).toBeDefined();
+    it("asks for the configuration's format and type at the credential endpoint", async () => {
+      collab();
+      await post('/issue', certifyBody);
+      expect(requestMock.mock.calls[1][0]).toMatchObject({
+        method: 'POST',
+        data: { format: 'ldp_vc', credential_definition: { type: ['VerifiableCredential', 'MOSIPVerifiableCredential'] } }
+      });
+    });
+
+    it('looks the issuer up in Mimoto when the Inji wallet holds the credential', async () => {
+      collab();
+      const { body } = await post('/issue', { ...certifyBody, wallet: 'inji-wallet' });
+      expect(requestedUrls()).toContain('https://api.collab.mosip.net/v1/mimoto/issuers');
+      expect(body.protocolLogs[1]).toMatchObject({ sender: 'Inji Wallet', receiver: 'Mimoto (Inji wallet backend)', live: true });
+    });
+
+    it('says so when Certify does not offer the requested format', async () => {
+      collab();
+      const { body } = await post('/issue', { ...certifyBody, format: 'sd-jwt' });
+      expect(requestedUrls()).not.toContain(METADATA.credential_endpoint);
+      expect(body.notice).toContain('answered live, but it offers no vc+sd-jwt credential (only MOSIPVerifiableCredential)');
+      expect(body.credentialOffer.credential_configuration_ids).toEqual([]);
+    });
+
+    it('never calls a credential endpoint on another origin', async () => {
+      collab({ 'openid-credential-issuer': json(200, { ...METADATA, credential_endpoint: 'http://169.254.169.254/latest' }) });
+      const { body } = await post('/issue', certifyBody);
+      expect(requestedUrls()).toHaveLength(1);
+      expect(body.notice).toContain('another origin');
+    });
+
+    it.each([
+      ['unreachable', unreachable()],
+      ['answering HTML', { status: 200, data: '<html>', headers: { 'content-type': 'text/html' } }],
+      ['without metadata', json(404, { error: 'not found' })]
+    ])('emulates Inji Certify entirely when it is %s', async (_label, answer) => {
+      collab({ 'openid-credential-issuer': answer });
+      const { body } = await post('/issue', certifyBody, 'tx-c2');
+      expect(body).toMatchObject({ success: true, isSandboxFallback: true, notice: expect.stringContaining('emulated by the mock engine') });
+      expect(body.protocolLogs.map((l: any) => l.receiver)).toEqual(['Inji Certify (Collab Sandbox Emulated)', 'Inji Certify (Collab Sandbox Emulated)']);
+      expect(body.protocolLogs.every((l: any) => l.sender === 'Wallet')).toBe(true);
+    });
   });
 
   it('rejects malformed JSON with 400', async () => {
@@ -174,7 +243,7 @@ describe('POST /verify', () => {
     expect(body.presentationDefinition.input_descriptors).toHaveLength(1);
     expect(body.client_id).toBe('https://verify.mock.mosip.net');
     expect(body.nonce).toMatch(/^[0-9a-f-]{36}$/);
-    expect(body.protocolLogs.map((l: any) => l.step)).toEqual([3, 4]);
+    expect(body.protocolLogs.map((l: any) => l.step)).toEqual([1, 2]);
   });
 
   it('returns the whole transaction, including issuance frames', async () => {
@@ -191,28 +260,69 @@ describe('POST /verify', () => {
     expect(body).toMatchObject({ isValid: false, verificationResult: { status } });
   });
 
-  it('forwards the vp_token to Inji Verify when reachable', async () => {
-    postMock.mockResolvedValue({ data: { status: 'VALID' } });
-    const { body } = await post('/verify', { ...verifyBody, verifier: 'inji-verify' });
-    expect(postMock).toHaveBeenCalledWith(expect.stringMatching(/\/v1\/verify\/presentation$/), { vp_token: validCredential }, { timeout: 5000 });
-    expect(body).toMatchObject({ success: true, verificationResult: { status: 'VALID' } });
-  });
+  describe('with Inji Verify', () => {
+    const injiBody = { ...verifyBody, verifier: 'inji-verify' };
 
-  it('falls back to an emulated Inji Verify when the sandbox is unreachable', async () => {
-    const { body } = await post('/verify', { ...verifyBody, verifier: 'inji-verify' });
-    expect(body).toMatchObject({ isSandboxFallback: true, isValid: true });
-    expect(body.protocolLogs.some((l: any) => l.sender === 'Inji Verify (Collab Sandbox Emulated)')).toBe(true);
-    expect(body.protocolLogs.find((l: any) => l.step === 4)).toMatchObject({
-      sender: 'Wallet',
-      receiver: 'Inji Verify (Collab Sandbox Emulated)'
+    it('submits the credential to /vc-verification and reports the live verdict', async () => {
+      collab();
+      const { body } = await post('/verify', injiBody, 'tx-iv1');
+      expect(requestMock).toHaveBeenCalledTimes(1);
+      expect(requestMock.mock.calls[0][0]).toMatchObject({
+        method: 'POST',
+        url: 'https://injiverify.collab.mosip.net/v1/verify/vc-verification',
+        headers: { 'Content-Type': 'application/vc+ld+json' },
+        data: validCredential
+      });
+      expect(body).toMatchObject({ success: true, isValid: true, client_id: 'https://injiverify.collab.mosip.net', verificationResult: { status: 'VALID' } });
+      expect(body.isSandboxFallback).toBeUndefined();
+      expect(body.verificationResult.verifiedClaims).toEqual({
+        fullName: validCredential.credentialSubject.fullName,
+        nationalId: validCredential.credentialSubject.nationalId
+      });
+      expect(body.presentationDefinition.input_descriptors).toHaveLength(1);
+      expect(body.protocolLogs).toEqual([
+        expect.objectContaining({ step: 1, live: true, sender: 'Wallet', receiver: 'Inji Verify (Collab Sandbox)', status: 'SUCCESS' })
+      ]);
     });
-  });
 
-  it('normalises real Inji Verify responses to the playground shape', async () => {
-    postMock.mockResolvedValue({ data: { verificationStatus: 'SUCCESS' } });
-    const { body } = await post('/verify', { ...verifyBody, verifier: 'inji-verify' });
-    expect(body.isValid).toBe(true);
-    expect(body.verificationResult.checks).toBeDefined();
+    it.each([
+      ['INVALID', 'INVALID', { signatureValid: false, notExpired: true }],
+      ['EXPIRED', 'EXPIRED', { signatureValid: true, notExpired: false }],
+      ['SOMETHING_NEW', 'INVALID', { signatureValid: false }]
+    ])('maps verificationStatus %s to %s', async (reported, status, checks) => {
+      collab({ '/vc-verification': json(200, { verificationStatus: reported }) });
+      const { body } = await post('/verify', injiBody);
+      expect(body).toMatchObject({ isValid: false, verificationResult: { status, checks, verifiedClaims: {} } });
+      expect(body.verificationResult.details).toContain(reported);
+    });
+
+    it('sends a really tampered credential and marks the step', async () => {
+      collab({ '/vc-verification': json(200, { verificationStatus: 'INVALID' }) });
+      const { body } = await post('/verify', { ...injiBody, tamperPayload: { forceExpired: true, corruptSignature: true } });
+      const sent = requestMock.mock.calls[0][0].data as any;
+      expect(new Date(sent.expirationDate).getTime()).toBeLessThan(Date.now());
+      expect(sent.proof.proofValue).not.toBe(validCredential.proof.proofValue);
+      expect(body.protocolLogs[0].tampered).toBe(true);
+    });
+
+    it('sends an SD-JWT as a compact token', async () => {
+      collab();
+      const sdJwt = MockProtocolService.issueCredential('sd-jwt').issuedCredential;
+      await post('/verify', { ...injiBody, format: 'sd-jwt', credentialOrToken: sdJwt });
+      expect(requestMock.mock.calls[0][0]).toMatchObject({ headers: { 'Content-Type': 'application/vc+sd-jwt' }, data: sdJwt.rawToken });
+    });
+
+    it.each([
+      ['unreachable', unreachable()],
+      ['answering HTML', { status: 200, data: '<html>', headers: { 'content-type': 'text/html' } }],
+      ['failing without a status', json(502, { error: 'bad gateway' })]
+    ])('falls back to an emulated Inji Verify when it is %s', async (_label, answer) => {
+      collab({ '/vc-verification': answer });
+      const { body } = await post('/verify', injiBody);
+      expect(body).toMatchObject({ isSandboxFallback: true, isValid: true, notice: expect.stringContaining('emulated by the mock engine') });
+      expect(body.protocolLogs.find((l: any) => l.step === 2)).toMatchObject({ sender: 'Wallet', receiver: 'Inji Verify (Collab Sandbox Emulated)' });
+      expect(body.protocolLogs.some((l: any) => l.sender === 'Inji Verify (Collab Sandbox Emulated)')).toBe(true);
+    });
   });
 });
 

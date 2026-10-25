@@ -56,6 +56,13 @@ export function readPresentation(
   return { claims: subject };
 }
 
+/** The presented claims the presentation definition asks for, and nothing else. */
+export function sharedClaims(presentationDefinition: any, claims: Record<string, unknown>) {
+  const requested: string[] = presentationDefinition.input_descriptors[0].constraints.fields
+    .map((field: { path: string[] }) => field.path[0].split('.').pop());
+  return Object.fromEntries(requested.filter(claim => claim in claims).map(claim => [claim, claims[claim]]));
+}
+
 export class MockProtocolService {
   /**
    * Generates a realistic OpenID4VCI Draft 13 Credential Offer & Issued VC
@@ -210,33 +217,9 @@ export class MockProtocolService {
     };
   }
 
-  /**
-   * Evaluates OpenID4VP Draft 21 Presentation & verification
-   */
-  public static verifyPresentation(
-    format: CredentialFormat,
-    presentedTokenOrVC: any,
-    tamperPayload?: Record<string, any>
-  ): {
-    isValid: boolean;
-    verificationResult: {
-      status: 'VALID' | 'INVALID' | 'EXPIRED' | 'SIGNATURE_MISMATCH';
-      checks: {
-        formatCheck: boolean;
-        signatureValid: boolean;
-        notExpired: boolean;
-        schemaCompliant: boolean;
-      };
-      details: string;
-      verifiedClaims: any;
-    };
-    presentationDefinition: any;
-    client_id: string;
-    nonce: string;
-    logs: ProtocolLog[];
-  } {
-    // OpenID4VP Draft 21 Presentation Definition
-    const presentationDefinition = {
+  /** OpenID4VP Draft 21 presentation definition: fullName and nationalId. */
+  public static presentationDefinition(format: CredentialFormat) {
+    return {
       id: `pres-def-${uuidv4().substring(0, 8)}`,
       input_descriptors: [
         {
@@ -263,6 +246,34 @@ export class MockProtocolService {
         }
       ]
     };
+  }
+
+  /**
+   * Evaluates OpenID4VP Draft 21 Presentation & verification
+   */
+  public static verifyPresentation(
+    format: CredentialFormat,
+    presentedTokenOrVC: any,
+    tamperPayload?: Record<string, any>
+  ): {
+    isValid: boolean;
+    verificationResult: {
+      status: 'VALID' | 'INVALID' | 'EXPIRED' | 'SIGNATURE_MISMATCH';
+      checks: {
+        formatCheck: boolean;
+        signatureValid: boolean;
+        notExpired: boolean;
+        schemaCompliant: boolean;
+      };
+      details: string;
+      verifiedClaims: any;
+    };
+    presentationDefinition: any;
+    client_id: string;
+    nonce: string;
+    logs: ProtocolLog[];
+  } {
+    const presentationDefinition = MockProtocolService.presentationDefinition(format);
     const clientId = 'https://verify.mock.mosip.net';
     const nonce = uuidv4();
 
@@ -293,15 +304,7 @@ export class MockProtocolService {
     }
 
     const presentedClaims = presented.claims;
-    const requestedClaimNames = presentationDefinition.input_descriptors[0].constraints.fields
-      .map((field: { path: string[] }) => field.path[0].split('.').pop());
-    const verifiedClaims = isValid
-      ? Object.fromEntries(
-          requestedClaimNames
-            .filter((claim): claim is string => typeof claim === 'string' && claim in presentedClaims)
-            .map(claim => [claim, presentedClaims[claim]])
-        )
-      : {};
+    const verifiedClaims = isValid ? sharedClaims(presentationDefinition, presentedClaims) : {};
     const verificationResult = {
       status: statusText,
       checks: {

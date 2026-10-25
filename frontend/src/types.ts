@@ -26,6 +26,8 @@ export interface ProtocolLog {
   };
   durationMs: number;
   tampered?: boolean;
+  /** Real traffic to the MOSIP Collab sandbox (not a mock frame). */
+  live?: boolean;
   transactionId?: string;
 }
 

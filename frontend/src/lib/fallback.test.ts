@@ -9,16 +9,16 @@ describe('fallbackNotice', () => {
   });
 
   it('names the issuer when only issuance was emulated', () => {
-    expect(fallbackNotice(sel, true, false)).toBe('MOSIP Collab sandbox unreachable: Inji Certify responses are emulated by the mock engine.');
+    expect(fallbackNotice(sel, true, false)).toBe('Emulated in this run: Inji Certify responses come from the mock engine.');
   });
 
   it('names the verifier when only verification was emulated', () => {
-    expect(fallbackNotice(sel, false, true)).toBe('MOSIP Collab sandbox unreachable: Inji Verify responses are emulated by the mock engine.');
+    expect(fallbackNotice(sel, false, true)).toBe('Emulated in this run: Inji Verify responses come from the mock engine.');
   });
 
   it('names both when both phases were emulated', () => {
     expect(fallbackNotice(sel, true, true)).toBe(
-      'MOSIP Collab sandbox unreachable: Inji Certify and Inji Verify responses are emulated by the mock engine.'
+      'Emulated in this run: Inji Certify and Inji Verify responses come from the mock engine.'
     );
   });
 });

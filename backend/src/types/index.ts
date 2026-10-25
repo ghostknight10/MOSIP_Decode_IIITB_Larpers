@@ -6,6 +6,7 @@ export type VerifierType = 'inji-verify' | 'mock-openid4vp';
 
 export interface ProtocolLog {
   id: string;
+  transactionId?: string;
   timestamp: string;
   step: number;
   sender: string;
@@ -26,6 +27,8 @@ export interface ProtocolLog {
   };
   durationMs: number;
   tampered?: boolean;
+  /** Real traffic to the MOSIP Collab sandbox (not a mock frame). */
+  live?: boolean;
 }
 
 export interface IssueCredentialRequest {

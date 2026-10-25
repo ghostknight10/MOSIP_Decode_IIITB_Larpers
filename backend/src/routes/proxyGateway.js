@@ -2,14 +2,15 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { createAuditClient } from '../middleware/auditInterceptor.js';
 import globalAuditBuffer from '../utils/RingBuffer.js';
+import { collabTargets } from '../services/collab.js';
 
 const router = Router();
 
 // Read at request time: index.ts loads .env after its imports have run.
 const targets = () => ({
-  INJI_CERTIFY: process.env.MOSIP_INJI_CERTIFY_URL || 'https://injicertify-mosipid.collab.mosip.net',
-  INJI_VERIFY: process.env.MOSIP_INJI_VERIFY_URL || 'https://injiverify.collab.mosip.net',
-  INJI_MIMOTO: process.env.MOSIP_INJI_MIMOTO_URL || 'https://api.collab.mosip.net',
+  INJI_CERTIFY: collabTargets().certify,
+  INJI_VERIFY: collabTargets().verify,
+  INJI_MIMOTO: collabTargets().mimoto,
   MOCK_ISSUER: process.env.MOCK_URL || 'http://localhost:5001/mock-issuer',
   MOCK_VERIFIER: process.env.MOCK_URL || 'http://localhost:5001/mock-verifier'
 });

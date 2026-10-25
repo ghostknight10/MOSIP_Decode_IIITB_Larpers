@@ -137,6 +137,14 @@ export const ProtocolInspector: React.FC<ProtocolInspectorProps> = ({ logs, onCl
                           {log.action}
                         </span>
                         <div className="flex items-center gap-1.5 shrink-0">
+                          {log.live && (
+                            <span
+                              title="Real traffic to the MOSIP Collab sandbox"
+                              className="text-xs px-1.5 py-0.5 rounded-full border border-line bg-surface-muted text-ink-muted"
+                            >
+                              Live
+                            </span>
+                          )}
                           {log.tampered && (
                             <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-warning-soft text-warning-ink border border-warning-line inline-flex items-center gap-1">
                               <AlertTriangle className="h-3 w-3" aria-hidden="true" /> Tampered

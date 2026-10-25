@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import proxyGateway from './routes/proxyGateway.js';
 import { playgroundRouter } from './routes/playground.js';
+import { collabTargets } from './services/collab.js';
 
 dotenv.config({ quiet: true });
 
@@ -38,11 +39,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
     service: 'mosip-playground-bff',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
-    collabSandbox: {
-      injiCertify: process.env.MOSIP_INJI_CERTIFY_URL || 'https://certify.collab.mosip.net',
-      mimoto: process.env.MOSIP_INJI_MIMOTO_URL || 'https://mimoto.collab.mosip.net',
-      injiVerify: process.env.MOSIP_INJI_VERIFY_URL || 'https://verify.collab.mosip.net'
-    }
+    collabSandbox: (({ certify, mimoto, verify }) => ({ injiCertify: certify, mimoto, injiVerify: verify }))(collabTargets())
   });
 });
 

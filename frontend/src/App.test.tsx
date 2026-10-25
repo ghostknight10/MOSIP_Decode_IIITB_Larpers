@@ -136,8 +136,9 @@ describe('App', () => {
     });
     const { user } = setup();
     await user.click(screen.getByRole('button', { name: /Issue Credential/ }));
-    expect(await screen.findByText('MOSIP Collab sandbox unreachable: Inji Certify responses are emulated by the mock engine.')).toBeInTheDocument();
-    expect(screen.queryByText(/Collab unreachable/)).not.toBeInTheDocument();
+    expect(await screen.findByText('Emulated in this run: Inji Certify responses come from the mock engine.')).toBeInTheDocument();
+    // The BFF's reason is shown under the summary.
+    expect(screen.getByText('Collab unreachable')).toBeInTheDocument();
     expect(screen.getAllByText('Emulated').length).toBeGreaterThan(0);
   });
 

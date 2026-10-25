@@ -77,7 +77,7 @@ export const VERIFIERS: NodeDescriptor<VerifierType>[] = [
     description: 'MOSIP Inji Verify checking signatures, issuer DIDs, expiry and schema.',
     isMosip: true,
     supportedFormats: ['w3c-vc', 'sd-jwt'],
-    clientId: 'https://verify.collab.mosip.net'
+    clientId: 'https://injiverify.collab.mosip.net'
   },
   {
     id: 'mock-openid4vp',
