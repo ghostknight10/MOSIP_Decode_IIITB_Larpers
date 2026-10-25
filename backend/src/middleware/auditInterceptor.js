@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import axios from 'axios';
 import globalAuditBuffer from '../utils/RingBuffer.js';
 import { redactPayload } from '../utils/redactor.js';
@@ -97,6 +98,31 @@ export function createAuditClient({
         }
       }
     };
+
+    // The playground's ProtocolLog fields as well, so proxied traffic shows up
+    // in the inspector, timeline and sequence diagram like any other step.
+    const { request, response } = frame.packet;
+    let path = config.url;
+    try {
+      path = new URL(config.url).pathname;
+    } catch {
+      // keep the raw URL
+    }
+    Object.assign(frame, {
+      id: randomUUID(),
+      timestamp: new Date(metadata.startTime).toISOString(),
+      step: frame.sequenceNo,
+      sender: 'Wallet (via BFF proxy)',
+      receiver: destination,
+      protocol,
+      action: specStep === 'HTTP Call' ? `${request.method} ${path}` : specStep,
+      status: response.statusCode < 400 ? 'SUCCESS' : 'FAILED',
+      request: { method: request.method, url: request.url, headers: request.headers, body: request.body ?? undefined },
+      response: { status: response.statusCode, headers: response.headers, body: response.body },
+      durationMs: latencyMs,
+      live: isSandbox,
+      ...(isTampered ? { tampered: true } : {})
+    });
 
     globalAuditBuffer.add(frame);
   }

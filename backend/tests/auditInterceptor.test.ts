@@ -43,6 +43,26 @@ describe('createAuditClient', () => {
     expect(f.packet.latencyMs).toBeGreaterThanOrEqual(0);
   });
 
+  it('also carries ProtocolLog fields so the UI can show proxied traffic', async () => {
+    const client = createAuditClient({ transactionId: 'tx-pl', isSandbox: true });
+    await client({ method: 'get', url: 'https://verify.example/v1/verify/x?y=1', headers: { 'X-Audit-Destination': 'INJI_VERIFY' }, adapter: respond(200, { ok: true }) });
+    await client({ method: 'post', url: 'https://verify.example/v1/verify/y', headers: { 'X-Audit-Destination': 'INJI_VERIFY', 'X-Audit-SpecStep': 'VP Submission' }, adapter: respond(400, { error: 'bad' }) }).catch(() => {});
+    const [ok, failed] = frames('tx-pl');
+    expect(ok).toMatchObject({
+      id: expect.stringMatching(/^[0-9a-f-]{36}$/),
+      step: 1,
+      sender: 'Wallet (via BFF proxy)',
+      receiver: 'INJI_VERIFY',
+      protocol: 'OpenID4VCI',
+      action: 'GET /v1/verify/x',
+      status: 'SUCCESS',
+      request: { method: 'GET', url: 'https://verify.example/v1/verify/x?y=1' },
+      response: { status: 200, body: { ok: true } },
+      live: true
+    });
+    expect(failed).toMatchObject({ step: 2, action: 'VP Submission', status: 'FAILED', response: { status: 400 } });
+  });
+
   it('numbers frames sequentially within a client', async () => {
     const client = createAuditClient({ transactionId: 'tx-2', isSandbox: false });
     await client({ url: 'https://x/1', adapter: respond(200, {}) });
