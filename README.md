@@ -141,7 +141,7 @@ Before sharing a running instance with others, set `PLAYGROUND_TOKEN` in `.env` 
 | `npm test` | All unit, component and HTTP tests (Vitest), frontend then backend |
 | `npm --prefix frontend run test:watch` | Frontend tests in watch mode |
 | `npm run test:interop` | The TC-01 to TC-05 protocol scenarios against a live BFF (falls back to the mock engine) |
-| `npm run report:interop` | Every combination and attack against a running BFF; writes the interop report (`-- --out docs/interop-report.md --json docs/interop-report.json`) |
+| `npm run report:interop` | Every combination and attack against a running BFF; writes the interop report (`-- --out "$PWD/docs/interop-report.md" --json "$PWD/docs/interop-report.json"`) |
 | `npm run build` | Type-checks and builds both workspaces |
 
 CI (`.github/workflows/ci.yml`, Node 26) runs `npm ci`, both builds, `npm test`, `docker compose config`, a Docker Compose smoke test (BFF health through the frontend's proxy) and `npm run test:interop` on every push and pull request to `main`. A nightly workflow (`.github/workflows/nightly-interop.yml`) runs the interop report against the Collab sandbox and posts the matrix to the run summary. All tests run offline: Collab calls are mocked.

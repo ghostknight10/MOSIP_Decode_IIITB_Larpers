@@ -49,7 +49,7 @@ Editable under **Phase 1 → Credential subject claims**.
 | `fullName` | Aaditya Sharma |
 | `dob` | 1995-08-15 |
 | `nationalId` | MOSIP-IND-9876-5432-1098 |
-| `email` | aaditya.sharma@example.org |
+| `email` | `aaditya.sharma@example.org` |
 | `country` | IND |
 
 The verifiers ask for `fullName` and `nationalId` (or `UIN`, as in MOSIP ID credentials).
