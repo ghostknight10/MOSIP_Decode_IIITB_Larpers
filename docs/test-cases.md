@@ -52,7 +52,7 @@ These scenarios validate cross-ecosystem interoperability and protocol conforman
 
 - **Objective:** the verifier detects and rejects expired credentials.
 - **Steps:**
-  1. Click **Enable Tamper Mode** (it changes to **Tamper / Chaos Mode: ACTIVE**).
+  1. Click **Enable Tamper Mode** (it changes to **Tamper mode: on**).
   2. Tick **Expire Timestamp (Negative Path)**.
   3. Click **Run Full Flow**. Tamper options apply when the wallet presents, so issuance itself is clean.
 - **Expected result:**

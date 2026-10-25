@@ -4,7 +4,7 @@ The playground has three layers of tests:
 
 | Layer | Tool | Command | Count |
 | --- | --- | --- | --- |
-| Frontend unit, component and integration | Vitest 5 + Testing Library + jsdom | `npm --prefix frontend test` | 285 |
+| Frontend unit, component and integration | Vitest 5 + Testing Library + jsdom | `npm --prefix frontend test` | 328 |
 | Backend unit and HTTP | Vitest 5 (node) | `npm --prefix backend test` | 85 (77 + 8 known-bug) |
 | Protocol scenarios TC-01 to TC-05 | `backend/scripts/test-interop.ts` | `npm run test:interop` | 5 |
 
@@ -37,8 +37,9 @@ Configured in `frontend/vite.config.ts` (`test.environment: 'jsdom'`, setup file
 | `components/RunPlayer.test.tsx` | 8 | Live state, stepping, slider, back to live, autoplay with fake timers, pause, reduced motion |
 | `components/InteropMatrixReport.test.tsx` | 33 | Heatmap (cells, accessible names, combination filter), list view, UNTESTED coverage, latest clean run per combination, real vs emulated scores and warning, negative-path stats, filters including layer, batch progress, Markdown/JSON export with layers, confirm-before-clear, `scoreMatrix`, `toMarkdown` escaping |
 | `components/Header.test.tsx` | 7 | Connecting / Online / Offline, view tabs and `aria-current`, run count |
-| `components/SequenceDiagram.test.tsx` | 9 | (mermaid mocked) placeholder, chronological arrows from newest-first logs, participant mapping, tamper note, action sanitising, re-render, render error |
-| `components/ProtocolInspector.test.tsx` | 8 | Empty state, list contents, default newest selection, switching logs, request tab, copy JSON, clear callback |
+| `components/SequenceDiagram.test.tsx` | 10 | (mermaid mocked) light token theme, placeholder, chronological arrows, participant mapping including emulated Inji Verify (F-1), tamper note, action sanitising, re-render, render error |
+| `components/ProtocolInspector.test.tsx` | 9 | Empty state, list contents, default newest selection, switching logs, request tab, copy JSON, clear callback, request/response headers |
+| `test/design.test.ts` | 41 | Design system: every token used, WCAG contrast for each text pairing (4.5:1) and for focus rings and icons (3:1), and a guardrail that fails on banned patterns (gradients, large/coloured shadows, pulses, wide tracking, blur, oversized radii, raw palette colours, `transition-all`, text under 12px). See [design-tokens.md](./design-tokens.md) |
 | `App.test.tsx` | 15 | Whole app against a stubbed BFF (`fetch`): health states, issue → verify with one transaction ID, report recording clean and tampered runs, error and emulation banners, run-all, compact empty state, current-run vs all-runs scope, presets (tamper and matrix), replay, phone raw-message toggle |
 
 Conventions:

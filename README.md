@@ -211,7 +211,7 @@ A static list of 8 pre-wired combinations, kept for compatibility. The UI comput
 │   │   └── utils/               RingBuffer.js, redactor.js
 │   ├── scripts/test-interop.ts  TC-01 to TC-05 runner
 │   └── tests/                   Vitest unit + HTTP tests
-├── frontend/                    React 19 + Vite 8 + Tailwind 4
+├── frontend/                    React 19 + Vite 8 + Tailwind 4 (design tokens in src/index.css)
 │   └── src/
 │       ├── App.tsx              layout: matrix, actions beside the live view, report tab
 │       ├── api/client.ts        typed BFF client (x-transaction-id, error mapping)
@@ -252,6 +252,7 @@ A static list of 8 pre-wired combinations, kept for compatibility. The UI comput
 | [docs/test-cases.md](docs/test-cases.md) | Manual scenarios TC-01 to TC-06 |
 | [docs/known-issues.md](docs/known-issues.md) | Open bugs and interoperability gaps found during testing |
 | [docs/ui-design.md](docs/ui-design.md) | UI research: comparable tools, papers, and the design decisions they led to |
+| [docs/design-tokens.md](docs/design-tokens.md) | Colours, type and visual rules (read before changing any UI) |
 | [docs/video-demo-script.md](docs/video-demo-script.md) | 3–5 minute demo script |
 
 Licensed under Apache-2.0.

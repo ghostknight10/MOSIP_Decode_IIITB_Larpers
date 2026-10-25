@@ -64,7 +64,20 @@ The new panels surfaced real findings in the mock engine and BFF. They are logge
 - **G-6:** the mock verifier receives the whole credential subject (over-disclosure on every run).
 - **B-9:** on sandbox fallback, the BFF overwrites the sender of every verification log, so the wallet's own submission appears to come from the verifier.
 
-## 5. Verification
+## 5. Visual design
+
+The first version used the default "AI look": a dark theme, indigo/teal gradients, glows and coloured shadows, large radii, wide-tracked uppercase labels, a pulsing status dot, sparkle icons and six neon accent hues. Comparable credible tools do the opposite. [IBM Carbon](https://carbondesignsystem.com/elements/color/overview/) and [GitHub Primer](https://primer.style/foundations/color/overview) use neutral surfaces and a single interaction colour, and [GOV.UK](https://brand.design-system.service.gov.uk/colour/govuk-blue) forbids mixed-colour gradients.
+
+The playground now follows MOSIP's own [Inji Verify](https://github.com/mosip/inji-verify) theme:
+- a light `#fafbfd` / white canvas
+- plum `#951f6f` as the only action colour
+- Inji's green, amber and red reserved for status, each with an icon and text
+- Inter for text, monospace only for data
+- flat 1px-bordered panels with small radii, quiet colour transitions, and a visible plum focus outline
+
+All colours come from tokens. The rules and sources are in [design-tokens.md](./design-tokens.md), and `frontend/src/test/design.test.ts` checks contrast and blocks the banned patterns in CI.
+
+## 6. Verification
 
 - Frontend unit, component and integration tests cover every new module (see [testing.md](./testing.md)).
 - Screenshots at 1440px and 390px before and after each step; a keyboard-only pass through presets, replay and heatmap cells.
