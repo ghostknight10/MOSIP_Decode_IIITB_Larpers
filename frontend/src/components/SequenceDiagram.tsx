@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import mermaid from 'mermaid';
 import { ProtocolLog } from '../types';
 import { Maximize2, X } from 'lucide-react';
-import { participantOf } from '../lib/participants';
+import { chronological, participantOf } from '../lib/participants';
 
 interface SequenceDiagramProps {
   logs: ProtocolLog[];
@@ -53,30 +53,23 @@ export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ logs }) => {
 
     if (logs.length === 0) {
       setSvgContent('');
-      if (containerRef.current) {
-        containerRef.current.innerHTML = `
-          <div class="py-8 flex flex-col items-center justify-center text-center gap-3">
-            <div style="display:flex;flex-direction:column;gap:8px;width:100%;max-width:280px;animation:sd-pulse 1.8s ease-in-out infinite">
-              <div style="height:12px;background:var(--color-surface-muted);border-radius:4px;width:75%;margin:0 auto"></div>
-              <div style="height:8px;background:var(--color-line);border-radius:4px;width:100%"></div>
-              <div style="height:8px;background:var(--color-line);border-radius:4px;width:83%;margin:0 auto"></div>
-              <div style="height:8px;background:var(--color-line);border-radius:4px;width:66%;margin:0 auto"></div>
-            </div>
-            <span class="text-sm font-medium text-ink-muted">No sequence events recorded yet.</span>
-            <span class="text-xs text-ink-subtle">Run a flow to see the message exchange.</span>
-          </div>
-        `;
-      }
+      containerRef.current.innerHTML = `
+        <div class="py-6 flex flex-col items-center justify-center text-center text-sm text-ink-muted gap-1">
+          <span>No sequence events recorded yet.</span>
+          <span class="text-xs text-ink-subtle">Run a flow to see the message exchange.</span>
+        </div>
+      `;
       return;
     }
 
-    // Build Mermaid sequence text from chronological logs
-    const sorted = [...logs].sort((a, b) => {
-      if (a.step !== b.step) {
-        return a.step - b.step;
-      }
-      return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
-    });
+    // Arrival order (logs are stored newest-first), with each run kept together
+    // so "All runs" doesn't interleave steps from different transactions.
+    const runs = new Map<string, ProtocolLog[]>();
+    for (const l of chronological(logs)) {
+      const key = l.transactionId ?? '';
+      runs.set(key, [...(runs.get(key) ?? []), l]);
+    }
+    const sorted = [...runs.values()].flat();
 
     let diagram = 'sequenceDiagram\n';
     diagram += '  autonumber\n';
@@ -91,21 +84,20 @@ export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ logs }) => {
       const statusEmoji = l.status === 'SUCCESS' ? '✓' : '✗';
       const cleanAction = l.action.replace(/[^a-zA-Z0-9_\- ]/g, '');
 
-      // Protocol phase demarcation — insert a note before the first VCI and VP steps
-      if (idx === 0 && l.protocol === 'OpenID4VCI') {
-        diagram += `  Note over Issuer,Verifier: 🔵 Phase: OpenID4VCI\n`;
-      } else if (idx > 0 && l.protocol === 'OpenID4VP' && sorted[idx - 1]?.protocol !== 'OpenID4VP') {
-        diagram += `  Note over Issuer,Verifier: 🟢 Phase: OpenID4VP\n`;
+      // Mark where each run enters a protocol phase.
+      const prev = sorted[idx - 1];
+      if (!prev || prev.transactionId !== l.transactionId || prev.protocol !== l.protocol) {
+        diagram += `  Note over Issuer,Verifier: ${l.protocol}${runs.size > 1 && l.transactionId ? ` · ${l.transactionId.replace(/[^a-zA-Z0-9_-]/g, '')}` : ''}\n`;
       }
 
       if (l.tampered) {
-        diagram += '  rect rgb(253, 238, 238)\n'; // danger-soft
+        diagram += '  rect rgb(255, 245, 227)\n'; // warning-soft
       }
 
       diagram += `  ${from}->>${to}: ${cleanAction} [${statusEmoji} ${l.status}]\n`;
 
       if (l.tampered) {
-        diagram += `  Note over ${to}: ⚠️ Tampered Payload Detected!\n`;
+        diagram += `  Note over ${to}: Tampered payload\n`;
         diagram += '  end\n';
       }
     });

@@ -14,14 +14,14 @@ export const ProtocolInspector: React.FC<ProtocolInspectorProps> = ({ logs, onCl
   const [copiedAll, setCopiedAll] = useState(false);
   const [activeTab, setActiveTab] = useState<'request' | 'response'>('response');
   const [searchQuery, setSearchQuery] = useState('');
-  const listEndRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const selectedLog = logs.find((l) => l.id === selectedLogId) || logs[0];
 
   useEffect(() => {
-    if (logs.length > 0 && typeof listEndRef.current?.scrollIntoView === 'function') {
-      listEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
+    // The list is newest-first: bring the new entry into view by scrolling the
+    // list itself. scrollIntoView would also scroll the page and every ancestor.
+    if (listRef.current) listRef.current.scrollTop = 0;
   }, [logs.length]);
 
   const handleCopy = (data: any, id: string) => {
@@ -108,7 +108,7 @@ export const ProtocolInspector: React.FC<ProtocolInspectorProps> = ({ logs, onCl
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto">
+          <div ref={listRef} className="flex-1 overflow-y-auto">
             {logs.length === 0 ? (
               <div className="p-4 text-center text-xs text-ink-subtle">
                 No protocol traffic logged yet. Trigger an Issuance or Verification flow to capture wire payloads.
@@ -163,7 +163,6 @@ export const ProtocolInspector: React.FC<ProtocolInspectorProps> = ({ logs, onCl
                     </button>
                   );
                 })}
-                <div ref={listEndRef} />
               </div>
             )}
           </div>

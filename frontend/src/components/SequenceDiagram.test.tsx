@@ -19,8 +19,8 @@ const lastDiagram = () => renderMock.mock.calls.at(-1)![1];
 
 // Newest-first, as the run hook stores them.
 const logs = [
-  makeLog({ step: 4, sender: 'Wallet', receiver: 'Verifier (OpenID4VP)', action: 'VP Token Submission (/response)', status: 'FAILED', tampered: true }),
-  makeLog({ step: 3, sender: 'Verifier (OpenID4VP)', receiver: 'Wallet', action: 'Authorization Request (Presentation Definition)' }),
+  makeLog({ step: 4, protocol: 'OpenID4VP', sender: 'Wallet', receiver: 'Verifier (OpenID4VP)', action: 'VP Token Submission (/response)', status: 'FAILED', tampered: true }),
+  makeLog({ step: 3, protocol: 'OpenID4VP', sender: 'Verifier (OpenID4VP)', receiver: 'Wallet', action: 'Authorization Request (Presentation Definition)' }),
   makeLog({ step: 1, sender: 'Wallet', receiver: 'Issuer (OpenID4VCI)', action: 'Fetch Credential Offer' })
 ];
 
@@ -62,7 +62,33 @@ describe('SequenceDiagram', () => {
 
   it('annotates tampered steps', () => {
     render(<SequenceDiagram logs={logs} />);
-    expect(lastDiagram()).toContain('Note over Verifier: ⚠️ Tampered Payload Detected!');
+    expect(lastDiagram()).toContain('Note over Verifier: Tampered payload');
+    expect(lastDiagram()).toContain('rect rgb(255, 245, 227)');
+  });
+
+  it('notes each protocol phase once per run', () => {
+    render(<SequenceDiagram logs={logs} />);
+    const notes = lastDiagram().split('\n').filter((l: string) => l.includes('Note over Issuer,Verifier'));
+    expect(notes).toEqual(['  Note over Issuer,Verifier: OpenID4VCI', '  Note over Issuer,Verifier: OpenID4VP']);
+  });
+
+  it('keeps each run contiguous when showing several transactions', () => {
+    // Newest-first: run B (issue only) arrived after run A finished.
+    const all = [
+      makeLog({ transactionId: 'tx-b', step: 1, action: 'B issue' }),
+      makeLog({ transactionId: 'tx-a', step: 4, protocol: 'OpenID4VP', sender: 'Wallet', receiver: 'Verifier (OpenID4VP)', action: 'A present' }),
+      makeLog({ transactionId: 'tx-a', step: 1, action: 'A issue' })
+    ];
+    render(<SequenceDiagram logs={all} />);
+    const lines = lastDiagram().split('\n').filter((l: string) => l.includes('->>') || l.includes('Note over Issuer'));
+    expect(lines).toEqual([
+      '  Note over Issuer,Verifier: OpenID4VCI · tx-a',
+      '  Wallet->>Issuer: A issue [✓ SUCCESS]',
+      '  Note over Issuer,Verifier: OpenID4VP · tx-a',
+      '  Wallet->>Verifier: A present [✓ SUCCESS]',
+      '  Note over Issuer,Verifier: OpenID4VCI · tx-b',
+      '  Wallet->>Issuer: B issue [✓ SUCCESS]'
+    ]);
   });
 
   it('strips characters that would break mermaid syntax from actions', () => {

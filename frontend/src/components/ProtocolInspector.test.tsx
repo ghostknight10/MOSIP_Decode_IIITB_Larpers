@@ -28,6 +28,17 @@ const renderInspector = (props: Partial<React.ComponentProps<typeof ProtocolInsp
 const payload = () => document.querySelector('pre')!.textContent!;
 
 describe('ProtocolInspector', () => {
+  it('scrolls only its own list to the newest entry when a log arrives', () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const { rerender } = render(<ProtocolInspector logs={logs} />);
+    const list = screen.getByText('Fetch Credential Offer').closest('.overflow-y-auto') as HTMLElement;
+    list.scrollTop = 120;
+    rerender(<ProtocolInspector logs={[makeLog({ id: 'new', action: 'Newest' }), ...logs]} />);
+    expect(list.scrollTop).toBe(0);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+  });
+
   it('shows an empty state without logs', () => {
     render(<ProtocolInspector logs={[]} />);
     expect(screen.getByText(/No protocol traffic logged yet/)).toBeInTheDocument();
