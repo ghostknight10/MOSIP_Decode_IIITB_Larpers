@@ -10,7 +10,7 @@ A visual workbench for testing whether verifiable credentials survive a full **i
 
 The MOSIP side covers Inji Certify, Inji Wallet / Inji Web (via Mimoto) and Inji Verify. The non-MOSIP side is a standards-compliant mock issuer, holder and verifier, so the matrix tests cross-ecosystem interoperability rather than only Inji-to-Inji.
 
-> **Sandbox status:** Inji Verify (v2 API), Inji Certify's metadata and credential endpoint, and Mimoto's issuer registry are called **live** on the MOSIP Collab sandbox. The mock issuer signs for real, so live Inji Verify accepts clean mock credentials and rejects tampered ones. Inji Certify won't issue without an eSignet citizen login, so its credential is emulated. You can import a credential you obtained from Inji yourself instead. The UI labels emulated steps and the report flags them. See [docs/known-issues.md](docs/known-issues.md#what-runs-live-today) and the [upstream issue drafts](docs/upstream-issues.md).
+> **Sandbox status:** Inji Verify (v2 API), Inji Certify's metadata and credential endpoint, and Mimoto's issuer registry are called **live** on the MOSIP Collab sandbox. The mock issuer signs for real, so live Inji Verify accepts clean mock credentials and rejects tampered ones. With `COLLAB_TEST_INDIVIDUAL_ID` set (e.g. MOSIP's published test identity `8267411578`), Inji Certify issues a **real credential** after an automated eSignet login, and Inji Verify verifies it, end to end on the real Inji stack. Without it, Certify's credential is emulated, or you can import one you obtained yourself. The UI labels emulated steps and the report flags them. See [docs/known-issues.md](docs/known-issues.md#what-runs-live-today) and the [upstream issue drafts](docs/upstream-issues.md).
 
 ---
 
@@ -118,7 +118,7 @@ npm run dev:backend    # terminal 1, BFF on :4000 (tsx watch)
 npm run dev:frontend   # terminal 2, Vite on :5173, proxies /api to the BFF
 ```
 
-Set `PLAYGROUND_TOKEN` in `.env` to make the BFF answer only the frontend's proxy (recommended for any shared deployment). Copy `.env.example` to `.env` to point the BFF at other MOSIP endpoints (`MOSIP_INJI_CERTIFY_URL`, `MOSIP_INJI_MIMOTO_URL`, `MOSIP_INJI_VERIFY_URL`) or to allow other origins (`FRONTEND_URL`, comma-separated).
+Set `COLLAB_TEST_INDIVIDUAL_ID=8267411578` in `.env` for real Inji Certify issuance, and `PLAYGROUND_TOKEN` to make the BFF answer only the frontend's proxy (recommended for any shared deployment). Copy `.env.example` to `.env` to point the BFF at other MOSIP endpoints (`MOSIP_INJI_CERTIFY_URL`, `MOSIP_INJI_MIMOTO_URL`, `MOSIP_INJI_VERIFY_URL`) or to allow other origins (`FRONTEND_URL`, comma-separated).
 
 ### 3. Try it
 1. Click a **Quick scenario** (e.g. **TC-01 Happy path · W3C VC**), or pick nodes yourself and press **Run Full Flow**.

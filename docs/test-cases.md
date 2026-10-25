@@ -32,7 +32,11 @@ These scenarios validate cross-ecosystem interoperability and protocol conforman
   - The sequence diagram draws them in order with an `OpenID4VCI` and an `OpenID4VP` phase note, and the replay controls step through them.
   - **What was shared** lists exactly `fullName` and `nationalId`.
   - Run History records a **PASS** row.
-- **Expected result (all Inji, the preset):**
+- **Expected result (all Inji, with `COLLAB_TEST_INDIVIDUAL_ID=8267411578`):** the real Inji stack end to end.
+  - Eight **Live** steps: eSignet `oauth-details`, OTP, authenticate, authorization code, `Token request (via Mimoto)`, `Nonce request`, `Credential request (/credential)` and `Verify credential (/v2/vc-verification)`.
+  - A real `LandStatementCredential` from `did:web:injicertify-landregistry.collab.mosip.net`. Inji Verify returns `VALID` with no **Emulated** badges, and Run History records **PASS**.
+  - **What was shared** shows the requested `fullName` / `nationalId` as not shared: a land statement carries neither.
+- **Expected result (all Inji, without a test identity):**
   - The inspector shows **Live** steps: `Fetch issuer metadata`, `Look up issuer in Mimoto registry`, `Credential request (no access token)` (Failed, HTTP 403), then the emulated `Credential Request (/credential)` and the live `Verify credential (/v2/vc-verification)`.
   - The banner says Inji Certify answered live but needs an eSignet access token, so the credential is emulated (signed by the mock issuer).
   - Inji Verify returns `VALID` with its individual checks (schema and signature, expiry, status), and Run History records **PASS** marked † (emulated issuer).

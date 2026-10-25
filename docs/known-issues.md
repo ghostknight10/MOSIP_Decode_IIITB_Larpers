@@ -10,8 +10,9 @@ Last updated: 2026-10-25.
 
 | Service | Collab endpoint | Live calls | Emulated |
 | --- | --- | --- | --- |
-| Inji Certify | `https://injicertify-mosipid.collab.mosip.net` | Issuer metadata; the credential request (refused without a token) | The credential itself (E-1). Or import a real one (below). |
-| Mimoto (Inji wallet backend) | `https://api.collab.mosip.net/v1/mimoto` | Issuer registry lookup when **Inji Web / Mobile** is selected | Download and presentation through Mimoto (E-2) |
+| Inji Certify (with `COLLAB_TEST_INDIVIDUAL_ID`, W3C) | `https://injicertify-landregistry.collab.mosip.net` behind `esignet-mock` | **Everything:** eSignet login (OTP) as a Collab test identity, token through Mimoto, nonce, credential request. Returns a real `LandStatementCredential`. | Nothing |
+| Inji Certify (otherwise) | `https://injicertify-mosipid.collab.mosip.net` | Issuer metadata; the credential request (refused without a token) | The credential itself. Or import a real one (TC-09). |
+| Mimoto (Inji wallet backend) | `https://api.collab.mosip.net/v1/mimoto` | Token proxy (real issuance); issuer registry lookup when **Inji Web / Mobile** is selected | Credential download and presentation through Mimoto's wallet APIs (E-2) |
 | Inji Verify | `https://injiverify.collab.mosip.net` | `POST /v1/verify/v2/vc-verification` (v1 as a fallback), with the credential tampered for real in tamper mode | Nothing, unless the service is unreachable |
 
 - **Live steps** carry a **Live** chip in the inspector. If a Collab service can't be reached, or answers without JSON, the BFF falls back to the mock engine and the banner says why.
@@ -21,18 +22,23 @@ Last updated: 2026-10-25.
 
 ## Open
 
-### E-1 · Inji Certify issuance needs an eSignet user login (high)
+### E-1 · Real issuance needs a Collab test identity with issuer data (resolved with configuration)
 
-- **What:** Certify's `credential_endpoint` needs an access token from eSignet (`esignet-mosipid.collab.mosip.net`), obtained through a citizen login. Without one, Certify answers 403 and the playground emulates the credential.
-- **What works today:**
-  - Get a credential from Inji yourself (for example with Inji Web after signing in), then paste it under **Phase 1 → Use a credential from outside the playground**.
-  - The wallet holds it and presents it to Inji Verify or the mock verifier, so a real Inji credential can be tested end to end.
-  - Runs are flagged "(imported credential)".
-- **Automating it:** the mock identity system on Collab (`api.collab.mosip.net/v1/mock-identity-system/identity`) would let us create a test identity and log in through eSignet's API. That writes data to a shared sandbox, so it needs the team's go-ahead first.
+- **How it works:** set `COLLAB_TEST_INDIVIDUAL_ID` (for example `8267411578`, one of MOSIP's published test identities) and choose **Inji Certify** with **W3C VC**. The BFF then:
+  - logs in to `esignet-mock` with the mock identity system's OTP,
+  - exchanges the code through Mimoto's token proxy,
+  - asks the Land Registry Certify for a credential.
 
-### E-2 · Wallet steps through Mimoto stop at the registry (medium)
+  The result is a real Inji credential, verified live by Inji Verify. Verified on 2026-10-25.
+- **Limits:**
+  - Collab's Certify instances issue from their own data tables, not from the identity system. A newly created mock identity (we created `8267427212`) logs in fine, but Certify answers `ERROR_FETCHING_IDENTITY_DATA`.
+  - The MOSIP ID instance (`injicertify-mosipid`) needs a real MOSIP ID login, so it stays emulated.
+  - SD-JWT and mDoc are not issued by these Collab instances (G-5).
+- **Without the variable:** the credential is emulated, or you can import one (TC-09).
 
-With **Inji Web / Mobile** selected, the BFF looks up the issuer in Mimoto's registry (live). Downloading and presenting through Mimoto need the same login as E-1.
+### E-2 · Mimoto's wallet APIs are not exercised (low)
+
+Mimoto is used live as the token proxy and issuer registry. Its wallet-side download and presentation APIs (as used by Inji Web) are not called: the BFF requests the credential from Certify itself, the way Inji Mobile does.
 
 ### S-2 · The BFF is open unless `PLAYGROUND_TOKEN` is set (low, deployment)
 
@@ -62,6 +68,9 @@ Observed on 2026-10-25. Report drafts are in [upstream-issues.md](./upstream-iss
 | G-8 | `/vc-verification` doesn't check credential type, nonce or holder binding. That is expected for a credential (not presentation) API, but wrong-type and replay negative tests against Inji Verify are recorded as FAIL. | By design; noted |
 | G-9 | **No issuer trust check.** Inji Verify accepts any `did:key` issuer and any self-signed `x5c` certificate; mDoc `verifyCertificateChain` is a TODO. | `inji/vc-verifier` (U-4, report privately) |
 | G-10 | Inji Verify's service routes only LDP, SD-JWT and CWT, so mDoc can't be verified, although `vc-verifier` supports it. Inji Verify × mDoc cells read **Not supported**. | `inji/inji-verify` (U-3) |
+| G-11 | **Protocol version.** Collab's Certify speaks OpenID4VCI 1.0 final: `credential_configuration_id` and `proofs`, with `c_nonce` only from its Nonce Endpoint. It rejects Draft 13's `format` / `proof`, and the token response's `c_nonce`. Draft 13 wallets (and this playground's Draft 13 mocks) are not compatible with it. | Documentation / version negotiation |
+| G-12 | **No holder binding.** The Land Registry credential has no `credentialSubject.id` (or `cnf`), although the request carried a proof of possession. Anyone holding a copy can present it. The mock verifier rejects it on holder binding. | `inji/inji-certify` (U-5) |
+| G-13 | **Number canonicalization.** Inji's credentials carry JSON numbers (areas, coordinates). JS canonicalization (`jsonld.js`) writes some of them differently from Java's (e.g. `8.925632000000001E2` vs `8.925632E2`), so JavaScript verifiers report "Invalid signature" on genuine credentials that Inji Verify accepts. | `inji/inji-certify` config (U-6) |
 
 ---
 
@@ -69,6 +78,7 @@ Observed on 2026-10-25. Report drafts are in [upstream-issues.md](./upstream-iss
 
 | ID | Was | Fixed in |
 | --- | --- | --- |
+| E-1 | No real Inji credential could be issued | `feat(bff): real Inji Certify issuance with a Collab test identity` |
 | M-1 | Mock credentials had placeholder signatures, so Inji Verify rejected all of them | `feat(mock): real signatures…` |
 | S-1 | The presentation nonce was not bound or checked; replay was not exercised | `feat(mock): real signatures, nonce-bound presentations…` (+ the "Replay an earlier presentation" tamper option, TC-08) |
 | G-1 | Large offers or presentation definitions overflowed the QR code | `feat: pass large offers… by reference` |

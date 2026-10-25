@@ -7,7 +7,7 @@ This script covers the problem, live matrix execution, the wire inspector, negat
 - `docker compose up --build`, open <http://localhost:5173> and check the header shows **Online (Collab/Mock)**.
 - Clear old runs (**Interop Matrix Report → Clear**) so the report starts at 0 / 16.
 - Have a phone with a QR scanner ready for Segment 3.
-- Inji Verify, Inji Certify's metadata and Mimoto are called live (the **Live** chip in the inspector). Inji Certify's credential is emulated because it needs an eSignet login; the mock issuer signs it for real, and Inji Verify accepts it. Say so on camera (see the Segment 3 note) rather than hiding it.
+- Start the BFF with `COLLAB_TEST_INDIVIDUAL_ID=8267411578` so the all-Inji run issues a real credential (eSignet login, Mimoto token, Inji Certify) and verifies it on Inji Verify; every step carries a **Live** chip. Without it, Certify's credential is emulated: say so on camera rather than hiding it.
 
 ---
 
@@ -38,7 +38,7 @@ This script covers the problem, live matrix execution, the wire inspector, negat
   > The verifier accepts it, and What was shared answers the question users ask most: who got which of my data? It asked for two claims and received exactly those two; the other three never left the wallet. If a verifier ever received more, this panel would flag it as over-disclosure.
   > On the right, the same transaction replays step by step: timeline, sequence diagram and every raw request and response."
 - **On the all-Inji run:**
-  > "These steps marked Live are real calls to the MOSIP Collab sandbox. Inji Certify publishes its metadata but won't issue without a citizen login, so the playground emulates that one credential and says so. Inji Verify then checks it for real: signature, expiry and status, each reported separately, and accepts it. Tamper with it and Inji Verify catches the expired or forged credential, but not a replayed one, because it verifies credentials, not presentations. The playground's own verifier catches that, and the report shows exactly where each verifier stands."
+  > "These steps marked Live are real calls to the MOSIP Collab sandbox. The wallet logs in to eSignet as a Collab test identity, gets a token through Mimoto, and Inji Certify issues a real land statement credential. Inji Verify then checks it for real: signature, expiry and status, each reported separately, and accepts it. Tamper with it and Inji Verify catches the expired or forged credential, but not a replayed one, because it verifies credentials, not presentations. The playground's own verifier catches that, and the report shows exactly where each verifier stands."
 
 ## Segment 4: Negative paths (2:40 – 3:20)
 

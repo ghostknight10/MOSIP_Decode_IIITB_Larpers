@@ -2,7 +2,7 @@
 
 Draft reports for findings from running the playground against the MOSIP Collab sandbox on 2026-10-25. Each is ready to file on the named repository after a team member re-checks it. Nothing here has been filed yet.
 
-- **U-1 to U-3:** functional or conformance problems. File them as public GitHub issues.
+- **U-1 to U-3, U-5, U-6:** functional or conformance problems. File them as public GitHub issues.
 - **U-4:** a security weakness. Report it privately through MOSIP's security contact rather than in a public issue.
 
 Short IDs in brackets refer to [known-issues.md](./known-issues.md).
@@ -113,8 +113,43 @@ In `MsoMdocVerifier`, `verifyCertificateChain` is a `TODO` that returns `true`.
 
 ---
 
+## U-5 · Issued credential is not bound to the holder's key [G-12]
+
+**Repository:** `inji/inji-certify` (Land Registry configuration on Collab)
+
+**What happens**
+
+The credential request carries a proof of possession: an `openid4vci-proof+jwt` with the holder's `jwk`, against a `c_nonce` from Certify. Even so, the issued `LandStatementCredential` has no `credentialSubject.id`, `holder` or `cnf`. The metadata advertises `cryptographic_binding_methods_supported: ["did:jwk", "did:key"]`.
+
+**Expected:** the credential carries the holder binding from the proof, for example `credentialSubject.id` set to the holder's `did:jwk`.
+
+**Impact:** a verifier cannot tell whether the presenter is the holder, so a copied credential can be replayed by anyone.
+
+**Reproduce:** run the playground's real issuance (`COLLAB_TEST_INDIVIDUAL_ID=8267411578`, Inji Certify + W3C) and open **Inspect credential**: the Holder field is empty.
+
+---
+
+## U-6 · JSON numbers in signed credentials break verification outside Java [G-13]
+
+**Repository:** `inji/inji-certify` (credential templates)
+
+**What happens**
+
+The Land Registry templates put areas and coordinates in `credentialSubject` as JSON numbers (for example `892.5632`). In RDF canonicalization these become `xsd:double` literals:
+- Titanium (Java) writes `8.925632E2`.
+- `jsonld.js` writes `8.925632000000001E2`, following the JSON-LD algorithm's `%1.15E` formatting.
+
+The canonical bytes differ, so `Ed25519Signature2020` verification fails in `@digitalbazaar/vc` and other JS verifiers, while Inji Verify accepts the credential.
+
+**Expected:** credentials that verify across implementations. Use string values (or `xsd:decimal` typed strings) for measurements in signed JSON-LD, or move to `eddsa-rdfc-2022` with a profile that pins number handling.
+
+**Reproduce:** verify an issued `LandStatementCredential` with `jsigs.verify` and `Ed25519Signature2020`. The issuer DID resolves, but the result is `Invalid signature`.
+
+---
+
 ## Notes that are not bugs
 
 - **Type and holder binding are not checked by `/vc-verification`** [G-8]. It verifies a credential, not a presentation, so a wrong credential type, a replayed submission or a missing holder proof are all accepted. This is expected for the endpoint. A relying party needs OpenID4VP (presentation definition plus nonce) for those checks. The playground records such runs as FAIL, with an explanation.
 - **No SD-JWT or mDoc configuration on `injicertify-mosipid`** [G-5]. This is Collab configuration, not a product gap.
+- **OpenID4VCI 1.0 final on Certify** [G-11]. The request format (`credential_configuration_id`, `proofs`, Nonce Endpoint) is correct for 1.0. It is worth stating in Inji's docs which draft each component implements, because Draft 13 wallets fail against it with `Unrecognized field "format"`.
 - **Claim names** [G-6]. Real MOSIP ID credentials use `UIN` and `dateOfBirth`. The playground's presentation definition accepts `UIN` as an alias for `nationalId`.

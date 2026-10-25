@@ -48,7 +48,12 @@ The **MOSIP Verifiable Credential (VC) Interoperability Playground** is an inter
 
 `backend/src/services/collab.ts` talks to the Collab sandbox (endpoints from `collabTargets()`, overridable with `MOSIP_INJI_*_URL`). Each call is recorded as a `ProtocolLog` with `live: true` as soon as it returns, so it also reaches the UI over SSE.
 
-- **Inji Certify** (`/issue`, issuer `inji-certify`): fetch issuer metadata, find a configuration for the requested format, then send the credential request. Certify refuses it without an eSignet access token (403), so the BFF emulates the credential and returns a notice saying so, with `isSandboxFallback: true`. The credential endpoint is only called on the issuer's own origin.
+- **Inji Certify with a test identity** (`COLLAB_TEST_INDIVIDUAL_ID`, W3C; `services/injiIssuance.ts`):
+  - eSignet (`esignet-mock`): CSRF cookie, then `oauth-details` as Mimoto's client with PKCE, binding later calls with `oauth-details-key/-hash`. Then OTP send, authenticate and the authorization code.
+  - Token from Mimoto's `get-token/{issuer}` proxy, which signs the client assertion.
+  - Inji Certify (Land Registry): `c_nonce` from its Nonce Endpoint, and an OpenID4VCI 1.0 credential request (`credential_configuration_id`, `proofs.jwt`) with the wallet's ES256 proof.
+  - Each step is a live log; secrets are redacted. A refusal falls back to the path below, with the failing step in the notice.
+- **Inji Certify** otherwise (`/issue`, issuer `inji-certify`): fetch issuer metadata, find a configuration for the requested format, then send the credential request. Certify refuses it without an eSignet access token (403), so the BFF emulates the credential and returns a notice saying so, with `isSandboxFallback: true`. The credential endpoint is only called on the issuer's own origin.
 - **Mimoto** (wallet `inji-wallet`): look up the issuer in Mimoto's registry.
 - **Inji Verify** (`/verify`, verifier `inji-verify`): `POST /v1/verify/v2/vc-verification` with the credential (JSON-LD as a string, or a compact SD-JWT). It reports schema and signature, expiry and status checks separately, plus the claims; those become the verdict, checks and shared claims. Where v2 is missing, v1 (`/vc-verification`, one overall `verificationStatus`) is used. In tamper mode the wallet sends a really tampered credential first (see below).
 
