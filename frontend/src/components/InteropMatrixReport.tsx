@@ -66,12 +66,12 @@ export const toMarkdown = (matrix: { combo: ReturnType<typeof allCombinations>[n
     '',
     '## All runs',
     '',
-    row(['Time', 'Issuer', 'Wallet', 'Verifier', 'Format', 'Proof type', 'Mode', 'Verifier status', 'Outcome', 'Layer', 'Error detail', 'Transaction']),
-    row(['---', '---', '---', '---', '---', '---', '---', '---', '---', '---', '---', '---']),
+    row(['Time', 'Issuer', 'Wallet', 'Verifier', 'Format', 'Proof type', 'Mode', 'Verifier status', 'Outcome', 'Layer', 'Error detail', 'Transaction', 'Component builds']),
+    row(['---', '---', '---', '---', '---', '---', '---', '---', '---', '---', '---', '---', '---']),
     ...history.map(r =>
       row([
         r.finishedAt, `${nodeLabel(r.issuer)}${r.imported ? ' (imported credential)' : ''}`, nodeLabel(r.wallet), nodeLabel(r.verifier), formatLabel(r.format), r.proofType,
-        r.tampered ? 'tampered' : 'clean', r.verificationStatus, r.outcome, failureLayer(r) ?? '', r.errorDetail, r.transactionId
+        r.tampered ? 'tampered' : 'clean', r.verificationStatus, r.outcome, failureLayer(r) ?? '', r.errorDetail, r.transactionId, r.components
       ])
     ),
     '',
@@ -120,6 +120,8 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
   const [outcomeFilter, setOutcomeFilter] = useState<'all' | RunRecord['outcome']>('all');
   const [modeFilter, setModeFilter] = useState<'all' | 'clean' | 'tampered'>('all');
   const [layerFilter, setLayerFilter] = useState<'all' | FailureLayer>('all');
+  const [buildFilter, setBuildFilter] = useState<string>('all');
+  const builds = [...new Set(history.map(r => r.components).filter((b): b is string => Boolean(b)))];
   const [view, setView] = useState<'heatmap' | 'list'>('heatmap');
   const [comboFilter, setComboFilter] = useState<Selection | null>(null);
 
@@ -142,6 +144,7 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
     (outcomeFilter === 'all' || r.outcome === outcomeFilter) &&
     (modeFilter === 'all' || (modeFilter === 'tampered') === r.tampered) &&
     (layerFilter === 'all' || failureLayer(r) === layerFilter) &&
+    (buildFilter === 'all' || r.components === buildFilter) &&
     (!comboFilter || comboKey(r) === comboKey(comboFilter))
   );
 
@@ -328,6 +331,16 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
             ))}
             <option value="Unclassified">Unclassified</option>
           </select>
+          {builds.length > 0 && (
+            <select aria-label="Filter by component build" value={buildFilter} onChange={e => setBuildFilter(e.target.value)} className={selectCls}>
+              <option value="all">All component builds</option>
+              {builds.map(b => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
       {comboFilter && (

@@ -90,7 +90,7 @@ describe('App', () => {
 
     // Both calls share one transaction id.
     const txIds = fetchFn.mock.calls
-      .filter(([url]) => url.startsWith('/api/playground/'))
+      .filter(([url]) => /\/api\/playground\/(issue|verify)$/.test(url))
       .map(([, init]) => (init!.headers as Record<string, string>)['x-transaction-id']);
     expect(new Set(txIds).size).toBe(1);
   });

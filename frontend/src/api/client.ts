@@ -75,6 +75,9 @@ export const api = {
   verify: (params: VerifyParams, transactionId: string) =>
     request<VerifyResponse>('/api/playground/verify', { method: 'POST', body: JSON.stringify(params) }, transactionId),
 
+  /** Fingerprint of the Collab component builds (Inji Verify, Certify, Mimoto). */
+  components: () => request<{ label: string }>('/api/playground/components'),
+
   getLogs: () => request<{ count: number; logs: ProtocolLog[] }>('/api/playground/logs'),
 
   clearLogs: () => request<{ success: boolean }>('/api/playground/logs', { method: 'DELETE' }),

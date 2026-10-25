@@ -6,7 +6,7 @@ import { ProtocolLog, RunRecord, VerificationResult } from '../types';
 import { getProofType, mergeLogs, Selection, usePlaygroundRun } from './usePlaygroundRun';
 
 vi.mock('../api/client', () => ({
-  api: { issue: vi.fn(), verify: vi.fn(), clearLogs: vi.fn(), health: vi.fn(), getLogs: vi.fn(), streamLogs: vi.fn() },
+  api: { issue: vi.fn(), verify: vi.fn(), clearLogs: vi.fn(), health: vi.fn(), getLogs: vi.fn(), streamLogs: vi.fn(), components: vi.fn() },
   newTransactionId: vi.fn()
 }));
 
@@ -559,5 +559,15 @@ describe('importCredential', () => {
     });
     await act(() => h.current.issue(DEFAULT_SUBJECT));
     expect(h.current.imported).toBe(false);
+  });
+});
+
+describe('component builds', () => {
+  it('stamps each recorded run with the Collab component fingerprint', async () => {
+    vi.mocked(api.components).mockResolvedValue({ label: 'Verify v2·ui 8b11a4ad | Certify 1.0·6777054c | Mimoto 27c84ecf' });
+    const { result: h } = setup();
+    await waitFor(() => expect(h.current.components).toBe('Verify v2·ui 8b11a4ad | Certify 1.0·6777054c | Mimoto 27c84ecf'));
+    await act(() => h.current.runFullFlow(DEFAULT_SUBJECT));
+    expect(h.current.history[0].components).toBe('Verify v2·ui 8b11a4ad | Certify 1.0·6777054c | Mimoto 27c84ecf');
   });
 });

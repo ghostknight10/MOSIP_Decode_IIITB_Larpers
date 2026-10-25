@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer } from 'react';
+import { useCallback, useEffect, useReducer, useRef } from 'react';
 import { api, newTransactionId } from '../api/client';
 import { parseImportedCredential } from '../lib/importCredential';
 import {
@@ -45,6 +45,8 @@ interface PlaygroundState {
   verificationResult: VerificationResult | null;
   /** Inji Certify / Inji Verify answered from the emulated sandbox in this run. */
   issueFallback: boolean;
+  /** Which Collab component builds runs talk to; stamped on each run record. */
+  components: string | null;
   /** The wallet holds a credential imported from outside the playground (not issued in this run). */
   imported: boolean;
   verifyFallback: boolean;
@@ -63,6 +65,7 @@ type Action =
   | { type: 'verifyStart' }
   | { type: 'verifyDone'; verificationResult: VerificationResult; presentationDefinition: any; presentationDefinitionUri?: string; client_id?: string; nonce?: string; logs?: ProtocolLog[]; fallback?: boolean; notice?: string }
   | { type: 'streamed'; log: ProtocolLog }
+  | { type: 'components'; label: string }
   | { type: 'fail'; error: string }
   | { type: 'record'; record: RunRecord }
   | { type: 'clearLogs' }
@@ -168,6 +171,8 @@ function reducer(state: PlaygroundState, action: Action): PlaygroundState {
         notices: action.notice ? [...state.notices, action.notice] : state.notices,
         logs: mergeLogs(state.logs, action.logs, state.transactionId)
       };
+    case 'components':
+      return { ...state, components: action.label };
     case 'streamed':
       // A frame of the run in flight, streamed before its response arrives.
       // The response then replaces the transaction's frames (mergeLogs).
@@ -203,9 +208,24 @@ export function usePlaygroundRun() {
   const [state, dispatch] = useReducer(reducer, undefined, () => ({
     selection: { issuer: 'inji-certify', wallet: 'inji-wallet', verifier: 'inji-verify', format: 'w3c-vc' },
     ...emptyRun,
+    components: null,
     logs: [],
     history: loadHistory()
   }) as PlaygroundState);
+
+  // Fingerprint of the Collab builds, for regression tracking across Inji releases.
+  // A ref, so records made by callbacks created earlier still see it.
+  const componentsRef = useRef<string | null>(null);
+  useEffect(() => {
+    // Best effort: a BFF without this endpoint just leaves runs unstamped.
+    Promise.resolve()
+      .then(() => api.components())
+      .then(({ label }) => {
+        componentsRef.current = label;
+        dispatch({ type: 'components', label });
+      })
+      .catch(() => {});
+  }, []);
 
   // Live Collab calls take a second or more; show their frames as they happen.
   useEffect(() => api.streamLogs(log => dispatch({ type: 'streamed', log })), []);
@@ -249,7 +269,8 @@ export function usePlaygroundRun() {
         failedChecks: result ? (Object.keys(result.checks ?? {}) as (keyof VerificationResult['checks'])[]).filter(k => !result.checks[k]) : undefined,
         errorDetail: errorDetail ?? (passed ? undefined : result?.details),
         sandboxFallback: fallback,
-        ...(imported ? { imported: true } : {})
+        ...(imported ? { imported: true } : {}),
+        ...(componentsRef.current ? { components: componentsRef.current } : {})
       }
     });
   };

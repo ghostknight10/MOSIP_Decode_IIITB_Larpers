@@ -305,3 +305,20 @@ describe('InteropMatrixReport heatmap and failure layers', () => {
     expect(md).toContain('- **Legal**:');
   });
 });
+
+describe('InteropMatrixReport component builds', () => {
+  it('filters run history by the Collab component build a run talked to', async () => {
+    const user = userEvent.setup();
+    renderReport([
+      makeRun({ transactionId: 'tx-old-build', components: 'Verify v1·ui aaaa | Certify Draft 13·1111 | Mimoto 01' }),
+      makeRun({ transactionId: 'tx-new-build', components: 'Verify v2·ui bbbb | Certify 1.0·2222 | Mimoto 02' })
+    ]);
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Filter by component build' }), 'Verify v2·ui bbbb | Certify 1.0·2222 | Mimoto 02');
+    expect(screen.getByText(/1 of 2/)).toBeInTheDocument();
+  });
+
+  it('hides the build filter when no run recorded one', () => {
+    renderReport([makeRun()]);
+    expect(screen.queryByRole('combobox', { name: 'Filter by component build' })).not.toBeInTheDocument();
+  });
+});

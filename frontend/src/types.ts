@@ -125,6 +125,8 @@ export interface RunRecord {
   sandboxFallback: boolean;
   /** The credential was imported into the wallet, not issued in the playground. */
   imported?: boolean;
+  /** Fingerprint of the Collab component builds at the time (GET /api/playground/components). */
+  components?: string;
 }
 
 /** User-controlled inputs for the next run (lifted so presets can set them). */

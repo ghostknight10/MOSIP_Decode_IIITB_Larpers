@@ -4,6 +4,7 @@ import { getReference, storeReference } from '../utils/references.js';
 import { MockProtocolService, claimsOf, sharedClaims } from '../mocks/mockService.js';
 import { presentToMockVerifier } from '../mocks/wallet.js';
 import { CollabUnavailable, certifyDiscovery, collabTargets, injiVerify } from '../services/collab.js';
+import { componentFingerprints } from '../services/components.js';
 import { InjiIssuanceRefused, issueFromInjiCertify, realIssuanceEnabled } from '../services/injiIssuance.js';
 import { IssueCredentialRequest, ProtocolLog, VerifyCredentialRequest } from '../types/index.js';
 import { v4 as uuidv4 } from 'uuid';
@@ -218,6 +219,11 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
   } catch (err) {
     return serverError(res, 'Verification', err);
   }
+});
+
+/** Which build of each Collab component runs are talking to (regression tracking). */
+playgroundRouter.get('/components', async (_req: Request, res: Response) => {
+  res.json(await componentFingerprints());
 });
 
 /** Credential offers and presentation definitions passed by reference (G-1). */
