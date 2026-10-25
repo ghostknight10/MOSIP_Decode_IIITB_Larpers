@@ -16,6 +16,9 @@ function enforceCredentialFormat(formatInput) {
   if (input.includes('SD-JWT') || input.includes('VC+SD-JWT')) {
     return 'IETF SD-JWT VC (vc+sd-jwt)';
   }
+  if (input.includes('MDOC') || input.includes('18013')) {
+    return 'ISO 18013-5 mDoc (mso_mdoc)';
+  }
   return 'W3C VC (JSON-LD)';
 }
 

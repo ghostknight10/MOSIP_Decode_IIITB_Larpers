@@ -10,9 +10,10 @@ import {
 } from '../src/mocks/mockService.js';
 import { decodeJwt, ldpProofProblem, mockKeys, sha256b64url, signJwt } from '../src/mocks/crypto.js';
 import { present, presentToMockVerifier } from '../src/mocks/wallet.js';
+import { MDOC_DOCTYPE, MDOC_NAMESPACE, mdocDocument } from '../src/mocks/mdoc.js';
 
 const SUBJECT = { fullName: 'Priya Rao', nationalId: 'ID-1', dob: '2000-01-01', country: 'IND', email: 'p@example.org' };
-const issue = async (format: 'w3c-vc' | 'sd-jwt') => (await MockProtocolService.issueCredential(format, SUBJECT)).issuedCredential;
+const issue = async (format: 'w3c-vc' | 'sd-jwt' | 'mso-mdoc') => (await MockProtocolService.issueCredential(format, SUBJECT)).issuedCredential;
 const issuerJwtOf = (token: string) => decodeJwt(token.split('~')[0])!;
 
 describe('issuer (OpenID4VCI Draft 13)', () => {
@@ -77,6 +78,42 @@ describe('issuer (OpenID4VCI Draft 13)', () => {
   });
 });
 
+describe('mDoc (ISO 18013-5)', () => {
+  it('issues a signed IssuerSigned structure with the issuing country of the certificate', async () => {
+    const { issuedCredential, proofType } = await MockProtocolService.issueCredential('mso-mdoc', SUBJECT);
+    expect(proofType).toBe('COSE_Sign1 (ES256)');
+    expect(issuedCredential).toMatchObject({ format: 'mso_mdoc', decoded: { docType: MDOC_DOCTYPE, namespace: MDOC_NAMESPACE, alg: 'ES256' } });
+    expect(issuedCredential.issuerSigned).toMatch(/^[A-Za-z0-9_-]+$/);
+    expect(claimsOf('mso-mdoc', issuedCredential)).toEqual({ ...SUBJECT, issuing_country: 'IN' });
+    expect(await MockProtocolService.issuedByMock('mso-mdoc', issuedCredential)).toBe(true);
+    expect(issuedCredential.decoded.validUntil).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+  });
+
+  it('asks for elements by namespace and requires limited disclosure', () => {
+    const [descriptor] = MockProtocolService.presentationDefinition('mso-mdoc').input_descriptors;
+    expect(descriptor.format).toEqual({ mso_mdoc: { alg: ['ES256'] } });
+    expect(descriptor.constraints.limit_disclosure).toBe('required');
+    expect(descriptor.constraints.fields[0].path).toEqual([`$['${MDOC_NAMESPACE}']['fullName']`]);
+  });
+
+  it('presents only the requested elements', async () => {
+    const result = await presentToMockVerifier('mso-mdoc', await issue('mso-mdoc'));
+    expect(result.verificationResult.verifiedClaims).toEqual({ fullName: 'Priya Rao', nationalId: 'ID-1' });
+  });
+
+  it('builds the Document form Inji Verify expects', async () => {
+    const document = mdocDocument(await issue('mso-mdoc'))!;
+    expect(document).toMatch(/^[A-Za-z0-9_-]+$/);
+    expect(document).not.toBe((await issue('mso-mdoc')).issuerSigned);
+  });
+
+  it('rejects a DeviceResponse that is not CBOR', async () => {
+    const request = MockProtocolService.createRequest('mso-mdoc');
+    const result = await MockProtocolService.checkPresentation('mso-mdoc', 'not-cbor', request);
+    expect(result.verificationResult).toMatchObject({ status: 'INVALID', checks: { formatCheck: false } });
+  });
+});
+
 describe('claims helpers', () => {
   it('reads claims from W3C subjects and SD-JWT disclosures', async () => {
     expect(claimsOf('w3c-vc', await issue('w3c-vc'))).toEqual(SUBJECT);
@@ -101,7 +138,7 @@ describe('claims helpers', () => {
 });
 
 describe('verifier (OpenID4VP Draft 21)', () => {
-  it.each(['w3c-vc', 'sd-jwt'] as const)('accepts a clean %s presentation and shares only the requested claims', async format => {
+  it.each(['w3c-vc', 'sd-jwt', 'mso-mdoc'] as const)('accepts a clean %s presentation and shares only the requested claims', async format => {
     const result = await presentToMockVerifier(format, await issue(format));
     expect(result.isValid).toBe(true);
     expect(result.verificationResult).toMatchObject({
@@ -120,7 +157,11 @@ describe('verifier (OpenID4VP Draft 21)', () => {
     ['sd-jwt', { forceExpired: true }, 'EXPIRED', 'notExpired'],
     ['sd-jwt', { corruptSignature: true }, 'SIGNATURE_MISMATCH', 'signatureValid'],
     ['sd-jwt', { wrongCredentialType: true }, 'INVALID', 'schemaCompliant'],
-    ['sd-jwt', { replayPresentation: true }, 'INVALID', 'holderBinding']
+    ['sd-jwt', { replayPresentation: true }, 'INVALID', 'holderBinding'],
+    ['mso-mdoc', { forceExpired: true }, 'EXPIRED', 'notExpired'],
+    ['mso-mdoc', { corruptSignature: true }, 'SIGNATURE_MISMATCH', 'signatureValid'],
+    ['mso-mdoc', { wrongCredentialType: true }, 'INVALID', 'schemaCompliant'],
+    ['mso-mdoc', { replayPresentation: true }, 'INVALID', 'holderBinding']
   ] as const)('%s with %o is %s (%s fails)', async (format, tamper, status, check) => {
     const result = await presentToMockVerifier(format, await issue(format), tamper);
     expect(result.isValid).toBe(false);

@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { CredentialFormat, ProtocolLog, WalletType } from '../types/index.js';
 import { redactPayload } from '../utils/redactor.js';
 import { TamperOptions, isTampered, prepareCredential } from '../mocks/wallet.js';
+import { mdocDocument } from '../mocks/mdoc.js';
 
 /**
  * Live calls to the MOSIP Collab sandbox. Every exchange is recorded as a
@@ -66,7 +67,7 @@ export async function liveCall({ method, url, body, contentType, sender, receive
 }
 
 const isObject = (v: unknown): v is Record<string, any> => typeof v === 'object' && v !== null && !Array.isArray(v);
-const WIRE_FORMATS: Record<CredentialFormat, string[]> = { 'w3c-vc': ['ldp_vc'], 'sd-jwt': ['vc+sd-jwt', 'dc+sd-jwt'] };
+const WIRE_FORMATS: Record<CredentialFormat, string[]> = { 'w3c-vc': ['ldp_vc'], 'sd-jwt': ['vc+sd-jwt', 'dc+sd-jwt'], 'mso-mdoc': ['mso_mdoc'] };
 
 /**
  * OpenID4VCI against Inji Certify, as far as it goes without a user login:
@@ -152,48 +153,106 @@ export async function certifyDiscovery(
   };
 }
 
-const STATUS: Record<string, 'VALID' | 'EXPIRED' | 'INVALID'> = { SUCCESS: 'VALID', VALID: 'VALID', EXPIRED: 'EXPIRED', INVALID: 'INVALID' };
+type Verdict = 'VALID' | 'EXPIRED' | 'INVALID' | 'SIGNATURE_MISMATCH';
+const V1_STATUS: Record<string, Verdict> = { SUCCESS: 'VALID', VALID: 'VALID', EXPIRED: 'EXPIRED', INVALID: 'INVALID' };
+
+/** The credential as a string, the way Inji Verify takes it. */
+const asSubmitted = (format: CredentialFormat, prepared: any): string =>
+  format === 'sd-jwt'
+    ? typeof prepared === 'string' ? prepared : prepared?.rawToken
+    : format === 'mso-mdoc'
+      ? mdocDocument(prepared) ?? ''
+      : JSON.stringify(prepared);
 
 /**
- * Inji Verify's /vc-verification on the credential as the wallet would present
- * it (really expired, re-typed or with a corrupted signature in tamper mode).
- * This endpoint takes a credential, not a presentation, so there is no nonce
- * or holder proof to check.
+ * Inji Verify on the credential as the wallet would present it (really
+ * expired, re-typed or with a corrupted signature in tamper mode).
+ *
+ * Uses POST /v2/vc-verification, which detects the format and reports the
+ * schema-and-signature, expiry and status checks separately, plus the claims.
+ * Falls back to v1 (/vc-verification, one overall status) where v2 is missing.
+ * Both take a credential, not a presentation, so there is no nonce or holder
+ * proof to check.
  */
-export async function injiVerify(format: CredentialFormat, credential: any, tamper?: TamperOptions) {
+export async function injiVerify(format: CredentialFormat, credential: any, tamper?: TamperOptions, presentationDefinition?: any) {
   const { verify } = collabTargets();
   const tampered = isTampered(tamper);
-  const prepared = await prepareCredential(format, credential, tamper);
-  const presented = format === 'sd-jwt' && typeof prepared !== 'string' ? prepared?.rawToken : prepared;
+  const vc = asSubmitted(format, await prepareCredential(format, credential, tamper));
+  const common = { sender: 'Wallet', receiver: 'Inji Verify (Collab Sandbox)', protocol: 'OpenID4VP' as const, tampered };
 
-  const call = await liveCall({
+  const v2 = await liveCall({
+    ...common,
     method: 'POST',
-    url: `${verify}/v1/verify/vc-verification`,
-    contentType: format === 'sd-jwt' ? 'application/vc+sd-jwt' : 'application/vc+ld+json',
-    body: presented,
-    sender: 'Wallet',
-    receiver: 'Inji Verify (Collab Sandbox)',
-    protocol: 'OpenID4VP',
-    action: 'Submit credential for verification (/vc-verification)',
-    tampered
+    url: `${verify}/v1/verify/v2/vc-verification`,
+    contentType: 'application/json',
+    body: { verifiableCredential: vc, skipStatusChecks: false, includeClaims: true },
+    action: 'Verify credential (/v2/vc-verification)'
   });
-  const reported = call.data.verificationStatus;
-  if (call.status >= 500 || typeof reported !== 'string') {
-    throw new CollabUnavailable(`Inji Verify answered HTTP ${call.status} without a verificationStatus`);
+
+  let status: Verdict;
+  let checks: { formatCheck: boolean; signatureValid: boolean; notExpired: boolean; schemaCompliant: boolean };
+  let details: string;
+  let claims: Record<string, unknown> | undefined;
+  let log = v2.log;
+
+  if (v2.status === 404 || v2.status === 405) {
+    const v1 = await liveCall({
+      ...common,
+      method: 'POST',
+      url: `${verify}/v1/verify/vc-verification`,
+      contentType: format === 'sd-jwt' ? 'application/vc+sd-jwt' : 'application/vc+ld+json',
+      body: format === 'w3c-vc' ? JSON.parse(vc) : vc,
+      action: 'Submit credential for verification (/vc-verification)'
+    });
+    const reported = v1.data.verificationStatus;
+    if (v1.status >= 500 || typeof reported !== 'string') {
+      throw new CollabUnavailable(`Inji Verify answered HTTP ${v1.status} without a verificationStatus`);
+    }
+    status = V1_STATUS[reported] ?? 'INVALID';
+    // v1 reports one overall status, so the individual checks are inferred.
+    checks = { formatCheck: true, signatureValid: status !== 'INVALID', notExpired: status !== 'EXPIRED', schemaCompliant: true };
+    details = `Inji Verify (v1) returned verificationStatus "${reported}"; individual checks are inferred from it.`;
+    log = v1.log;
+  } else {
+    const result = v2.data;
+    if (v2.status >= 500 || typeof result.allChecksSuccessful !== 'boolean') {
+      throw new CollabUnavailable(`Inji Verify answered HTTP ${v2.status} without a verification result`);
+    }
+    const schemaAndSignature = result.schemaAndSignatureCheck ?? {};
+    const error = schemaAndSignature.error;
+    const signatureError = /SIGNATURE/i.test(String(error?.errorCode ?? ''));
+    const expired = result.expiryCheck?.valid === false;
+    const failedStatus = (result.statusCheck ?? []).filter((check: any) => check?.valid === false);
+    checks = {
+      formatCheck: schemaAndSignature.valid !== false || signatureError,
+      signatureValid: !signatureError,
+      notExpired: !expired,
+      schemaCompliant: failedStatus.length === 0
+    };
+    status = result.allChecksSuccessful
+      ? 'VALID'
+      : signatureError
+        ? 'SIGNATURE_MISMATCH'
+        : schemaAndSignature.valid === false || failedStatus.length
+          ? 'INVALID'
+          : expired
+            ? 'EXPIRED'
+            : 'INVALID';
+    details = [
+      `Inji Verify: schema and signature ${schemaAndSignature.valid ? 'valid' : `invalid${error ? ` (${error.errorCode}: ${error.errorMessage})` : ''}`}`,
+      `expiry ${result.expiryCheck ? (expired ? 'failed' : 'valid') : 'not checked'}`,
+      `${(result.statusCheck ?? []).length} status check(s)${failedStatus.length ? `, ${failedStatus.length} failed` : ''}.`
+    ].join('; ');
+    claims = result.claims && typeof result.claims === 'object' ? result.claims : undefined;
   }
-  const status = STATUS[reported] ?? 'INVALID';
+
   return {
     status,
-    reported,
     // Like the mock verifier: a rejected credential is a failed step even on HTTP 200.
-    log: { ...call.log, status: status === 'VALID' ? 'SUCCESS' : 'FAILED' } as ProtocolLog,
-    // Inji Verify reports one overall status, not individual checks.
-    checks: {
-      formatCheck: true,
-      signatureValid: status !== 'INVALID',
-      notExpired: status !== 'EXPIRED',
-      schemaCompliant: true
-    },
-    details: `Inji Verify returned verificationStatus "${reported}". It reports one overall result, so the individual checks are inferred from it.`
+    log: { ...log, status: status === 'VALID' ? 'SUCCESS' : 'FAILED' } as ProtocolLog,
+    checks,
+    details,
+    /** Claims as Inji Verify extracted them (v2), when it returned any. */
+    claims: claims && presentationDefinition && Object.keys(claims).length ? claims : undefined
   };
 }

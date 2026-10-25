@@ -1,6 +1,7 @@
 import { CredentialFormat } from '../types/index.js';
 import { decodeJwt, mockKeys, sha256b64url, signJwt, signPresentation } from './crypto.js';
-import { MockProtocolService, PresentationRequest, REQUESTED_CLAIMS, claimsOf, disclosuresOf } from './mockService.js';
+import { MOCK_RESPONSE_URI, MockProtocolService, PresentationRequest, REQUESTED_CLAIMS, claimsOf, disclosuresOf } from './mockService.js';
+import { corruptMdoc, presentMdoc } from './mdoc.js';
 
 /**
  * The simulated holder. It presents credentials the way a wallet does: only
@@ -45,6 +46,8 @@ export async function prepareCredential(format: CredentialFormat, credential: an
 }
 
 function editInPlace(format: CredentialFormat, credential: any, tamper: TamperOptions) {
+  // A foreign mDoc's MSO can't be edited without re-signing it; it is presented as is.
+  if (format === 'mso-mdoc') return credential;
   if (format === 'sd-jwt') {
     const token: string = typeof credential === 'string' ? credential : credential?.rawToken ?? '';
     const [jwt, ...rest] = token.split('~');
@@ -64,6 +67,7 @@ function editInPlace(format: CredentialFormat, credential: any, tamper: TamperOp
 }
 
 function corruptSignature(format: CredentialFormat, credential: any) {
+  if (format === 'mso-mdoc') return corruptMdoc(credential);
   if (format === 'sd-jwt') {
     const token: string = typeof credential === 'string' ? credential : credential?.rawToken ?? '';
     const [jwt, ...rest] = token.split('~');
@@ -90,11 +94,15 @@ export async function present(format: CredentialFormat, credential: any, request
   const nonce = tamper.replayPresentation ? previousNonce ?? `stale-${request.nonce}` : request.nonce;
   previousNonce = request.nonce;
 
+  const wanted = new Set(Object.values(REQUESTED_CLAIMS).flat());
+  if (format === 'mso-mdoc') {
+    // Only the requested elements, device-signed over a transcript containing the nonce.
+    return presentMdoc(prepared, wanted, { client_id: request.client_id, nonce }, MOCK_RESPONSE_URI);
+  }
   if (format === 'sd-jwt') {
     const token: string = typeof prepared === 'string' ? prepared : prepared?.rawToken ?? '';
     const [jwt] = token.split('~');
     // Selective disclosure: only the claims the verifier asked for leave the wallet.
-    const wanted = new Set(Object.values(REQUESTED_CLAIMS).flat());
     const disclosed = (disclosuresOf(token) ?? []).filter(([, name]) => wanted.has(name)).map(([encoded]) => encoded);
     const presented = `${jwt}~${disclosed.map(d => `${d}~`).join('')}`;
     const { holderEs } = await mockKeys();

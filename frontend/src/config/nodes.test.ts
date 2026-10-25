@@ -62,7 +62,13 @@ describe('lookups', () => {
 describe('allCombinations', () => {
   it('produces the full issuer x wallet x verifier x format product', () => {
     const combos = allCombinations();
-    expect(combos).toHaveLength(ISSUERS.length * WALLETS.length * VERIFIERS.length * FORMATS.length);
+    const supported = (f: (typeof FORMATS)[number]) =>
+      ISSUERS.filter(n => n.supportedFormats.includes(f.id)).length *
+      WALLETS.filter(n => n.supportedFormats.includes(f.id)).length *
+      VERIFIERS.filter(n => n.supportedFormats.includes(f.id)).length;
+    expect(combos).toHaveLength(FORMATS.reduce((sum, f) => sum + supported(f), 0));
+    // Inji Verify's service accepts no mDoc, so those combinations are left out.
+    expect(combos.some(c => c.verifier === 'inji-verify' && c.format === 'mso-mdoc')).toBe(false);
     expect(new Set(combos.map(comboKey)).size).toBe(combos.length);
   });
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { CheckCircle2, CircleDashed, XCircle } from 'lucide-react';
 import { RunRecord } from '../../types';
-import { comboKey, FORMATS, ISSUERS, nodeLabel, VERIFIERS, WALLETS } from '../../config/nodes';
+import { comboKey, FORMATS, getNode, ISSUERS, nodeLabel, VERIFIERS, WALLETS } from '../../config/nodes';
 import { Selection } from '../../hooks/usePlaygroundRun';
 import { failureLayer, shortLayer } from '../../lib/failureLayer';
 
@@ -56,6 +56,20 @@ export const InteropHeatmap: React.FC<InteropHeatmapProps> = ({ latest, selected
               {cols.map(c => {
                 const combo: Selection = { ...r, ...c };
                 const key = comboKey(combo);
+                const supported = [combo.issuer, combo.wallet, combo.verifier].every(id => getNode(id)?.supportedFormats.includes(combo.format));
+                if (!supported) {
+                  // E.g. Inji Verify's service does not accept mDoc: nothing to run.
+                  return (
+                    <td key={key} className="p-0">
+                      <span
+                        aria-label={`${nodeLabel(r.issuer)} → ${nodeLabel(r.wallet)} → ${nodeLabel(c.verifier)}, ${FORMATS.find(f => f.id === c.format)?.label}, not supported`}
+                        className="w-full min-w-20 p-2 rounded border border-dashed border-line text-ink-subtle flex items-center justify-center"
+                      >
+                        Not supported
+                      </span>
+                    </td>
+                  );
+                }
                 const run = latest.get(key);
                 const state = CELL[run?.outcome ?? 'UNTESTED'];
                 const layer = run ? failureLayer(run) : null;

@@ -47,7 +47,8 @@ export const heldClaims = (credential: any, format: CredentialFormat): string[] 
       return unique([...inPayload, ...disclosed]);
     }
   }
-  const subject = format === 'sd-jwt' ? credential?.decoded?.payload?.claims : credential?.credentialSubject;
+  const subject =
+    format === 'sd-jwt' ? credential?.decoded?.payload?.claims : format === 'mso-mdoc' ? credential?.decoded?.claims : credential?.credentialSubject;
   return Object.keys(subject ?? {}).filter(k => !NON_SUBJECT_CLAIMS.has(k));
 };
 

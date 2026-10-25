@@ -13,7 +13,7 @@ const ALLOWED = {
   issuer: ['inji-certify', 'mock-openid4vci'],
   verifier: ['inji-verify', 'mock-openid4vp'],
   wallet: ['inji-wallet', 'mock-wallet'],
-  format: ['w3c-vc', 'sd-jwt']
+  format: ['w3c-vc', 'sd-jwt', 'mso-mdoc']
 } as const;
 
 const isPlainObject = (v: unknown): v is Record<string, unknown> =>
@@ -129,8 +129,8 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
   try {
     if (verifier === 'inji-verify') {
       try {
-        const live = await injiVerify(format, credentialOrToken, tamperPayload);
         const presentationDefinition = MockProtocolService.presentationDefinition(format);
+        const live = await injiVerify(format, credentialOrToken, tamperPayload, presentationDefinition);
         const isValid = live.status === 'VALID';
         record(transactionId, [live.log]);
         return res.json({
@@ -143,7 +143,7 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
             status: live.status,
             checks: live.checks,
             details: live.details,
-            verifiedClaims: isValid ? sharedClaims(presentationDefinition, claimsOf(format, credentialOrToken)) : {}
+            verifiedClaims: isValid ? sharedClaims(presentationDefinition, live.claims ?? claimsOf(format, credentialOrToken)) : {}
           },
           presentationDefinition,
           presentationDefinitionUri: storeReference(presentationDefinition),

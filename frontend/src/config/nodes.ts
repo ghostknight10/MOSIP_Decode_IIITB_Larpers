@@ -30,7 +30,7 @@ export const ISSUERS: NodeDescriptor<IssuerType>[] = [
     badge: 'MOSIP Collab',
     description: 'Official MOSIP issuance module supporting pre-authorized credential offers.',
     isMosip: true,
-    supportedFormats: ['w3c-vc', 'sd-jwt']
+    supportedFormats: ['w3c-vc', 'sd-jwt', 'mso-mdoc']
   },
   {
     id: 'mock-openid4vci',
@@ -40,7 +40,7 @@ export const ISSUERS: NodeDescriptor<IssuerType>[] = [
     badge: 'Custom Spec',
     description: 'Self-hosted OID4VCI (Draft 13) mock for simulating edge cases and negative signatures.',
     isMosip: false,
-    supportedFormats: ['w3c-vc', 'sd-jwt']
+    supportedFormats: ['w3c-vc', 'sd-jwt', 'mso-mdoc']
   }
 ];
 
@@ -53,7 +53,7 @@ export const WALLETS: NodeDescriptor<WalletType>[] = [
     badge: 'MOSIP Mimoto',
     description: 'MOSIP Inji reference wallet (mobile via QR / deep-link, or Inji Web) backed by Mimoto.',
     isMosip: true,
-    supportedFormats: ['w3c-vc', 'sd-jwt']
+    supportedFormats: ['w3c-vc', 'sd-jwt', 'mso-mdoc']
   },
   {
     id: 'mock-wallet',
@@ -63,7 +63,7 @@ export const WALLETS: NodeDescriptor<WalletType>[] = [
     badge: 'Headless',
     description: 'Headless software wallet running in the playground for automated assertions.',
     isMosip: false,
-    supportedFormats: ['w3c-vc', 'sd-jwt']
+    supportedFormats: ['w3c-vc', 'sd-jwt', 'mso-mdoc']
   }
 ];
 
@@ -87,14 +87,15 @@ export const VERIFIERS: NodeDescriptor<VerifierType>[] = [
     badge: 'Custom Spec',
     description: 'Self-hosted OID4VP (Draft 21) verifier evaluating presentation definitions.',
     isMosip: false,
-    supportedFormats: ['w3c-vc', 'sd-jwt'],
+    supportedFormats: ['w3c-vc', 'sd-jwt', 'mso-mdoc'],
     clientId: 'https://verify.mock.mosip.net'
   }
 ];
 
 export const FORMATS: { id: CredentialFormat; label: string; wireFormat: string }[] = [
   { id: 'w3c-vc', label: 'W3C VC (JSON-LD)', wireFormat: 'ldp_vc' },
-  { id: 'sd-jwt', label: 'SD-JWT VC', wireFormat: 'vc+sd-jwt' }
+  { id: 'sd-jwt', label: 'SD-JWT VC', wireFormat: 'vc+sd-jwt' },
+  { id: 'mso-mdoc', label: 'mDoc (ISO 18013-5)', wireFormat: 'mso_mdoc' }
 ];
 
 const ALL_NODES: NodeDescriptor[] = [...ISSUERS, ...WALLETS, ...VERIFIERS];

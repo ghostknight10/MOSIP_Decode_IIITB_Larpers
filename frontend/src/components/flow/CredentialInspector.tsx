@@ -167,6 +167,33 @@ const W3cView: React.FC<{ credential: any }> = ({ credential }) => {
   );
 };
 
+/** mDoc: the BFF's decoded view of the IssuerSigned structure (CBOR isn't decoded in the browser). */
+const MdocView: React.FC<{ credential: any }> = ({ credential }) => {
+  const decoded = credential?.decoded ?? {};
+  return (
+    <div className="space-y-3">
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+        <dt className="text-ink-subtle">docType</dt>
+        <dd className="font-mono text-ink break-all">{decoded.docType ?? '—'}</dd>
+        <dt className="text-ink-subtle">Namespace</dt>
+        <dd className="font-mono text-ink break-all">{decoded.namespace ?? '—'}</dd>
+        <dt className="text-ink-subtle">Valid</dt>
+        <dd className="font-mono text-ink">{decoded.validFrom ?? '?'} to {decoded.validUntil ?? '?'}</dd>
+        <dt className="text-ink-subtle">Issuer signature</dt>
+        <dd className="font-mono text-ink">COSE_Sign1 · {decoded.alg ?? 'ES256'} · x5chain</dd>
+      </dl>
+      <section aria-label="Data elements">
+        <h5 className="text-xs font-semibold text-ink-muted mb-1">Data elements ({Object.keys(decoded.claims ?? {}).length}), each with a digest in the MSO</h5>
+        <JsonView value={decoded.claims ?? null} className="p-2 rounded-md bg-surface-muted border border-line" />
+      </section>
+      <section aria-label="IssuerSigned">
+        <h5 className="text-xs font-semibold text-ink-muted mb-1">IssuerSigned (CBOR, base64url)</h5>
+        <p className="p-2 rounded-md bg-surface-muted border border-line font-mono text-xs text-ink break-all line-clamp-4">{credential?.issuerSigned ?? '—'}</p>
+      </section>
+    </div>
+  );
+};
+
 export const CredentialInspector: React.FC<{ credential: any; format: CredentialFormat }> = ({ credential, format }) => {
   const [open, setOpen] = useState(false);
   return (
@@ -182,7 +209,13 @@ export const CredentialInspector: React.FC<{ credential: any; format: Credential
       </button>
       {open && (
         <div className="mt-2 p-3 rounded-md bg-surface border border-line">
-          {format === 'sd-jwt' && typeof credential?.rawToken === 'string' ? <SdJwtView raw={credential.rawToken} /> : <W3cView credential={credential} />}
+          {format === 'sd-jwt' && typeof credential?.rawToken === 'string' ? (
+            <SdJwtView raw={credential.rawToken} />
+          ) : format === 'mso-mdoc' ? (
+            <MdocView credential={credential} />
+          ) : (
+            <W3cView credential={credential} />
+          )}
         </div>
       )}
     </div>

@@ -237,12 +237,14 @@ describe('scoreMatrix', () => {
 describe('InteropMatrixReport heatmap and failure layers', () => {
   const cell = (label: RegExp) => screen.getByRole('button', { name: label });
 
-  it('shows a 4 x 4 heatmap by default with every cell untested', () => {
+  it('shows the heatmap by default with every supported cell untested', () => {
     renderReport();
     expect(screen.getByRole('radio', { name: 'Heatmap' })).toHaveAttribute('aria-checked', 'true');
     const heatmap = screen.getAllByRole('table')[0];
     expect(within(heatmap).getAllByRole('rowheader')).toHaveLength(4);
     expect(within(heatmap).getAllByRole('button', { name: /UNTESTED/ })).toHaveLength(TOTAL);
+    // Inji Verify x mDoc: 4 issuer-wallet rows, shown as not supported and not clickable.
+    expect(within(heatmap).getAllByLabelText(/Inji Verify, mDoc \(ISO 18013-5\), not supported/)).toHaveLength(4);
   });
 
   it('labels each cell with the combination, outcome, emulation and layer', () => {

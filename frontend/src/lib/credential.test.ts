@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decodeJwtPayload } from './credential';
+import { decodeJwtPayload, summarise } from './credential';
 
 const b64url = (o: object) => btoa(JSON.stringify(o)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
@@ -21,5 +21,17 @@ describe('decodeJwtPayload', () => {
   it('returns null for malformed tokens', () => {
     expect(decodeJwtPayload('not-a-jwt')).toBeNull();
     expect(decodeJwtPayload('a.%%%.c')).toBeNull();
+  });
+});
+
+describe('summarise (mDoc)', () => {
+  it('reads docType, validity and element count from the decoded view', () => {
+    const mdoc = { decoded: { docType: 'org.mosip.playground.nationalid.1', namespace: 'org.mosip.playground.1', validUntil: '2027-01-01T00:00:00Z', claims: { a: 1, b: 2 } } };
+    expect(summarise(mdoc, 'mso-mdoc')).toEqual({
+      issuer: 'x5chain certificate in issuerAuth',
+      type: 'org.mosip.playground.nationalid.1',
+      expires: '2027-01-01T00:00:00Z',
+      extra: '2 data elements in org.mosip.playground.1'
+    });
   });
 });

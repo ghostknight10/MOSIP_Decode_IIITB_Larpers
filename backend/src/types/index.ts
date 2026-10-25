@@ -1,4 +1,4 @@
-export type CredentialFormat = 'w3c-vc' | 'sd-jwt';
+export type CredentialFormat = 'w3c-vc' | 'sd-jwt' | 'mso-mdoc';
 
 export type IssuerType = 'inji-certify' | 'mock-openid4vci';
 export type WalletType = 'inji-wallet' | 'mock-wallet';

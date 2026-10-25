@@ -72,7 +72,7 @@ export const IssuePhase: React.FC<IssuePhaseProps> = ({ phase, format, credentia
         {importOpen && (
           <div className="mb-4 space-y-2">
             <p className="text-xs text-ink-muted">
-              Paste a W3C credential (JSON) or an SD-JWT, for example one downloaded from Inji Web after signing in with eSignet. The wallet holds
+              Paste a W3C credential (JSON), an SD-JWT or an mDoc (base64url), for example one downloaded from Inji Web after signing in with eSignet. The wallet holds
               it and presents it in Phase 2, so a real Inji credential can be tested against both verifiers.
             </p>
             <textarea

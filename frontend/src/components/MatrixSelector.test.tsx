@@ -25,6 +25,16 @@ const renderSelector = (props: Partial<React.ComponentProps<typeof MatrixSelecto
 const column = (name: string) => screen.getByRole('radiogroup', { name });
 
 describe('MatrixSelector', () => {
+  it('disables mDoc while Inji Verify is the verifier (its service accepts no mDoc)', () => {
+    renderSelector();
+    expect(screen.getByRole('radio', { name: /mDoc/ })).toBeDisabled();
+  });
+
+  it('offers mDoc with the mock verifier', () => {
+    renderSelector({ selection: { ...selection, verifier: 'mock-openid4vp' } });
+    expect(screen.getByRole('radio', { name: /mDoc/ })).toBeEnabled();
+  });
+
   it('renders every registry node as a radio in its role column', () => {
     renderSelector();
     expect(within(column('Issuer')).getAllByRole('radio').map(r => r.textContent)).toEqual([
@@ -33,7 +43,7 @@ describe('MatrixSelector', () => {
     ]);
     expect(within(column('Wallet')).getAllByRole('radio')).toHaveLength(2);
     expect(within(column('Verifier')).getAllByRole('radio')).toHaveLength(2);
-    expect(within(column('Credential format')).getAllByRole('radio')).toHaveLength(2);
+    expect(within(column('Credential format')).getAllByRole('radio')).toHaveLength(3);
   });
 
   it('marks the current selection as checked', () => {

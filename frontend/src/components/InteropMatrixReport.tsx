@@ -355,7 +355,7 @@ export const InteropMatrixReport: React.FC<InteropMatrixReportProps> = ({ histor
           <div>
             <p className="text-sm font-semibold text-ink mb-1">No runs yet</p>
             <p className="text-xs text-ink-muted max-w-xs">
-              Run a flow in the Playground or use <strong>Run All Combinations</strong> above to test all 16 issuer × wallet × verifier × format combinations.
+              Run a flow in the Playground or use <strong>Run All Combinations</strong> above to test all {allCombinations().length} issuer × wallet × verifier × format combinations.
             </p>
           </div>
         </div>

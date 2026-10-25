@@ -33,7 +33,7 @@ const collab = (overrides: Record<string, unknown> = {}) =>
       'openid-credential-issuer': json(200, METADATA),
       '/issuance/credential': json(403, { status: 403, error: 'Forbidden' }),
       '/mimoto/issuers': json(200, { response: { issuers: [{ issuer_id: 'Mosip', credential_issuer_host: CERTIFY }] } }),
-      '/vc-verification': json(200, { verificationStatus: 'SUCCESS' }),
+      '/vc-verification': json(200, { allChecksSuccessful: true, schemaAndSignatureCheck: { valid: true, error: null }, expiryCheck: { valid: true }, statusCheck: [], claims: {} }),
       ...overrides
     };
     const match = Object.keys(answers).find(part => url.includes(part));
@@ -287,61 +287,79 @@ describe('POST /verify', () => {
 
   describe('with Inji Verify', () => {
     const injiBody = () => ({ ...verifyBody, verifier: 'inji-verify' });
+    const v2 = (overrides: Record<string, unknown> = {}) =>
+      json(200, {
+        allChecksSuccessful: true,
+        schemaAndSignatureCheck: { valid: true, error: null },
+        expiryCheck: { valid: true },
+        statusCheck: [],
+        claims: { fullName: 'From Inji', nationalId: 'INJI-1', email: 'x@y.z' },
+        ...overrides
+      });
 
-    it('submits the credential to /vc-verification and reports the live verdict', async () => {
-      collab();
+    it('submits the credential to /v2/vc-verification and reports the live verdict', async () => {
+      collab({ '/vc-verification': v2() });
       const { body } = await post('/verify', injiBody(), 'tx-iv1');
       expect(requestMock).toHaveBeenCalledTimes(1);
-      expect(requestMock.mock.calls[0][0]).toMatchObject({
-        method: 'POST',
-        url: 'https://injiverify.collab.mosip.net/v1/verify/vc-verification',
-        headers: { 'Content-Type': 'application/vc+ld+json' },
-        data: validCredential
-      });
+      const config = requestMock.mock.calls[0][0] as any;
+      expect(config).toMatchObject({ method: 'POST', url: 'https://injiverify.collab.mosip.net/v1/verify/v2/vc-verification', headers: { 'Content-Type': 'application/json' } });
+      expect(config.data).toMatchObject({ skipStatusChecks: false, includeClaims: true });
+      expect(JSON.parse(config.data.verifiableCredential)).toEqual(validCredential);
       expect(body).toMatchObject({ success: true, isValid: true, client_id: 'https://injiverify.collab.mosip.net', verificationResult: { status: 'VALID' } });
       expect(body.isSandboxFallback).toBeUndefined();
-      expect(body.verificationResult.verifiedClaims).toEqual({
-        fullName: validCredential.credentialSubject.fullName,
-        nationalId: validCredential.credentialSubject.nationalId
-      });
-      expect(body.presentationDefinition.input_descriptors).toHaveLength(1);
+      // Only the requested claims, as Inji Verify extracted them.
+      expect(body.verificationResult.verifiedClaims).toEqual({ fullName: 'From Inji', nationalId: 'INJI-1' });
+      expect(body.verificationResult.checks).toEqual({ formatCheck: true, signatureValid: true, notExpired: true, schemaCompliant: true });
       expect(body.protocolLogs).toEqual([
         expect.objectContaining({ step: 1, live: true, sender: 'Wallet', receiver: 'Inji Verify (Collab Sandbox)', status: 'SUCCESS' })
       ]);
     });
 
     it.each([
-      ['INVALID', 'INVALID', { signatureValid: false, notExpired: true }],
-      ['EXPIRED', 'EXPIRED', { signatureValid: true, notExpired: false }],
-      ['SOMETHING_NEW', 'INVALID', { signatureValid: false }]
-    ])('maps verificationStatus %s to %s', async (reported, status, checks) => {
-      collab({ '/vc-verification': json(200, { verificationStatus: reported }) });
+      ['a signature failure', { allChecksSuccessful: false, schemaAndSignatureCheck: { valid: false, error: { errorCode: 'ERR_SIGNATURE_VERIFICATION_FAILED', errorMessage: 'Verification Failed' } }, expiryCheck: null }, 'SIGNATURE_MISMATCH', { signatureValid: false, formatCheck: true }],
+      ['an expired credential', { allChecksSuccessful: false, expiryCheck: { valid: false } }, 'EXPIRED', { signatureValid: true, notExpired: false }],
+      ['a schema error', { allChecksSuccessful: false, schemaAndSignatureCheck: { valid: false, error: { errorCode: 'ERR_INVALID_SCHEMA', errorMessage: 'bad' } } }, 'INVALID', { formatCheck: false, signatureValid: true }],
+      ['a failed status check', { allChecksSuccessful: false, statusCheck: [{ purpose: 'revocation', valid: false }] }, 'INVALID', { schemaCompliant: false }]
+    ])('maps %s', async (_label, result, status, checks) => {
+      collab({ '/vc-verification': v2(result) });
       const { body } = await post('/verify', injiBody());
       expect(body).toMatchObject({ isValid: false, verificationResult: { status, checks, verifiedClaims: {} } });
-      expect(body.verificationResult.details).toContain(reported);
       expect(body.protocolLogs[0]).toMatchObject({ status: 'FAILED', response: { status: 200 } });
     });
 
+    it('falls back to v1 where v2 is not deployed', async () => {
+      requestMock.mockImplementation((async ({ url }: { url: string }) =>
+        url.includes('/v2/') ? json(404, { error: 'Not Found' }) : json(200, { verificationStatus: 'EXPIRED' })) as any);
+      const { body } = await post('/verify', injiBody());
+      expect(requestMock.mock.calls.map(([c]: any[]) => c.url)).toEqual([
+        'https://injiverify.collab.mosip.net/v1/verify/v2/vc-verification',
+        'https://injiverify.collab.mosip.net/v1/verify/vc-verification'
+      ]);
+      expect(requestMock.mock.calls[1][0]).toMatchObject({ headers: { 'Content-Type': 'application/vc+ld+json' }, data: validCredential });
+      expect(body.verificationResult).toMatchObject({ status: 'EXPIRED', checks: { notExpired: false } });
+      expect(body.verificationResult.details).toContain('v1');
+    });
+
     it('sends a really tampered credential and marks the step', async () => {
-      collab({ '/vc-verification': json(200, { verificationStatus: 'INVALID' }) });
+      collab({ '/vc-verification': v2({ allChecksSuccessful: false, expiryCheck: { valid: false } }) });
       const { body } = await post('/verify', { ...injiBody(), tamperPayload: { forceExpired: true, corruptSignature: true } });
-      const sent = requestMock.mock.calls[0][0].data as any;
+      const sent = JSON.parse((requestMock.mock.calls[0][0] as any).data.verifiableCredential);
       expect(new Date(sent.expirationDate).getTime()).toBeLessThan(Date.now());
       expect(sent.proof.proofValue).not.toBe(validCredential.proof.proofValue);
       expect(body.protocolLogs[0].tampered).toBe(true);
     });
 
-    it('sends an SD-JWT as a compact token', async () => {
-      collab();
+    it('sends an SD-JWT as its compact token', async () => {
+      collab({ '/vc-verification': v2() });
       const sdJwt = (await MockProtocolService.issueCredential('sd-jwt')).issuedCredential;
       await post('/verify', { ...injiBody(), format: 'sd-jwt', credentialOrToken: sdJwt });
-      expect(requestMock.mock.calls[0][0]).toMatchObject({ headers: { 'Content-Type': 'application/vc+sd-jwt' }, data: sdJwt.rawToken });
+      expect((requestMock.mock.calls[0][0] as any).data.verifiableCredential).toBe(sdJwt.rawToken);
     });
 
     it.each([
       ['unreachable', unreachable()],
       ['answering HTML', { status: 200, data: '<html>', headers: { 'content-type': 'text/html' } }],
-      ['failing without a status', json(502, { error: 'bad gateway' })]
+      ['failing without a result', json(502, { error: 'bad gateway' })]
     ])('falls back to an emulated Inji Verify when it is %s', async (_label, answer) => {
       collab({ '/vc-verification': answer });
       const { body } = await post('/verify', injiBody());

@@ -5,7 +5,8 @@ import { parseSdJwt } from './sdjwt';
  * Reads a credential obtained outside the playground (for example downloaded
  * with Inji Web after an eSignet login), so the wallet can hold and present a
  * real Inji credential. Accepts a W3C credential as JSON, possibly wrapped as
- * { credential } or { verifiableCredential }, or a compact SD-JWT.
+ * { credential } or { verifiableCredential }, a compact SD-JWT, or an mDoc
+ * IssuerSigned structure (base64url CBOR).
  */
 export type ImportResult = { format: CredentialFormat; credential: any } | { error: string };
 
@@ -36,8 +37,13 @@ export const parseImportedCredential = (text: string): ImportResult => {
     return { format: 'w3c-vc', credential };
   }
 
+  // An mDoc IssuerSigned structure: base64url CBOR, decoded and verified by the BFF.
+  if (!input.includes('~') && !input.includes('.') && /^[A-Za-z0-9_-]{40,}$/.test(input)) {
+    return { format: 'mso-mdoc', credential: { format: 'mso_mdoc', issuerSigned: input, decoded: {} } };
+  }
+
   const parsed = input.includes('~') ? parseSdJwt(input) : null;
-  if (!parsed) return { error: 'Not a W3C credential (JSON) or an SD-JWT (<jwt>~<disclosure>~...).' };
+  if (!parsed) return { error: 'Not a W3C credential (JSON), an SD-JWT (<jwt>~<disclosure>~...) or an mDoc (base64url CBOR).' };
   return {
     format: 'sd-jwt',
     credential: {

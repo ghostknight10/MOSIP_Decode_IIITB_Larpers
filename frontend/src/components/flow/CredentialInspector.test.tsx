@@ -18,6 +18,20 @@ const W3C_VC = {
 const open = async () => userEvent.click(screen.getByRole('button', { name: 'Inspect credential' }));
 
 describe('CredentialInspector', () => {
+  it('shows the decoded mDoc: docType, validity, elements and the CBOR', async () => {
+    const user = userEvent.setup();
+    const mdoc = {
+      issuerSigned: 'o2ZzdGF0dXM',
+      decoded: { docType: 'org.mosip.playground.nationalid.1', namespace: 'org.mosip.playground.1', claims: { fullName: 'A' }, validFrom: '2026-01-01T00:00:00Z', validUntil: '2027-01-01T00:00:00Z', alg: 'ES256' }
+    };
+    render(<CredentialInspector credential={mdoc} format="mso-mdoc" />);
+    await user.click(screen.getByRole('button', { name: 'Inspect credential' }));
+    expect(screen.getByText('org.mosip.playground.nationalid.1')).toBeInTheDocument();
+    expect(screen.getByText('COSE_Sign1 · ES256 · x5chain')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Data elements' })).toHaveTextContent('fullName');
+    expect(screen.getByText('o2ZzdGF0dXM')).toBeInTheDocument();
+  });
+
   it('starts collapsed', () => {
     render(<CredentialInspector credential={W3C_VC} format="w3c-vc" />);
     expect(screen.getByRole('button', { name: 'Inspect credential' })).toHaveAttribute('aria-expanded', 'false');

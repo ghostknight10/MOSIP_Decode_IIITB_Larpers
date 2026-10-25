@@ -195,6 +195,7 @@ export const getProofType = (credential: any, format: CredentialFormat): string 
     const alg = credential.decoded?.header?.alg;
     return alg ? `JWT (${alg})` : 'JWT';
   }
+  if (format === 'mso-mdoc') return `COSE_Sign1 (${credential.decoded?.alg ?? 'ES256'})`;
   return credential.proof?.type || 'unknown';
 };
 

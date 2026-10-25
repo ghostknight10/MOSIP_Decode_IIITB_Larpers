@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { CredentialFormat, ProtocolLog } from '../types/index.js';
+import { MDOC_NAMESPACE, checkMdocPresentation, mdocClaims, mdocIssuedByMock, mintMdoc } from './mdoc.js';
 import {
   CREDENTIALS_V1,
   ED25519_2020_CONTEXT,
@@ -41,12 +42,18 @@ export interface MintOptions {
 export type VerificationStatus = 'VALID' | 'INVALID' | 'EXPIRED' | 'SIGNATURE_MISMATCH';
 type Check = 'formatCheck' | 'signatureValid' | 'notExpired' | 'schemaCompliant' | 'holderBinding';
 
+/** Last segment of a JSONPath: $.credentialSubject.fullName or $['org.ns']['fullName']. */
+export const claimFromPath = (path: string) => {
+  const brackets = [...path.matchAll(/\['([^']+)'\]/g)];
+  return brackets.length ? brackets.at(-1)![1] : path.split('.').pop()!;
+};
+
 /** The presented claims the presentation definition asks for, under whichever alias was presented. */
 export function sharedClaims(presentationDefinition: any, claims: Subject) {
   const fields: { path: string[] }[] = presentationDefinition.input_descriptors[0].constraints.fields;
   return Object.fromEntries(
     fields.flatMap(field => {
-      const name = field.path.map(path => path.split('.').pop()!).find(claim => claim in claims);
+      const name = field.path.map(claimFromPath).find(claim => claim in claims);
       return name ? [[name, claims[name]]] : [];
     })
   );
@@ -70,6 +77,7 @@ export function disclosuresOf(token: string): [string, string, unknown][] | null
 
 /** The subject claims a credential carries (W3C credentialSubject, or SD-JWT disclosures). */
 export function claimsOf(format: CredentialFormat, credential: any): Subject {
+  if (format === 'mso-mdoc') return mdocClaims(credential);
   if (format === 'sd-jwt') {
     const token = typeof credential === 'string' ? credential : credential?.rawToken;
     return Object.fromEntries((typeof token === 'string' ? disclosuresOf(token) ?? [] : []).map(([, name, value]) => [name, value]));
@@ -180,10 +188,19 @@ async function checkSdJwtPresentation(token: unknown, nonce: string, clientId: s
   return { status: 'VALID', details: '', claims: Object.fromEntries(disclosures.map(([, name, value]) => [name, value])) };
 }
 
+export const WIRE_FORMAT: Record<CredentialFormat, string> = { 'w3c-vc': 'ldp_vc', 'sd-jwt': 'vc+sd-jwt', 'mso-mdoc': 'mso_mdoc' };
+export const MOCK_RESPONSE_URI = `${MOCK_VERIFIER_CLIENT_ID}/vp-response`;
+
+async function checkMdoc(vpToken: unknown, request: PresentationRequest): Promise<Verdict> {
+  const { problem, claims } = await checkMdocPresentation(vpToken, request, MOCK_RESPONSE_URI);
+  return problem ? reject(problem.check, problem.message) : { status: 'VALID', details: '', claims };
+}
+
 export class MockProtocolService {
   /** Signs a credential with the mock issuer's keys. Used for issuance and by the wallet's tamper options. */
   public static async mintCredential(format: CredentialFormat, subject: Subject, { expired = false, wrongType = false }: MintOptions = {}) {
     const keys = await mockKeys();
+    if (format === 'mso-mdoc') return mintMdoc(subject, { expired, wrongType });
     const issuedAt = Date.now() - (expired ? 2 * DAY_MS : 0);
     const expiresAt = expired ? Date.now() - DAY_MS : issuedAt + 365 * DAY_MS;
 
@@ -221,6 +238,7 @@ export class MockProtocolService {
 
   /** True when the mock issuer signed this credential (so the wallet can ask it for a variant). */
   public static async issuedByMock(format: CredentialFormat, credential: any) {
+    if (format === 'mso-mdoc') return mdocIssuedByMock(credential);
     const keys = await mockKeys();
     if (format === 'sd-jwt') {
       const token = typeof credential === 'string' ? credential : credential?.rawToken;
@@ -245,7 +263,7 @@ export class MockProtocolService {
 
     const credentialOffer = {
       credential_issuer: MOCK_ISSUER_URL,
-      credential_configuration_ids: [format === 'sd-jwt' ? 'NationalId_SD_JWT' : 'NationalId_W3C_JSONLD'],
+      credential_configuration_ids: [{ 'w3c-vc': 'NationalId_W3C_JSONLD', 'sd-jwt': 'NationalId_SD_JWT', 'mso-mdoc': 'NationalId_mDoc' }[format]],
       grants: {
         'urn:ietf:params:oauth:grant-type:pre-authorized_code': {
           'pre-authorized_code': `authz-code-${uuidv4().substring(0, 8)}`,
@@ -284,7 +302,7 @@ export class MockProtocolService {
         url: `${MOCK_ISSUER_URL}/credential`,
         headers: { 'Content-Type': 'application/json' },
         body: {
-          format: format === 'sd-jwt' ? 'vc+sd-jwt' : 'ldp_vc',
+          format: WIRE_FORMAT[format],
           proof: { proof_type: 'jwt', jwt: 'eyJhbGciOiJFUzI1NiIsIn...' }
         }
       },
@@ -295,7 +313,7 @@ export class MockProtocolService {
     return {
       credentialOffer,
       issuedCredential,
-      proofType: format === 'sd-jwt' ? 'JWT (ES256)' : issuedCredential.proof.type,
+      proofType: format === 'sd-jwt' ? 'JWT (ES256)' : format === 'mso-mdoc' ? 'COSE_Sign1 (ES256)' : issuedCredential.proof.type,
       logs: [log1, log2]
     };
   }
@@ -309,11 +327,15 @@ export class MockProtocolService {
           id: 'national_id_credential',
           name: 'National Identity Proof',
           purpose: 'Verify age, identity, and citizenship without leaking unwanted attributes',
-          format: { [format === 'sd-jwt' ? 'vc+sd-jwt' : 'ldp_vc']: { alg: ['ES256', 'EdDSA'] } },
+          format: { [WIRE_FORMAT[format]]: { alg: format === 'w3c-vc' ? ['EdDSA', 'ES256'] : ['ES256'] } },
           constraints: {
+            ...(format === 'mso-mdoc' ? { limit_disclosure: 'required' } : {}),
             fields: Object.values(REQUESTED_CLAIMS).map(names => ({
-              path: names.flatMap(name => [`$.credentialSubject.${name}`, `$.${name}`]),
-              filter: { type: 'string' }
+              // mDoc elements are addressed as $['namespace']['element'] (ISO 18013-7).
+              path: names.flatMap(name =>
+                format === 'mso-mdoc' ? [`$['${MDOC_NAMESPACE}']['${name}']`] : [`$.credentialSubject.${name}`, `$.${name}`]
+              ),
+              ...(format === 'mso-mdoc' ? { intent_to_retain: false } : { filter: { type: 'string' } })
             }))
           }
         }
@@ -338,7 +360,9 @@ export class MockProtocolService {
       ? reject('holderBinding', 'Unknown or already used nonce: this request was answered before (replay).')
       : format === 'sd-jwt'
         ? await checkSdJwtPresentation(vpToken, issued.nonce, issued.client_id)
-        : await checkLdpPresentation(vpToken, issued.nonce, issued.client_id);
+        : format === 'mso-mdoc'
+          ? await checkMdoc(vpToken, issued)
+          : await checkLdpPresentation(vpToken, issued.nonce, issued.client_id);
 
     const isValid = verdict.status === 'VALID';
     const checks = {
@@ -384,7 +408,7 @@ export class MockProtocolService {
       status: isValid ? 'SUCCESS' : 'FAILED',
       request: {
         method: 'POST',
-        url: `${MOCK_VERIFIER_CLIENT_ID}/vp-response`,
+        url: MOCK_RESPONSE_URI,
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: { vp_token: vpToken ?? null, presentation_submission: { definition_id: request.presentationDefinition.id } }
       },

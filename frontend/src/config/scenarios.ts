@@ -65,5 +65,21 @@ export const SCENARIOS: Scenario[] = [
     description: 'Cross-ecosystem: an Inji credential verified by a non-MOSIP verifier.',
     selection: { issuer: 'inji-certify', wallet: 'mock-wallet', verifier: 'mock-openid4vp', format: 'sd-jwt' },
     tamper: null
+  },
+  {
+    id: 'mdoc',
+    testCase: 'TC-07',
+    label: 'mDoc (ISO 18013-5)',
+    description: 'Inji wallet holds an mDoc and discloses two elements to the mock verifier.',
+    selection: { issuer: 'mock-openid4vci', wallet: 'inji-wallet', verifier: 'mock-openid4vp', format: 'mso-mdoc' },
+    tamper: null
+  },
+  {
+    id: 'replay',
+    testCase: 'TC-08',
+    label: 'Replayed presentation',
+    description: 'The wallet resends a presentation made for an earlier request; the verifier should reject it.',
+    selection: { issuer: 'mock-openid4vci', wallet: 'mock-wallet', verifier: 'mock-openid4vp', format: 'sd-jwt' },
+    tamper: { forceExpired: false, corruptSignature: false, replayPresentation: true }
   }
 ];

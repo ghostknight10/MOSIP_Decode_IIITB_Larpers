@@ -50,8 +50,18 @@ export const decodeJwtPayload = (jwt: string) => {
   }
 };
 
-/** Normalise the two credential shapes into a few display fields. */
+/** Normalise the credential shapes into a few display fields. */
 export const summarise = (credential: any, format: CredentialFormat) => {
+  if (format === 'mso-mdoc') {
+    const decoded = credential?.decoded ?? {};
+    const elements = Object.keys(decoded.claims ?? {}).length;
+    return {
+      issuer: 'x5chain certificate in issuerAuth',
+      type: decoded.docType,
+      expires: decoded.validUntil,
+      extra: `${elements} data element${elements === 1 ? '' : 's'} in ${decoded.namespace ?? 'one namespace'}`
+    };
+  }
   if (format === 'sd-jwt') {
     const payload = credential?.rawToken ? decodeJwtPayload(credential.rawToken) : null;
     const disclosures = credential?.rawToken ? credential.rawToken.split('~').slice(1).filter(Boolean).length : 0;

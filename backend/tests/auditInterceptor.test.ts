@@ -118,7 +118,8 @@ describe('createAuditClient', () => {
     ['vc+sd-jwt', 'IETF SD-JWT VC (vc+sd-jwt)'],
     ['SD-JWT', 'IETF SD-JWT VC (vc+sd-jwt)'],
     ['ldp_vc', 'W3C VC (JSON-LD)'],
-    ['mso_mdoc', 'W3C VC (JSON-LD)']
+    ['mso_mdoc', 'ISO 18013-5 mDoc (mso_mdoc)'],
+    ['ISO 18013-5', 'ISO 18013-5 mDoc (mso_mdoc)']
   ])('normalises credential format %s to %s', async (format, expected) => {
     await createAuditClient({ transactionId: 'tx-f', isSandbox: false })({
       url: 'https://x',

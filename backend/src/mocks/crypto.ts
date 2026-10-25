@@ -51,6 +51,9 @@ export const documentLoader = async (url: string) => {
   throw new Error(`Unsupported JSON-LD document or verification method: ${url}`);
 };
 
+/** Country of the mock issuer (ISO 3166-1 alpha-2), in its certificate and its mDocs. */
+export const ISSUING_COUNTRY = 'IN';
+
 const ES256 = { name: 'ECDSA', namedCurve: 'P-256', hash: 'SHA-256' } as const;
 x509.cryptoProvider.set(webcrypto as any);
 
@@ -71,7 +74,8 @@ async function p256(withCertificate: string | null) {
         (
           await x509.X509CertificateGenerator.createSelfSigned({
             serialNumber: '01',
-            name: `CN=${withCertificate}`,
+            // C= is the issuing country; mDoc verifiers match it to issuing_country (ISO 18013-5).
+            name: `CN=${withCertificate}, C=${ISSUING_COUNTRY}`,
             notBefore: new Date(Date.now() - 86_400_000),
             notAfter: new Date(Date.now() + 365 * 86_400_000),
             keys: pair,

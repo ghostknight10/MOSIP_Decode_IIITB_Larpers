@@ -438,6 +438,10 @@ describe('getProofType', () => {
     expect(getProofType(W3C_VC, 'w3c-vc')).toBe('Ed25519Signature2020');
   });
 
+  it('names the COSE signature for mDoc credentials', () => {
+    expect(getProofType({ decoded: { alg: 'ES256' } }, 'mso-mdoc')).toBe('COSE_Sign1 (ES256)');
+  });
+
   it('reads the JWT alg for SD-JWT credentials', () => {
     expect(getProofType({ decoded: { header: { alg: 'ES256' } } }, 'sd-jwt')).toBe('JWT (ES256)');
     expect(getProofType({ rawToken: 'a.b.c' }, 'sd-jwt')).toBe('JWT');

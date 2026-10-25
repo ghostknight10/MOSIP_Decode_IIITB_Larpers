@@ -20,6 +20,11 @@ describe('parseImportedCredential', () => {
     });
   });
 
+  it('takes base64url CBOR as an mDoc for the BFF to decode', () => {
+    const issuerSigned = 'omluYW1lU3BhY2VzoXZvcmcubW9zaXAucGxheWdyb3VuZC4xgdgYWF-k';
+    expect(parseImportedCredential(issuerSigned)).toEqual({ format: 'mso-mdoc', credential: { format: 'mso_mdoc', issuerSigned, decoded: {} } });
+  });
+
   it.each([
     ['', 'Paste a credential first.'],
     ['{bad', 'does not parse'],
