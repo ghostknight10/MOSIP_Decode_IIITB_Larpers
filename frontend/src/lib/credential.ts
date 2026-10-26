@@ -79,3 +79,39 @@ export const summarise = (credential: any, format: CredentialFormat) => {
     extra: credential?.proof?.verificationMethod
   };
 };
+
+/** Extract human-readable subject attributes (name, ID, dob, etc.) for visual card display. */
+export const extractSubjectAttributes = (credential: any, format: CredentialFormat): Record<string, string> => {
+  if (!credential) return {};
+  if (format === 'sd-jwt') {
+    const raw = typeof credential === 'string' ? credential : credential?.rawToken;
+    if (typeof raw === 'string') {
+      const parts = raw.split('~').slice(1).filter(Boolean);
+      const attrs: Record<string, string> = {};
+      for (const part of parts) {
+        try {
+          const decoded = JSON.parse(atob(part.replace(/-/g, '+').replace(/_/g, '/')));
+          if (Array.isArray(decoded) && decoded.length === 3 && typeof decoded[1] === 'string') {
+            attrs[decoded[1]] = String(decoded[2]);
+          }
+        } catch {
+          // ignore malformed disclosure
+        }
+      }
+      return attrs;
+    }
+  }
+  if (format === 'mso-mdoc') {
+    const claims = credential?.decoded?.claims ?? {};
+    return Object.fromEntries(Object.entries(claims).map(([k, v]) => [k, String(v)]));
+  }
+  const cs = credential?.credentialSubject;
+  if (cs && typeof cs === 'object') {
+    return Object.fromEntries(
+      Object.entries(cs)
+        .filter(([k]) => k !== 'id')
+        .map(([k, v]) => [k, String(v)])
+    );
+  }
+  return {};
+};

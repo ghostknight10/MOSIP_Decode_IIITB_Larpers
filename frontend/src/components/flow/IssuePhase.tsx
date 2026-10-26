@@ -5,6 +5,7 @@ import { FORMATS } from '../../config/nodes';
 import { absoluteUrl, buildOfferUri, buildOfferUriByReference } from '../../lib/credential';
 import { QrPanel } from './QrPanel';
 import { btnPrimary, btnSecondary } from '../ui';
+import { NationalIdCard } from './NationalIdCard';
 import { CredentialSummary } from './CredentialSummary';
 import { SubjectEditor } from './SubjectEditor';
 import { CredentialInspector } from './CredentialInspector';
@@ -101,6 +102,7 @@ export const IssuePhase: React.FC<IssuePhaseProps> = ({ phase, format, credentia
         {issuedCredential && !credentialOffer && !imported && (
           <p className="mb-4 text-xs text-warning-ink">Issuer returned a credential without a credential offer payload.</p>
         )}
+        {issuedCredential && <NationalIdCard credential={issuedCredential} format={format} />}
         {issuedCredential && <CredentialSummary credential={issuedCredential} format={format} />}
         {issuedCredential && <CredentialInspector credential={issuedCredential} format={format} />}
       </div>
