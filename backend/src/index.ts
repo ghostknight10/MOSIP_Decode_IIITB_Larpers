@@ -5,6 +5,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import proxyGateway from './routes/proxyGateway.js';
 import { playgroundRouter } from './routes/playground.js';
+import { oid4vciRouter } from './routes/oid4vci.js';
 import { collabTargets } from './services/collab.js';
 import { requireToken } from './middleware/requireToken.js';
 
@@ -58,6 +59,10 @@ app.get('/api/health', (_req: Request, res: Response) => {
 
 // Playground Routes
 app.use('/api/playground', playgroundRouter);
+
+// Standard OpenID4VCI Issuer Endpoints (for external mobile wallets scanning QR)
+app.use('/api/oid4vci', oid4vciRouter);
+app.use('/.well-known', oid4vciRouter);
 
 // In production, serve static frontend assets if built
 const frontendDistCandidates = [

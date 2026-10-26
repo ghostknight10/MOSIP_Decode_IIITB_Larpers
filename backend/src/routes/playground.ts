@@ -71,13 +71,21 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
 
     if (issuer === 'mock-openid4vci') {
       record(transactionId, mockResult.logs);
+      const host = (req.headers['x-forwarded-host'] || req.get('host')) as string | undefined;
+      const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'http') as string;
+      const isPublicHost = host && !host.includes('localhost') && !host.includes('127.0.0.1');
+      const issuerBase = process.env.PUBLIC_URL || (isPublicHost ? `${proto}://${host}/api/oid4vci` : null);
+      const offer = issuerBase
+        ? { ...mockResult.credentialOffer, credential_issuer: issuerBase }
+        : mockResult.credentialOffer;
+
       return res.json({
         success: true,
         issuer,
         wallet,
         format,
-        credentialOffer: mockResult.credentialOffer,
-        credentialOfferUri: storeReference(mockResult.credentialOffer),
+        credentialOffer: offer,
+        credentialOfferUri: storeReference(offer),
         issuedCredential: mockResult.issuedCredential,
         proofType: mockResult.proofType,
         protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
