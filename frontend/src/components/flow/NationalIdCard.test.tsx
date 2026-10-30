@@ -25,6 +25,19 @@ describe('NationalIdCard', () => {
     expect(screen.getByText('Cryptographically Signed')).toBeInTheDocument();
   });
 
+  it('shows a dash for claims the credential does not carry, instead of inventing values', () => {
+    render(<NationalIdCard credential={{ credentialSubject: { UIN: '42' } }} format="w3c-vc" />);
+    expect(screen.getByText('42')).toBeInTheDocument();
+    expect(screen.queryByText('Aaditya Sharma')).not.toBeInTheDocument();
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('does not claim the credential was verified', () => {
+    render(<NationalIdCard credential={SAMPLE_W3C_VC} format="w3c-vc" />);
+    expect(screen.queryByText(/verified/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/active/i)).not.toBeInTheDocument();
+  });
+
   it('opens and closes the simulated mobile wallet modal on button click', () => {
     render(<NationalIdCard credential={SAMPLE_W3C_VC} format="w3c-vc" />);
     const mobileBtn = screen.getByRole('button', { name: /Mobile Wallet View/i });
