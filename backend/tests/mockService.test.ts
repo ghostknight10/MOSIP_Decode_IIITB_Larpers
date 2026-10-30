@@ -5,6 +5,7 @@ import {
   MockProtocolService,
   NATIONAL_ID_VCT,
   claimsOf,
+  collectDigests,
   disclosuresOf,
   sharedClaims
 } from '../src/mocks/mockService.js';
@@ -49,8 +50,10 @@ describe('issuer (OpenID4VCI Draft 13)', () => {
     const jwt = issuerJwtOf(issuedCredential.rawToken);
     const { issuerEs, holderEs } = await mockKeys();
     expect(proofType).toBe('JWT (ES256)');
-    expect(jwt.header).toMatchObject({ alg: 'ES256', typ: 'vc+sd-jwt', x5c: [issuerEs.certificate] });
-    expect(jwt.payload).toMatchObject({ iss: MOCK_ISSUER_URL, vct: NATIONAL_ID_VCT, cnf: { jwk: holderEs.jwk }, _sd_alg: 'sha-256' });
+    expect(jwt.header).toMatchObject({ alg: 'ES256', typ: 'vc+sd-jwt', x5c: [issuerEs.certificate], kid: `${issuerEs.did}#0` });
+    // Identified by a did:jwk too, so verifiers that resolve the issuer from kid (Walt.id) work as well as x5c ones (Inji).
+    expect(jwt.payload).toMatchObject({ iss: issuerEs.did, vct: NATIONAL_ID_VCT, cnf: { jwk: holderEs.jwk }, _sd_alg: 'sha-256' });
+    expect(issuerEs.did).toMatch(/^did:jwk:/);
     expect(jwt.payload).not.toHaveProperty('fullName');
     expect(issuedCredential.decoded.header.alg).toBe('ES256');
   });
@@ -114,6 +117,42 @@ describe('mDoc (ISO 18013-5)', () => {
   });
 });
 
+describe('external issuers (did:key / EdDSA)', () => {
+  // A minimal SD-JWT signed with a throwaway Ed25519 did:key, like Walt.id's, so it is not in the trust list.
+  const foreignToken = async () => {
+    const { Ed25519VerificationKey2020 } = await import('@digitalbazaar/ed25519-verification-key-2020');
+    const key = await Ed25519VerificationKey2020.generate();
+    const did = `did:key:${key.fingerprint()}`;
+    const b64 = (v: unknown) => Buffer.from(JSON.stringify(v)).toString('base64url');
+    const input = `${b64({ alg: 'EdDSA', typ: 'dc+sd-jwt', kid: `${did}#${key.fingerprint()}` })}.${b64({ iss: did, vct: NATIONAL_ID_VCT, _sd: [] })}`;
+    const signature = Buffer.from(await key.signer().sign({ data: Buffer.from(input) })).toString('base64url');
+    return { did, jwt: `${input}.${signature}` };
+  };
+
+  it('rejects a validly signed did:key issuer that is not in the trust list', async () => {
+    const { did, jwt } = await foreignToken();
+    const request = MockProtocolService.createRequest('sd-jwt');
+    const result = await MockProtocolService.checkPresentation('sd-jwt', `${jwt}~`, request);
+    expect(result.verificationResult).toMatchObject({ status: 'SIGNATURE_MISMATCH', checks: { signatureValid: false } });
+    expect(result.verificationResult.details).toContain(`The issuer ${did} is not in the verifier's trust list`);
+  });
+
+  it('rejects a did:key issuer whose signature is wrong', async () => {
+    const { jwt } = await foreignToken();
+    const [h, p] = jwt.split('.');
+    const request = MockProtocolService.createRequest('sd-jwt');
+    const result = await MockProtocolService.checkPresentation('sd-jwt', `${h}.${p}.AAAA~`, request);
+    expect(result.verificationResult.details).toContain('does not verify against did:key');
+  });
+
+  it('rejects an issuer that offers neither a certificate nor a did:key', async () => {
+    const b64 = (v: unknown) => Buffer.from(JSON.stringify(v)).toString('base64url');
+    const request = MockProtocolService.createRequest('sd-jwt');
+    const result = await MockProtocolService.checkPresentation('sd-jwt', `${b64({ alg: 'ES256' })}.${b64({ _sd: [] })}.sig~`, request);
+    expect(result.verificationResult.details).toContain('cannot be resolved');
+  });
+});
+
 describe('claims helpers', () => {
   it('reads claims from W3C subjects and SD-JWT disclosures', async () => {
     expect(claimsOf('w3c-vc', await issue('w3c-vc'))).toEqual(SUBJECT);
@@ -130,6 +169,10 @@ describe('claims helpers', () => {
     const [descriptor] = MockProtocolService.presentationDefinition('sd-jwt').input_descriptors;
     expect(descriptor.format).toHaveProperty('vc+sd-jwt');
     expect(descriptor.constraints.fields[1].path).toEqual(['$.credentialSubject.nationalId', '$.nationalId', '$.credentialSubject.UIN', '$.UIN']);
+  });
+
+  it('collects nested _sd digests', () => {
+    expect(collectDigests({ _sd: ['a'], credentialSubject: { _sd: ['b'] }, list: [{ _sd: ['c'] }], n: 1 })).toEqual(['a', 'b', 'c']);
   });
 
   it('rejects malformed disclosures', () => {

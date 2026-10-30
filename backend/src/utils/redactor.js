@@ -6,7 +6,9 @@ const SENSITIVE_KEYS = new Set([
   'pre-authorized_code', 'tx_code', 'user_pin', 'code', 'code_verifier',
   'password', 'proxy-authorization', 'x-api-key', 'api_key',
   // eSignet login: CSRF token and the OTP / PIN sent as an auth challenge.
-  'x-xsrf-token', 'challenge'
+  'x-xsrf-token', 'challenge',
+  // JWK private key parameter: never log a private key, even a published demo one.
+  'd'
 ]);
 
 // VC artefacts (vp_token, credential, proof) are kept for the inspector: none

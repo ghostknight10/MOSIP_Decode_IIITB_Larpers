@@ -274,6 +274,133 @@ describe('POST /issue with a Collab test identity (real Inji issuance)', () => {
   });
 });
 
+describe('Walt.id as an independent issuer and verifier', () => {
+  const ISSUER = 'https://issuer.demo.walt.id/draft13';
+  const VERIFIER = 'https://verifier.demo.walt.id/openid4vc';
+  const text = (data: string) => ({ status: 200, data, headers: { 'content-type': 'text/plain' } });
+  let waltToken: string;
+  beforeAll(async () => {
+    waltToken = ((await MockProtocolService.issueCredential('sd-jwt')).issuedCredential as any).rawToken;
+  });
+
+  /** Walt.id's demo services, answered by exact URL. */
+  const walt = (overrides: Record<string, unknown> = {}) =>
+    requestMock.mockImplementation((async ({ url, data }: { url: string; data?: any }) => {
+      const answers: Record<string, unknown> = {
+        'https://issuer.portal.walt.id/openid4vc/sdjwt/issue': text(`openid-credential-offer://?credential_offer_uri=${encodeURIComponent(`${ISSUER}/credentialOffer?id=1`)}`),
+        [`${ISSUER}/credentialOffer?id=1`]: json(200, { credential_issuer: ISSUER, credential_configuration_ids: ['VerifiableId_vc+sd-jwt'], grants: { 'urn:ietf:params:oauth:grant-type:pre-authorized_code': { 'pre-authorized_code': 'pre-code' } } }),
+        [`${ISSUER}/.well-known/openid-credential-issuer`]: json(200, { token_endpoint: `${ISSUER}/token`, credential_endpoint: `${ISSUER}/credential`, credential_configurations_supported: { 'VerifiableId_vc+sd-jwt': { vct: `${ISSUER}/VerifiableId` } } }),
+        [`${ISSUER}/token`]: json(200, { access_token: 'walt-access', c_nonce: 'walt-nonce' }),
+        [`${ISSUER}/credential`]: json(200, { format: 'vc+sd-jwt', credential: waltToken }),
+        'https://verifier.portal.walt.id/openid4vc/verify': text(`openid4vp://authorize?response_type=vp_token&client_id=${encodeURIComponent(`${VERIFIER}/verify`)}&state=st1&nonce=n1&presentation_definition_uri=${encodeURIComponent(`${VERIFIER}/pd/st1`)}&response_uri=${encodeURIComponent(`${VERIFIER}/verify/st1`)}`),
+        [`${VERIFIER}/pd/st1`]: json(200, { id: 'pd-1', input_descriptors: [{ id: 'identity', constraints: { fields: [{ path: ['$.vct'] }] } }] }),
+        [`${VERIFIER}/verify/st1`]: json(200, {}),
+        'https://verifier.portal.walt.id/openid4vc/session/st1': json(200, { verificationResult: true }),
+        ...overrides
+      };
+      const answer = answers[url];
+      if (!answer) throw unreachable();
+      if (answer instanceof Error) throw answer;
+      void data;
+      return answer;
+    }) as any);
+  const issueBody = { issuer: 'walt-issuer', wallet: 'mock-wallet', format: 'sd-jwt', credentialSubject: { fullName: 'Priya Rao', nationalId: 'ID-9' } };
+
+  it('issues over OpenID4VCI Draft 13: offer, metadata, token, credential with a proof', async () => {
+    walt();
+    const { body } = await post('/issue', issueBody, 'tx-w1');
+    expect(body).toMatchObject({ success: true, issuer: 'walt-issuer', proofType: 'JWT (ES256)' });
+    expect(body.isSandboxFallback).toBeUndefined();
+    expect(body.notice).toContain('independent issuer');
+    expect(body.protocolLogs.map((l: any) => l.action)).toEqual([
+      'Create credential offer (issuer API)',
+      'Fetch Credential Offer',
+      'Fetch issuer metadata',
+      'Token request (pre-authorized code)',
+      'Credential Request (/credential)'
+    ]);
+    expect(body.protocolLogs.every((l: any) => l.live)).toBe(true);
+    const create = requestMock.mock.calls[0][0] as any;
+    expect(create.data).toMatchObject({ credentialConfigurationId: 'VerifiableId_vc+sd-jwt', credentialData: { credentialSubject: { fullName: 'Priya Rao', nationalId: 'ID-9' } } });
+    const credential = requestMock.mock.calls.at(-1)![0] as any;
+    expect(credential.headers.Authorization).toBe('Bearer walt-access');
+    expect(credential.data).toMatchObject({ format: 'vc+sd-jwt', vct: `${ISSUER}/VerifiableId`, proof: { proof_type: 'jwt' } });
+  });
+
+  it('never logs the demo issuer key or the access token', async () => {
+    walt();
+    const { body } = await post('/issue', issueBody);
+    const logs = JSON.stringify(body.protocolLogs);
+    expect(logs).not.toContain('mDhpwaH6JYSrD2Bq7Cs');
+    expect(logs).not.toContain('walt-access');
+    expect(logs).not.toContain('pre-code');
+  });
+
+  it('falls back to an emulated issuer when Walt.id is unreachable', async () => {
+    requestMock.mockRejectedValue(unreachable());
+    const { body } = await post('/issue', issueBody);
+    expect(body).toMatchObject({ success: true, isSandboxFallback: true });
+    expect(body.notice).toContain('emulated by the mock engine');
+    expect(body.protocolLogs.some((l: any) => l.receiver === 'Walt.id Issuer (Emulated)')).toBe(true);
+  });
+
+  it('says what Walt.id refused', async () => {
+    walt({ [`${ISSUER}/token`]: json(400, { message: 'invalid_grant' }) });
+    const { body } = await post('/issue', issueBody);
+    expect(body.isSandboxFallback).toBe(true);
+    expect(body.notice).toContain('Token request refused: invalid_grant');
+  });
+
+  it('verifies through the Walt.id verifier and reports its verdict', async () => {
+    walt();
+    const { body } = await post('/verify', { verifier: 'walt-verifier', wallet: 'mock-wallet', format: 'sd-jwt', credentialOrToken: { rawToken: waltToken } }, 'tx-w2');
+    expect(body).toMatchObject({ success: true, isValid: true, client_id: `${VERIFIER}/verify`, nonce: 'n1', verificationResult: { status: 'VALID' } });
+    expect(body.isSandboxFallback).toBeUndefined();
+    expect(body.verificationResult.details).toContain('no holder binding or replay protection');
+    expect(body.protocolLogs.map((l: any) => l.action)).toEqual([
+      'Authorization Request (verifier API)',
+      'Fetch presentation definition',
+      'VP Token Submission (/response)',
+      'Fetch verification result'
+    ]);
+    // The wallet answers with the requested claims only, and without a key-binding JWT Walt.id cannot parse.
+    const submitted = (requestMock.mock.calls.find(([c]: any[]) => c.url.endsWith('/verify/st1'))![0] as any).data;
+    expect(submitted.state).toBe('st1');
+    expect(submitted.vp_token.endsWith('~')).toBe(true);
+    expect(submitted.vp_token.split('~').length - 2).toBe(2);
+  });
+
+  it.each([
+    ['signature', { forceExpired: false, corruptSignature: true }, 'SIGNATURE_MISMATCH', { signatureValid: false }],
+    ['expired', { forceExpired: true }, 'EXPIRED', { notExpired: false }]
+  ])('maps a failed %s policy to %s and marks the step tampered', async (policy, tamperPayload, status, checks) => {
+    walt({
+      [`${VERIFIER}/verify/st1`]: json(400, { message: `Verification policies did not succeed: ${policy} (...)` }),
+      'https://verifier.portal.walt.id/openid4vc/session/st1': json(200, { verificationResult: false, policyResults: { results: [{ policyResults: [{ policy, is_success: false }] }] } })
+    });
+    const { body } = await post('/verify', { verifier: 'walt-verifier', wallet: 'mock-wallet', format: 'sd-jwt', credentialOrToken: { rawToken: waltToken }, tamperPayload }, 'tx-w3');
+    expect(body).toMatchObject({ isValid: false, verificationResult: { status, checks, verifiedClaims: {} } });
+    expect(body.protocolLogs.find((l: any) => l.action.startsWith('VP Token'))).toMatchObject({ status: 'FAILED', tampered: true });
+  });
+
+  it('falls back to an emulated verifier when Walt.id is unreachable', async () => {
+    requestMock.mockRejectedValue(unreachable());
+    const mock = (await MockProtocolService.issueCredential('sd-jwt')).issuedCredential;
+    const { body } = await post('/verify', { verifier: 'walt-verifier', wallet: 'mock-wallet', format: 'sd-jwt', credentialOrToken: mock });
+    expect(body).toMatchObject({ isSandboxFallback: true, isValid: true });
+    expect(body.protocolLogs.some((l: any) => l.sender === 'Walt.id Verifier (Emulated)' || l.receiver === 'Walt.id Verifier (Emulated)')).toBe(true);
+  });
+
+  it.each([
+    ['issuer', { ...issueBody, format: 'w3c-vc' }, '/issue'],
+    ['verifier', { verifier: 'walt-verifier', wallet: 'mock-wallet', format: 'mso-mdoc' }, '/verify']
+  ])('answers 400 for a format the Walt.id %s does not support', async (_role, body, path) => {
+    const res = await post(path, body);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('sd-jwt format only');
+  });
+});
+
 describe('GET /metrics', () => {
   it('counts flows and Collab calls, as JSON and as Prometheus text', async () => {
     resetMetrics();

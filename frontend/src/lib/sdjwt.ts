@@ -70,15 +70,27 @@ export const parseSdJwt = (raw: string): ParsedSdJwt | null => {
   return { jwt, header, payload, signature, disclosures: rest.filter(Boolean).map(parseDisclosure), keyBinding };
 };
 
+/** Every digest in any `_sd` array of the payload, at any depth (issuers may nest disclosable claims). */
+export const collectDigests = (value: unknown, found: string[] = []): string[] => {
+  if (Array.isArray(value)) value.forEach(item => collectDigests(item, found));
+  else if (value && typeof value === 'object') {
+    for (const [key, inner] of Object.entries(value)) {
+      if (key === '_sd' && Array.isArray(inner)) found.push(...inner.filter((d): d is string => typeof d === 'string'));
+      else collectDigests(inner, found);
+    }
+  }
+  return found;
+};
+
 /**
- * For each disclosure, whether its SHA-256 digest appears in the payload's
- * top-level `_sd` array. 'unavailable' when WebCrypto is missing (non-secure
+ * For each disclosure, whether its SHA-256 digest appears in an `_sd` array of
+ * the payload (top level or nested). 'unavailable' when WebCrypto is missing (non-secure
  * contexts such as the UI opened over a LAN IP).
  */
 export const verifyDisclosureDigests = async (parsed: ParsedSdJwt): Promise<boolean[] | 'unavailable'> => {
   const subtle = globalThis.crypto?.subtle;
   if (!subtle) return 'unavailable';
-  const sd: string[] = Array.isArray(parsed.payload?._sd) ? parsed.payload._sd : [];
+  const sd = collectDigests(parsed.payload);
   return Promise.all(
     parsed.disclosures.map(async d => sd.includes(base64UrlEncode(await subtle.digest('SHA-256', new TextEncoder().encode(d.raw)))))
   );

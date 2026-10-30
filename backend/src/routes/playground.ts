@@ -2,10 +2,11 @@ import { Router, Request, Response } from 'express';
 import globalAuditBuffer from '../utils/RingBuffer.js';
 import { getReference, storeReference } from '../utils/references.js';
 import { prometheus, snapshot, trackFlow } from '../utils/metrics.js';
-import { MockProtocolService, claimsOf, sharedClaims } from '../mocks/mockService.js';
+import { MockProtocolService, claimsOf, sharedClaims, subjectFrom } from '../mocks/mockService.js';
 import { presentToMockVerifier } from '../mocks/wallet.js';
 import { CollabUnavailable, certifyDiscovery, collabTargets, injiVerify } from '../services/collab.js';
 import { componentFingerprints } from '../services/components.js';
+import { WaltRefused, issueFromWalt, presentToWalt } from '../services/walt.js';
 import { InjiIssuanceRefused, issueFromInjiCertify, realIssuanceEnabled } from '../services/injiIssuance.js';
 import { IssueCredentialRequest, ProtocolLog, VerifyCredentialRequest } from '../types/index.js';
 import { v4 as uuidv4 } from 'uuid';
@@ -13,8 +14,8 @@ import { v4 as uuidv4 } from 'uuid';
 export const playgroundRouter = Router();
 
 const ALLOWED = {
-  issuer: ['inji-certify', 'mock-openid4vci'],
-  verifier: ['inji-verify', 'mock-openid4vp'],
+  issuer: ['inji-certify', 'mock-openid4vci', 'walt-issuer'],
+  verifier: ['inji-verify', 'mock-openid4vp', 'walt-verifier'],
   wallet: ['inji-wallet', 'mock-wallet'],
   format: ['w3c-vc', 'sd-jwt', 'mso-mdoc']
 } as const;
@@ -31,6 +32,10 @@ export function invalidBody(body: unknown, role: 'issuer' | 'verifier'): string 
       : `${field} must be one of: ${ALLOWED[field].join(', ')}`;
   const problem = oneOf(role) ?? oneOf('wallet', true) ?? oneOf('format');
   if (problem) return problem;
+  // Walt.id's public demo issues and verifies SD-JWT VC only.
+  if ((body.issuer === 'walt-issuer' || body.verifier === 'walt-verifier') && body.format !== 'sd-jwt') {
+    return 'the Walt.id issuer and verifier support the sd-jwt format only';
+  }
   if (body.credentialSubject !== undefined &&
       (!isPlainObject(body.credentialSubject) || Object.values(body.credentialSubject).some(v => typeof v !== 'string'))) {
     return 'credentialSubject must be an object of strings';
@@ -91,6 +96,44 @@ playgroundRouter.post('/issue', trackFlow('issue'), async (req: Request<{}, {}, 
         proofType: mockResult.proofType,
         protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
       });
+    }
+
+    // Walt.id: an independent OpenID4VCI Draft 13 issuer (public demo).
+    if (issuer === 'walt-issuer') {
+      try {
+        const real = await issueFromWalt(subjectFrom(credentialSubject), log => record(transactionId, [log]));
+        return res.json({
+          success: true,
+          issuer,
+          wallet,
+          format,
+          notice: real.notice,
+          credentialOffer: real.credentialOffer,
+          credentialOfferUri: storeReference(real.credentialOffer),
+          issuedCredential: real.credential,
+          proofType: real.proofType,
+          protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
+        });
+      } catch (err) {
+        if (!(err instanceof CollabUnavailable || err instanceof WaltRefused)) throw err;
+        console.warn(`[BFF] Walt.id issuance failed: ${err.message}. Emulating the issuer.`);
+        const relabel = (name: string) => (name === 'Issuer (OpenID4VCI)' ? 'Walt.id Issuer (Emulated)' : name);
+        // Keep what already happened live (it is in the buffer), then the emulated steps.
+        record(transactionId, mockResult.logs.map(log => ({ ...log, receiver: relabel(log.receiver) })));
+        return res.json({
+          success: true,
+          issuer,
+          wallet,
+          format,
+          isSandboxFallback: true,
+          notice: `${err.message}. The credential is emulated by the mock engine.`,
+          credentialOffer: mockResult.credentialOffer,
+          credentialOfferUri: storeReference(mockResult.credentialOffer),
+          issuedCredential: mockResult.issuedCredential,
+          proofType: mockResult.proofType,
+          protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
+        });
+      }
     }
 
     // Inji Certify with a Collab test identity: the real login and issuance (E-1).
@@ -162,6 +205,55 @@ playgroundRouter.post('/verify', trackFlow('verify'), async (req: Request<{}, {}
   const transactionId = transactionIdOf(req);
 
   try {
+    if (verifier === 'walt-verifier') {
+      try {
+        const live = await presentToWalt(credentialOrToken, tamperPayload, log => record(transactionId, [log]));
+        const isValid = live.status === 'VALID';
+        // Walt.id's own definition only asks for the credential type ($.vct) and is in the live
+        // logs. The panels show what the playground asks every verifier for, and what was disclosed.
+        const presentationDefinition = MockProtocolService.presentationDefinition(format);
+        return res.json({
+          success: true,
+          verifier,
+          wallet,
+          format,
+          isValid,
+          verificationResult: {
+            status: live.status,
+            checks: live.checks,
+            details: live.details,
+            verifiedClaims: isValid ? sharedClaims(presentationDefinition, live.claims) : {}
+          },
+          presentationDefinition,
+          presentationDefinitionUri: storeReference(presentationDefinition),
+          client_id: live.clientId,
+          nonce: live.nonce,
+          protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
+        });
+      } catch (err) {
+        if (!(err instanceof CollabUnavailable || err instanceof WaltRefused)) throw err;
+        console.warn(`[BFF] Walt.id verification failed: ${err.message}. Emulating the verifier.`);
+        const mockResult = await presentToMockVerifier(format, credentialOrToken, tamperPayload);
+        const relabel = (name: string) => (name === 'Verifier (OpenID4VP)' ? 'Walt.id Verifier (Emulated)' : name);
+        record(transactionId, mockResult.logs.map(log => ({ ...log, sender: relabel(log.sender), receiver: relabel(log.receiver) })));
+        return res.json({
+          success: true,
+          verifier,
+          wallet,
+          format,
+          isSandboxFallback: true,
+          notice: `${err.message}. The verdict is emulated by the mock engine.`,
+          isValid: mockResult.isValid,
+          verificationResult: mockResult.verificationResult,
+          presentationDefinition: mockResult.presentationDefinition,
+          presentationDefinitionUri: storeReference(mockResult.presentationDefinition),
+          client_id: mockResult.client_id,
+          nonce: mockResult.nonce,
+          protocolLogs: globalAuditBuffer.getByTransactionId(transactionId)
+        });
+      }
+    }
+
     if (verifier === 'inji-verify') {
       try {
         const presentationDefinition = MockProtocolService.presentationDefinition(format);

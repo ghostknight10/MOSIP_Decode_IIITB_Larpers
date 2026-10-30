@@ -116,13 +116,16 @@ async function p256(withCertificate: string | null) {
 }
 
 async function createKeys() {
-  const [issuerEd, holderEd, issuerEs, holderEs] = await Promise.all([
+  const [issuerEd, holderEd, issuerEsKey, holderEs] = await Promise.all([
     ed25519Did(),
     ed25519Did(),
     p256('Playground mock OpenID4VCI issuer'),
     p256(null)
   ]);
-  return { issuerEd, holderEd, issuerEs, holderEs };
+  // The SD-JWT issuer is also identified by a did:jwk, so verifiers that resolve the
+  // issuer from `kid` (Walt.id) work next to those that read the x5c certificate (Inji).
+  const did = `did:jwk:${Buffer.from(JSON.stringify(issuerEsKey.jwk)).toString('base64url')}`;
+  return { issuerEd, holderEd, issuerEs: { ...issuerEsKey, did }, holderEs };
 }
 
 let keys: ReturnType<typeof createKeys> | undefined;
@@ -192,6 +195,22 @@ export function jwtSignatureValid(jwt: NonNullable<ReturnType<typeof decodeJwt>>
   try {
     const key = publicKey instanceof KeyObject ? publicKey : createPublicKey({ key: publicKey as webcrypto.JsonWebKey, format: 'jwk' });
     return nodeVerify('sha256', Buffer.from(jwt.input), { key, dsaEncoding: 'ieee-p1363' }, Buffer.from(jwt.signature, 'base64url'));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Checks an EdDSA JWT signature against a did:key (as OpenID4VC issuers such as
+ * Walt.id sign). Resolves only the did:key itself, never a network URL.
+ */
+export async function didKeyJwtSignatureValid(kid: string, jwt: NonNullable<ReturnType<typeof decodeJwt>>) {
+  try {
+    const did = kid.split('#')[0];
+    if (!did.startsWith('did:key:')) return false;
+    const doc = await didKeyDriver.get({ url: did });
+    const key = await Ed25519VerificationKey2020.from(doc.verificationMethod[0]);
+    return Boolean(await key.verifier().verify({ data: Buffer.from(jwt.input), signature: Buffer.from(jwt.signature, 'base64url') }));
   } catch {
     return false;
   }

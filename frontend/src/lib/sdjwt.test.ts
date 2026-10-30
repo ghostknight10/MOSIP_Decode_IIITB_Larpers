@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { base64UrlDecode, parseSdJwt, verifyDisclosureDigests } from './sdjwt';
+import { base64UrlDecode, collectDigests, parseSdJwt, verifyDisclosureDigests } from './sdjwt';
 
 const b64url = (s: string) => btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const seg = (o: object) => b64url(JSON.stringify(o));
@@ -64,6 +64,16 @@ describe('verifyDisclosureDigests', () => {
     const d2 = b64url(JSON.stringify(['salt2', 'dob', '2000-01-01']));
     const token = `${seg({ alg: 'ES256' })}.${seg({ _sd: [await sha256b64url(d1)] })}.x~${d1}~${d2}~`;
     expect(await verifyDisclosureDigests(parseSdJwt(token)!)).toEqual([true, false]);
+  });
+
+  it('finds digests nested in the payload, as Walt.id issues them', async () => {
+    const d1 = b64url(JSON.stringify(['salt', 'fullName', 'Priya Rao']));
+    const token = `${seg({ alg: 'EdDSA' })}.${seg({ _sd: [], credentialSubject: { _sd: [await sha256b64url(d1)] } })}.x~${d1}~`;
+    expect(await verifyDisclosureDigests(parseSdJwt(token)!)).toEqual([true]);
+  });
+
+  it('collects _sd arrays at any depth, including inside arrays', () => {
+    expect(collectDigests({ _sd: ['a'], x: { _sd: ['b'], y: [{ _sd: ['c'] }] }, n: 1 })).toEqual(['a', 'b', 'c']);
   });
 
   it('is unavailable without WebCrypto', async () => {

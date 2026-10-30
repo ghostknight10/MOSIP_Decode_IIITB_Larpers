@@ -6,6 +6,7 @@ import {
   ED25519_2020_CONTEXT,
   PLAYGROUND_CONTEXT,
   decodeJwt,
+  didKeyJwtSignatureValid,
   jwtSignatureValid,
   ldpProofProblem,
   mockKeys,
@@ -19,6 +20,14 @@ export const MOCK_ISSUER_URL = 'https://issuer.mock.mosip.net';
 export const MOCK_VERIFIER_CLIENT_ID = 'https://verify.mock.mosip.net';
 export const NATIONAL_ID_TYPE = 'MosipNationalIdentityCredential';
 export const NATIONAL_ID_VCT = 'https://schema.mosip.net/credentials/national-id/v1';
+/** Credential types the mock verifier treats as a national identity proof: ours, and Walt.id's VerifiableId. */
+export const ACCEPTED_IDENTITY_VCTS = [NATIONAL_ID_VCT, 'https://issuer.demo.walt.id/draft13/VerifiableId'];
+/**
+ * Issuers other than the mock issuer that the mock verifier trusts, by did:key.
+ * Walt.id's public demo issuer signs with the demo key published in its API
+ * documentation (see services/walt.ts).
+ */
+export const TRUSTED_EXTERNAL_ISSUERS = ['did:key:z6MkjoRhq1jSNJdLiruSXrFFxagqrztZaXHqHGUTKJbcNywp'];
 const UNRELATED_VCT = 'https://schema.mosip.net/credentials/unrelated/v1';
 const DAY_MS = 86_400_000;
 
@@ -57,6 +66,18 @@ export function sharedClaims(presentationDefinition: any, claims: Subject) {
       return name ? [[name, claims[name]]] : [];
     })
   );
+}
+
+/** Every digest in any `_sd` array of an SD-JWT payload, at any depth (issuers may nest disclosable claims). */
+export function collectDigests(value: unknown, found: string[] = []): string[] {
+  if (Array.isArray(value)) value.forEach(item => collectDigests(item, found));
+  else if (value && typeof value === 'object') {
+    for (const [key, inner] of Object.entries(value)) {
+      if (key === '_sd' && Array.isArray(inner)) found.push(...inner.filter((d): d is string => typeof d === 'string'));
+      else collectDigests(inner, found);
+    }
+  }
+  return found;
 }
 
 /** Disclosures of an SD-JWT as [encoded, claim name, value]; null if one is malformed. */
@@ -161,14 +182,28 @@ async function checkSdJwtPresentation(token: unknown, nonce: string, clientId: s
   if (!disclosures) return reject('formatCheck', 'Malformed SD-JWT disclosure.');
 
   const issuerKey = x5cPublicKey(issuerJwt.header);
-  if (!issuerKey || !jwtSignatureValid(issuerJwt, issuerKey.key)) {
-    return reject('signatureValid', 'The issuer signature does not verify against the x5c certificate.');
+  if (issuerKey) {
+    if (!jwtSignatureValid(issuerJwt, issuerKey.key)) {
+      return reject('signatureValid', 'The issuer signature does not verify against the x5c certificate.');
+    }
+    const { issuerEs } = await mockKeys();
+    if (issuerKey.certificate !== issuerEs.certificate) {
+      return reject('signatureValid', "The issuer certificate is not in the verifier's trust list.");
+    }
+  } else {
+    // No certificate: resolve the issuer from its did:key in `kid` (EdDSA issuers such as Walt.id).
+    const kid = String(issuerJwt.header.kid ?? '');
+    if (!kid.startsWith('did:key:')) {
+      return reject('signatureValid', 'The issuer key cannot be resolved: no x5c certificate and no did:key in the kid header.');
+    }
+    if (!(await didKeyJwtSignatureValid(kid, issuerJwt))) {
+      return reject('signatureValid', `The issuer signature does not verify against ${kid.split('#')[0]}.`);
+    }
+    if (!TRUSTED_EXTERNAL_ISSUERS.includes(kid.split('#')[0])) {
+      return reject('signatureValid', `The issuer ${kid.split('#')[0]} is not in the verifier's trust list.`);
+    }
   }
-  const { issuerEs } = await mockKeys();
-  if (issuerKey.certificate !== issuerEs.certificate) {
-    return reject('signatureValid', "The issuer certificate is not in the verifier's trust list.");
-  }
-  const digests = new Set(Array.isArray(issuerJwt.payload._sd) ? issuerJwt.payload._sd : []);
+  const digests = new Set(collectDigests(issuerJwt.payload));
   const forged = disclosures.find(([encoded]) => !digests.has(sha256b64url(encoded)));
   if (forged) return reject('signatureValid', `Disclosure for "${forged[1]}" is not covered by the issuer's _sd digests.`);
 
@@ -187,7 +222,7 @@ async function checkSdJwtPresentation(token: unknown, nonce: string, clientId: s
   if (typeof issuerJwt.payload.exp === 'number' && issuerJwt.payload.exp * 1000 < Date.now()) {
     return reject('notExpired', `Credential expired on ${new Date(issuerJwt.payload.exp * 1000).toISOString()}.`);
   }
-  if (issuerJwt.payload.vct !== NATIONAL_ID_VCT) return reject('schemaCompliant', `Credential type ${issuerJwt.payload.vct} is not a national ID.`);
+  if (!ACCEPTED_IDENTITY_VCTS.includes(issuerJwt.payload.vct)) return reject('schemaCompliant', `Credential type ${issuerJwt.payload.vct} is not a national ID.`);
   return { status: 'VALID', details: '', claims: Object.fromEntries(disclosures.map(([, name, value]) => [name, value])) };
 }
 
@@ -197,6 +232,17 @@ export const MOCK_RESPONSE_URI = `${MOCK_VERIFIER_CLIENT_ID}/vp-response`;
 async function checkMdoc(vpToken: unknown, request: PresentationRequest): Promise<Verdict> {
   const { problem, claims } = await checkMdocPresentation(vpToken, request, MOCK_RESPONSE_URI);
   return problem ? reject(problem.check, problem.message) : { status: 'VALID', details: '', claims };
+}
+
+/** The claims a credential is issued with: those given, else defaults. */
+export function subjectFrom(subjectData: Record<string, string> = {}) {
+  return {
+    nationalId: subjectData.nationalId || 'MOSIP-IND-9876-5432-1098',
+    fullName: subjectData.fullName || 'Aaditya Sharma',
+    dob: subjectData.dob || '1995-08-15',
+    country: subjectData.country || 'IND',
+    email: subjectData.email || 'aaditya.sharma@example.org'
+  };
 }
 
 export class MockProtocolService {
@@ -211,7 +257,7 @@ export class MockProtocolService {
       const disclosures = Object.entries(subject).map(([claim, value]) => Buffer.from(JSON.stringify([uuidv4(), claim, value])).toString('base64url'));
       const header = { alg: 'ES256', typ: 'vc+sd-jwt' };
       const payload = {
-        iss: MOCK_ISSUER_URL,
+        iss: keys.issuerEs.did,
         iat: Math.floor(issuedAt / 1000),
         nbf: Math.floor(issuedAt / 1000),
         exp: Math.floor(expiresAt / 1000),
@@ -220,7 +266,7 @@ export class MockProtocolService {
         _sd_alg: 'sha-256',
         _sd: disclosures.map(sha256b64url)
       };
-      const jwt = signJwt({ ...header, x5c: [keys.issuerEs.certificate] }, payload, keys.issuerEs.privateKey);
+      const jwt = signJwt({ ...header, kid: `${keys.issuerEs.did}#0`, x5c: [keys.issuerEs.certificate] }, payload, keys.issuerEs.privateKey);
       return {
         format: 'vc+sd-jwt',
         rawToken: `${jwt}~${disclosures.join('~')}~`,
@@ -256,13 +302,7 @@ export class MockProtocolService {
    * OpenID4VCI Draft 13: a pre-authorized credential offer and a signed credential.
    */
   public static async issueCredential(format: CredentialFormat, subjectData: Record<string, string> = {}) {
-    const subject = {
-      nationalId: subjectData.nationalId || 'MOSIP-IND-9876-5432-1098',
-      fullName: subjectData.fullName || 'Aaditya Sharma',
-      dob: subjectData.dob || '1995-08-15',
-      country: subjectData.country || 'IND',
-      email: subjectData.email || 'aaditya.sharma@example.org'
-    };
+    const subject = subjectFrom(subjectData);
 
     const credentialOffer = {
       credential_issuer: MOCK_ISSUER_URL,

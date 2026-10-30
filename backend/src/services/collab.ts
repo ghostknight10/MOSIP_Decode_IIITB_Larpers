@@ -31,6 +31,8 @@ interface LiveCallOptions {
   contentType?: string;
   /** Extra request headers (logged redacted). */
   headers?: Record<string, string>;
+  /** Accept a non-JSON answer (for example an openid4vp:// URL as plain text). */
+  anyBody?: boolean;
   sender: string;
   receiver: string;
   protocol: ProtocolLog['protocol'];
@@ -38,7 +40,7 @@ interface LiveCallOptions {
   tampered?: boolean;
 }
 
-export async function liveCall({ method, url, body, contentType, headers: extra = {}, sender, receiver, protocol, action, tampered }: LiveCallOptions) {
+export async function liveCall({ method, url, body, contentType, headers: extra = {}, anyBody = false, sender, receiver, protocol, action, tampered }: LiveCallOptions) {
   const started = Date.now();
   const headers: Record<string, string> = { ...(contentType ? { 'Content-Type': contentType } : {}), ...extra };
   let response;
@@ -50,7 +52,7 @@ export async function liveCall({ method, url, body, contentType, headers: extra 
   }
   recordService(new URL(url).host, Date.now() - started, response.status >= 500);
   const responseType = String(response.headers?.['content-type'] ?? '');
-  if (!responseType.includes('json') || typeof response.data !== 'object' || response.data === null) {
+  if (!anyBody && (!responseType.includes('json') || typeof response.data !== 'object' || response.data === null)) {
     throw new CollabUnavailable(`${new URL(url).host} answered HTTP ${response.status} without JSON`);
   }
   const log: ProtocolLog = {
