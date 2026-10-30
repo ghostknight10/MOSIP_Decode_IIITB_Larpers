@@ -40,7 +40,7 @@ export const NationalIdCard: React.FC<NationalIdCardProps> = ({ credential, form
     <div className="rounded-md border border-line bg-surface select-none">
       <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-line bg-accent-soft">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="h-7 w-7 shrink-0 rounded bg-accent flex items-center justify-center text-xs font-semibold text-white">M</div>
+          <div className="h-7 w-7 shrink-0 rounded bg-accent flex items-center justify-center text-xs font-semibold text-on-accent">M</div>
           <div className="min-w-0">
             <div className="text-xs text-ink-muted">MOSIP ecosystem</div>
             <div className="text-sm font-semibold text-ink truncate">National digital identity</div>
@@ -100,7 +100,7 @@ export const NationalIdCard: React.FC<NationalIdCardProps> = ({ credential, form
           role="dialog"
           aria-modal="true"
           aria-label="Mobile Wallet Simulator"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim/50"
           onClick={() => setShowPhoneModal(false)}
         >
           <div

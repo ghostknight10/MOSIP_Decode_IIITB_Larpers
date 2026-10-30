@@ -177,10 +177,10 @@ export const MatrixSelector: React.FC<MatrixSelectorProps> = ({
                 disabled={locked || !supported}
                 onClick={() => onSelect({ format: f.id })}
                 className={`flex-1 sm:flex-none px-3 py-1.5 transition-colors disabled:cursor-not-allowed disabled:opacity-50 not-first:border-l not-first:border-line-strong ${
-                  active ? 'bg-accent text-white' : 'bg-surface text-ink hover:bg-surface-muted'
+                  active ? 'bg-accent text-on-accent' : 'bg-surface text-ink hover:bg-surface-muted'
                 }`}
               >
-                {f.label} <span className={`font-mono text-xs ${active ? 'text-white' : 'text-ink-subtle'}`}>{f.wireFormat}</span>
+                {f.label} <span className={`font-mono text-xs ${active ? 'text-on-accent' : 'text-ink-subtle'}`}>{f.wireFormat}</span>
               </button>
             );
           })}

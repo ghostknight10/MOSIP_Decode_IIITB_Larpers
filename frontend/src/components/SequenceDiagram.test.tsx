@@ -32,6 +32,23 @@ describe('SequenceDiagram', () => {
     expect(vi.mocked(mermaid.initialize).mock.calls[0][0]).toMatchObject({ startOnLoad: false, theme: 'base', themeVariables: { background: '#ffffff', primaryTextColor: '#1b1e24' } });
   });
 
+  it('reads the active theme tokens, and draws again in the new colours when the theme changes', () => {
+    const root = document.documentElement;
+    const { rerender } = render(<SequenceDiagram logs={logs} theme="light" />);
+    expect(vi.mocked(mermaid.initialize).mock.calls.at(-1)![0]).toMatchObject({ themeVariables: { primaryTextColor: '#1b1e24', background: '#ffffff' } });
+
+    root.style.setProperty('--color-ink', '#eceef2');
+    root.style.setProperty('--color-surface', '#1a1d24');
+    root.style.setProperty('--color-warning-soft', '#2b2210');
+    rerender(<SequenceDiagram logs={logs} theme="dark" />);
+    expect(mermaid.initialize).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(mermaid.initialize).mock.calls.at(-1)![0]).toMatchObject({ themeVariables: { primaryTextColor: '#eceef2', background: '#1a1d24', sequenceNumberColor: '#1a1d24' } });
+    expect(renderMock).toHaveBeenCalledTimes(2);
+    expect(lastDiagram()).toContain('rect rgb(43, 34, 16)');
+
+    ['--color-ink', '--color-surface', '--color-warning-soft'].forEach(name => root.style.removeProperty(name));
+  });
+
   it('shows a placeholder and skips rendering when there are no logs', () => {
     render(<SequenceDiagram logs={[]} />);
     expect(screen.getByText('No sequence events recorded yet.')).toBeInTheDocument();

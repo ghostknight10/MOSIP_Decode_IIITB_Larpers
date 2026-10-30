@@ -1,5 +1,6 @@
 import React from 'react';
-import { CircleHelp } from 'lucide-react';
+import { CircleHelp, Moon, Sun } from 'lucide-react';
+import { Theme } from '../hooks/useTheme';
 
 interface HeaderProps {
   /** null until the first health check completes */
@@ -9,6 +10,9 @@ interface HeaderProps {
   runCount: number;
   /** Opens the onboarding tour. */
   onStartTour?: () => void;
+  /** The colour theme and its toggle; omitted, no toggle is shown. */
+  theme?: Theme;
+  onToggleTheme?: () => void;
 }
 
 const TABS = [
@@ -16,7 +20,7 @@ const TABS = [
   { id: 'matrix', label: 'Interop Matrix Report' }
 ] as const;
 
-export const Header: React.FC<HeaderProps> = ({ serverConnected, activeTab, setActiveTab, runCount, onStartTour }) => {
+export const Header: React.FC<HeaderProps> = ({ serverConnected, activeTab, setActiveTab, runCount, onStartTour, theme, onToggleTheme }) => {
   const status =
     serverConnected === null
       ? { label: 'Connecting...', dot: 'bg-ink-subtle', text: 'text-ink-muted' }
@@ -32,14 +36,26 @@ export const Header: React.FC<HeaderProps> = ({ serverConnected, activeTab, setA
             <h1 className="text-base sm:text-lg font-semibold text-ink">MOSIP VC Interoperability Playground</h1>
             <p className="text-xs text-ink-muted">OpenID4VCI and OpenID4VP across Inji and independent implementations</p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            {onToggleTheme && (
+              <button
+                type="button"
+                onClick={onToggleTheme}
+                aria-pressed={theme === 'dark'}
+                data-tour="theme-toggle"
+                className="text-xs text-ink-muted hover:text-ink inline-flex items-center gap-1 whitespace-nowrap transition-colors"
+              >
+                {theme === 'dark' ? <Sun className="h-3.5 w-3.5" aria-hidden="true" /> : <Moon className="h-3.5 w-3.5" aria-hidden="true" />}
+                {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+              </button>
+            )}
             {onStartTour && (
-              <button type="button" onClick={onStartTour} data-tour="tour-button" className="text-xs text-ink-muted hover:text-ink inline-flex items-center gap-1 transition-colors">
+              <button type="button" onClick={onStartTour} data-tour="tour-button" className="text-xs text-ink-muted hover:text-ink inline-flex items-center gap-1 whitespace-nowrap transition-colors">
                 <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
                 Take the tour
               </button>
             )}
-            <p className="text-xs text-ink-muted inline-flex items-center gap-1.5">
+            <p className="text-xs text-ink-muted inline-flex items-center gap-1.5 whitespace-nowrap">
               <span className={`h-2 w-2 rounded-full ${status.dot}`} aria-hidden="true" />
               BFF: <span className={`font-medium ${status.text}`}>{status.label}</span>
             </p>

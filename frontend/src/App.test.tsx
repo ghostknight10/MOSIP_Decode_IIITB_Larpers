@@ -162,6 +162,17 @@ describe('App', () => {
     expect(screen.queryByText(/^Emulated in this run/)).not.toBeInTheDocument();
   });
 
+  it('starts light, and the toggle switches to dark mode and remembers it', async () => {
+    stubBff();
+    const { user } = setup();
+    expect(document.documentElement.dataset.theme).toBe('light');
+    await user.click(await screen.findByRole('button', { name: 'Dark mode' }));
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(localStorage.getItem('mosip-playground-theme')).toBe('dark');
+    await user.click(screen.getByRole('button', { name: 'Light mode' }));
+    expect(document.documentElement.dataset.theme).toBe('light');
+  });
+
   it('runs every combination from the report', async () => {
     const fetchFn = stubBff();
     const { user } = setup();
