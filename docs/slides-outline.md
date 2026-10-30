@@ -52,6 +52,20 @@ Every real step is marked **Live** in the inspector. Anything emulated is labell
 
 ---
 
+# Independent implementation: Walt.id
+
+A non-MOSIP issuer and verifier, live on their public demo, in the same matrix:
+
+- Their credential **passes** our verifier and their own
+- It **fails** Inji Verify, which needs an x5c certificate chain and can't resolve a `did:key` issuer
+- Our credentials pass both Inji Verify and Walt.id
+
+The report shows exactly where ecosystems do and don't meet.
+
+[Screenshot: docs/images/07-walt-independent-issuer.png]
+
+---
+
 # Three credential formats, really signed
 
 | Format | How it is signed |
@@ -70,6 +84,7 @@ Live Inji Verify accepts our clean W3C and SD-JWT credentials and rejects the ta
 - **Animated sequence diagram** (Mermaid) and a **step-by-step replay**
 - **"What was shared?"** shows what the verifier asked for, received, and never saw
 - **Live streaming** of steps while a run is in progress
+- A guided **tour** for first-time visitors, and **telemetry** (success rate and latency per flow)
 
 [Screenshot: inspector next to the sequence diagram]
 
@@ -131,7 +146,7 @@ Browser UI (React 19, TypeScript, Tailwind, Vite) → Playground BFF (Node, Expr
 
 # Quality
 
-- **550 automated tests** (375 frontend, 175 backend), offline and repeatable
+- **618 automated tests** (417 frontend, 201 backend), offline and repeatable
 - CI on every push; nightly live run against Collab
 - Accessibility: WCAG-checked colour contrast, keyboard focus, never colour alone
 - Documented API, test data, test cases and results
@@ -151,7 +166,7 @@ Open source, runnable with one command, ready for nightly regression tracking.
 # What's next
 
 - Test with the real Inji mobile wallet (QR scan)
-- Add an external reference implementation (Walt.id / Sphereon) for stronger cross-ecosystem proof
+- Add more independent implementations (Sphereon, EUDI reference wallet) beside Walt.id
 - Share the findings with the Inji teams once we can answer their questions confidently
 
 ---
