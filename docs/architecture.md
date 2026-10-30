@@ -16,6 +16,14 @@ The **MOSIP Verifiable Credential (VC) Interoperability Playground** is an inter
 
 ## System component topology
 
+![Architecture diagram](./images/architecture.png)
+
+*Editable source: [diagrams/architecture.mmd](./diagrams/architecture.mmd) (Mermaid; also exported as [SVG](./images/architecture.svg)). The text diagram below is the same topology with the per-owner notes.*
+
+![OpenID4VCI and OpenID4VP sequence](./images/sequence.png)
+
+*Source: [diagrams/sequence.mmd](./diagrams/sequence.mmd).*
+
 ```text
 +-----------------------------------------------------------------------------------+
 |                         Browser Client (React 19 + Vite 8)                        |

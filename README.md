@@ -14,8 +14,21 @@ The MOSIP side covers Inji Certify, Inji Wallet / Inji Web (via Mimoto) and Inji
 
 ---
 
+## Screenshots
+
+| | |
+| --- | --- |
+| ![A real run on the Inji stack](docs/images/02-real-inji-run.png)<br>**A real run.** Eight live steps: eSignet login, Mimoto token, Inji Certify credential, Inji Verify verdict. | ![Protocol inspector](docs/images/04-protocol-inspector.png)<br>**Protocol inspector** with the raw payload of each step, next to the sequence diagram. |
+| ![Independent issuer](docs/images/07-walt-independent-issuer.png)<br>**An independent issuer.** Walt.id (not MOSIP) issues a credential over OpenID4VCI Draft 13. | ![Interop report](docs/images/10-interop-report-heatmap.png)<br>**Interoperability report.** Every issuer × wallet × verifier × format, with the failing layer. |
+| ![Tampering](docs/images/06-tamper-signature-rejected.png)<br>**Tamper mode.** A corrupted signature is caught and filed under a failure layer. | ![Telemetry](docs/images/12-telemetry.png)<br>**Telemetry.** Success rate and latency per flow and per Collab service. |
+
+More views are in [docs/images/](docs/images/): the mDoc inspector, the Walt.id verifier, the run history, and the phone layout. New to the project? Read [docs/how-it-works.md](docs/how-it-works.md).
+
+---
+
 ## Contents
 
+- [Screenshots](#screenshots)
 - [Architecture](#architecture)
 - [Features](#features)
 - [Quickstart](#quickstart)
@@ -284,6 +297,7 @@ A static list of 8 pre-wired combinations, kept for compatibility. The UI comput
 | [docs/architecture.md](docs/architecture.md) | Protocols, components, frontend state model and data flow |
 | [docs/audit-logger-architecture.md](docs/audit-logger-architecture.md) | Ring buffer, redaction pipeline, audit frame schema |
 | [docs/testing.md](docs/testing.md) | Automated test suites, conventions, known-bug tests |
+| [docs/how-it-works.md](docs/how-it-works.md) | Plain-language guide, glossary, demo cheat sheet and judge Q&A |
 | [docs/test-cases.md](docs/test-cases.md) | Manual scenarios TC-01 to TC-09 |
 | [docs/interop-report.md](docs/interop-report.md) | Results of a live run of every combination and attack (regenerated nightly in CI) |
 | [docs/test-data.md](docs/test-data.md) | Test identities, settings and sample credentials |

@@ -1,0 +1,40 @@
+flowchart LR
+  subgraph Browser["Browser (React 19 + Vite)"]
+    UI["Matrix selector, flow controls,<br/>protocol inspector, sequence diagram,<br/>interop report, telemetry"]
+    HOOK["Run state (usePlaygroundRun)<br/>logs, history, SSE subscriber"]
+  end
+
+  subgraph BFF["Playground BFF (Node 26 + Express 5)"]
+    ROUTES["/api/playground<br/>issue, verify, logs, metrics,<br/>components, ref"]
+    PUB["/api/oid4vci<br/>public issuer for wallets<br/>(rate limited)"]
+    MOCK["Mock engine<br/>issuer, wallet, verifier<br/>real signatures, nonces"]
+    SVC["Live clients<br/>Collab, eSignet login, Walt.id"]
+    BUF[("Audit ring buffer<br/>+ SSE stream + metrics")]
+  end
+
+  subgraph Inji["MOSIP Collab sandbox (Inji)"]
+    ESIGNET["eSignet<br/>(OTP login)"]
+    MIMOTO["Mimoto<br/>(token, registry)"]
+    CERTIFY["Inji Certify<br/>(issuer)"]
+    VERIFY["Inji Verify<br/>(verifier)"]
+  end
+
+  subgraph Walt["Walt.id public demo (independent)"]
+    WI["Issuer<br/>OpenID4VCI Draft 13"]
+    WV["Verifier<br/>OpenID4VP"]
+  end
+
+  UI --> HOOK
+  HOOK -- "fetch (x-transaction-id)" --> ROUTES
+  BUF -. "SSE live steps" .-> HOOK
+  ROUTES --> MOCK
+  ROUTES --> SVC
+  ROUTES --> BUF
+  PUB --> MOCK
+  SVC --> ESIGNET
+  SVC --> MIMOTO
+  SVC --> CERTIFY
+  SVC --> VERIFY
+  SVC --> WI
+  SVC --> WV
+  SVC --> BUF

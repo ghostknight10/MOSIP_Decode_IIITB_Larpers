@@ -1,0 +1,14 @@
+flowchart TD
+  A["Open the playground"] --> B["Pick issuer, wallet,<br/>verifier and format<br/>(or click a TC preset)"]
+  B --> C{"Run Full Flow"}
+  C --> D["Phase 1: issue (OpenID4VCI)<br/>offer, token, credential"]
+  D --> E["Wallet holds the credential<br/>(or import your own)"]
+  E --> F{"Tamper mode?"}
+  F -- "no" --> G["Phase 2: present (OpenID4VP)<br/>request, vp_token"]
+  F -- "yes: expire, corrupt,<br/>wrong type, replay" --> G
+  G --> H["Verifier checks signature, expiry,<br/>type, nonce, holder binding"]
+  H --> I["Verdict: Valid, Invalid,<br/>Expired, Signature mismatch"]
+  I --> J["Inspect payloads, replay steps,<br/>see what was shared"]
+  I --> K["Run recorded in history"]
+  K --> L["Interop report: heatmap, filters,<br/>failure layers, Markdown / JSON export"]
+  K --> M["Telemetry: success rate, latency"]

@@ -130,11 +130,11 @@ export const ProtocolInspector: React.FC<ProtocolInspectorProps> = ({ logs, onCl
                       }`}
                     >
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-ink truncate flex items-center gap-1.5">
-                          <span className="text-xs font-mono px-1.5 rounded border border-line bg-surface-muted text-ink-muted">
+                        <span className="font-semibold text-ink min-w-0 flex items-center gap-1.5">
+                          <span className="text-xs font-mono px-1.5 rounded border border-line bg-surface-muted text-ink-muted shrink-0">
                             Step {log.step}
                           </span>
-                          {log.action}
+                          <span className="truncate" title={log.action}>{log.action}</span>
                         </span>
                         <div className="flex items-center gap-1.5 shrink-0">
                           {log.live && (

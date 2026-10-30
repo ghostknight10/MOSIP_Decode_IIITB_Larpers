@@ -56,6 +56,29 @@ Earlier protocol-visualisation work ([Nam](https://ant.isi.edu/bib/Estrin00b.htm
 8. **Phones are different.** Options sit side by side, the timeline replaces the diagram, raw messages are collapsed, and the same-device link comes first.
 9. **Accessible by default.** Text and icon for every status, real tables with headers, radio groups for exclusive choices, polite live regions, a keyboard-operable slider and cells, no autoplay under `prefers-reduced-motion`, and at least 12px text.
 
+## User flow and screens
+
+![User flow](./images/user-flow.png)
+
+*Source: [diagrams/user-flow.mmd](./diagrams/user-flow.mmd).*
+
+| Screen | Image |
+| --- | --- |
+| Matrix selector and an idle playground | [01-playground-idle.png](./images/01-playground-idle.png) |
+| A real run on the Inji stack, with live steps | [02-real-inji-run.png](./images/02-real-inji-run.png) |
+| Live protocol view (timeline, replay) | [03-live-protocol-view.png](./images/03-live-protocol-view.png) |
+| Protocol inspector | [04-protocol-inspector.png](./images/04-protocol-inspector.png) |
+| Sequence diagram | [04b-sequence-diagram.png](./images/04b-sequence-diagram.png) |
+| Verdict and "what was shared" | [05-verdict-and-shared-claims.png](./images/05-verdict-and-shared-claims.png) |
+| Tamper mode: signature rejected | [06-tamper-signature-rejected.png](./images/06-tamper-signature-rejected.png) |
+| Independent issuer (Walt.id) | [07-walt-independent-issuer.png](./images/07-walt-independent-issuer.png) |
+| mDoc credential inspector | [08-mdoc-inspect.png](./images/08-mdoc-inspect.png) |
+| Independent verifier (Walt.id) | [09-walt-independent-verifier.png](./images/09-walt-independent-verifier.png) |
+| Interoperability report and heatmap | [10-interop-report-heatmap.png](./images/10-interop-report-heatmap.png) |
+| Run history | [11-run-history.png](./images/11-run-history.png) |
+| Telemetry | [12-telemetry.png](./images/12-telemetry.png) |
+| Phone layout | [13-mobile.png](./images/13-mobile.png) |
+
 ## 4. What the new views revealed
 
 The new panels surfaced real findings in the mock engine and BFF. They are logged in [known-issues.md](./known-issues.md):

@@ -1,0 +1,16 @@
+sequenceDiagram
+  autonumber
+  participant W as Wallet (holder)
+  participant I as Issuer (Inji Certify / mock / Walt.id)
+  participant V as Verifier (Inji Verify / mock / Walt.id)
+  Note over W,V: OpenID4VCI (issue)
+  W->>I: Credential offer (QR or deep link)
+  W->>I: Issuer metadata
+  W->>I: Token request (pre-authorized code or eSignet login)
+  I-->>W: access_token, c_nonce
+  W->>I: Credential request + proof of possession
+  I-->>W: Signed credential (W3C VC, SD-JWT or mDoc)
+  Note over W,V: OpenID4VP (present)
+  V->>W: Authorization request (presentation definition, nonce)
+  W->>V: vp_token (requested claims, bound to the nonce)
+  V-->>W: Verdict (signature, expiry, type, holder binding)
