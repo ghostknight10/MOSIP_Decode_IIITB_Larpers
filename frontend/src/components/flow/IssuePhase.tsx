@@ -9,6 +9,7 @@ import { NationalIdCard } from './NationalIdCard';
 import { CredentialSummary } from './CredentialSummary';
 import { SubjectEditor } from './SubjectEditor';
 import { CredentialInspector } from './CredentialInspector';
+import { CredentialQr } from './CredentialQr';
 
 interface IssuePhaseProps {
   phase: RunPhase;
@@ -105,6 +106,7 @@ export const IssuePhase: React.FC<IssuePhaseProps> = ({ phase, format, credentia
         {issuedCredential && <NationalIdCard credential={issuedCredential} format={format} />}
         {issuedCredential && <CredentialSummary credential={issuedCredential} format={format} />}
         {issuedCredential && <CredentialInspector credential={issuedCredential} format={format} />}
+        {issuedCredential && <CredentialQr credential={issuedCredential} />}
       </div>
 
       <button

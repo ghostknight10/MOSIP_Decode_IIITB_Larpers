@@ -11,6 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@mosip/pixelpass": "^0.6.0",
     "clsx": "^2.1.1",
     "lucide-react": "^1.61.0",
     "mermaid": "^12.2.0",
