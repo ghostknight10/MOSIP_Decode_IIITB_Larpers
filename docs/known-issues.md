@@ -51,6 +51,10 @@ Mimoto is used live as the token proxy and issuer registry. Its wallet-side down
   - Collab hosts are fixed.
   - The JSON-LD loader never fetches URLs taken from a credential.
 
+### M-3 · The Digital Credentials API request is not verified end to end (low)
+
+The same-device panel sends the OpenID4VP request through the browser and shows the wallet's raw answer, but the playground's verifiers expect the `vp_token` at their own response endpoint, so the answer isn't verified. It needs Chrome 141+ and a wallet on the device that handles `openid4vp`; it has only been exercised against a mocked API.
+
 ### M-2 · mDoc presentation uses a simplified session transcript (low)
 
 The OpenID4VP handover is `[sha256(client_id), sha256(response_uri), nonce]`, without the mdoc-generated nonce of ISO 18013-7 Annex B. It binds the presentation to the request, but other ISO 18013-7 implementations would compute a different transcript.
