@@ -57,6 +57,15 @@ The **MOSIP Verifiable Credential (VC) Interoperability Playground** is an inter
 - **Mimoto** (wallet `inji-wallet`): look up the issuer in Mimoto's registry.
 - **Inji Verify** (`/verify`, verifier `inji-verify`): `POST /v1/verify/v2/vc-verification` with the credential (JSON-LD as a string, or a compact SD-JWT). It reports schema and signature, expiry and status checks separately, plus the claims; those become the verdict, checks and shared claims. Where v2 is missing, v1 (`/vc-verification`, one overall `verificationStatus`) is used. In tamper mode the wallet sends a really tampered credential first (see below).
 
+### Independent implementation: Walt.id (`services/walt.ts`)
+
+A non-MOSIP OpenID4VC stack, live on Walt.id's public demo (SD-JWT VC only), to show cross-ecosystem interoperability rather than Inji-to-Inji only.
+
+- **Issuer** (OpenID4VCI Draft 13, pre-authorized code): the wallet asks the issuer API to prepare an offer, fetches the offer and issuer metadata, exchanges the pre-authorized code for a token, and requests the credential with a JWT proof of possession. Walt.id signs with EdDSA and a `did:key` (no certificate).
+- **Verifier** (OpenID4VP): the wallet opens a verification session, fetches the presentation definition and answers at its `response_uri` with the requested claims only. The verdict comes from the session's policy results (signature, expired, not-before). Walt.id 1.2.0 cannot parse a key-binding JWT, so the SD-JWT is presented without one.
+- The mock verifier verifies `did:key` / EdDSA issuers too, against a small trust list that includes Walt.id's demo issuer. The mock issuer's SD-JWTs carry both an `x5c` certificate (read by Inji Verify) and a `did:jwk` `kid` (resolved by Walt.id), so one credential verifies in both ecosystems.
+- Either role falls back to the mock engine if Walt.id is unreachable, and the notice says so. `WALT_ISSUER_URL` / `WALT_VERIFIER_URL` override the endpoints.
+
 ### Mock engine (real cryptography)
 
 - **Issuer** (`mocks/mockService.ts`, `mocks/crypto.ts`, `mocks/mdoc.ts`): W3C credentials signed with `Ed25519Signature2020` by a `did:key` issuer (inline JSON-LD context for the claims); SD-JWT VCs signed ES256 with a self-signed `x5c` certificate and the holder key in `cnf`; mDocs with a COSE_Sign1 Mobile Security Object. Keys are generated once per BFF process.
@@ -216,7 +225,7 @@ The **matrix** shows the latest *clean* run per combination (tampered runs are c
 | TC-02 | Happy path issuance & presentation (SD-JWT) | Valid + selective disclosure | Green `VALID`, disclosures counted |
 | TC-03 | Expired credential presentation | Rejected: expiry check | Red `EXPIRED`, "Valid but Expired", run PASS |
 | TC-04 | Corrupted signature | Rejected: signature mismatch | Red `SIGNATURE_MISMATCH`, diagram tamper note |
-| TC-05 | Cross-ecosystem matrix | Standards compliance holds across boundaries | Report: all 20 supported combinations tested |
+| TC-05 | Cross-ecosystem matrix | Standards compliance holds across boundaries | Report: all 30 supported combinations tested |
 | TC-06 | Re-present a held credential to another verifier | Same credential verified by both verifiers | Verifier switch keeps "Holding VC" |
 
 Step-by-step procedures are in [test-cases.md](./test-cases.md), and the automated coverage is in [testing.md](./testing.md).

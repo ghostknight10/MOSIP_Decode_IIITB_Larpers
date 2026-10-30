@@ -63,7 +63,8 @@ The design (protocols, frontend state model and data flow) is in [docs/architect
 ## Features
 
 1. **3-column interoperability matrix**
-   - **Issuer:** Inji Certify or Mock OpenID4VCI. **Wallet:** Inji Web / Mobile or Simulated Holder. **Verifier:** Inji Verify or Mock OpenID4VP.
+   - **Issuer:** Inji Certify, Mock OpenID4VCI, or **Walt.id** (independent). **Wallet:** Inji Web / Mobile or Simulated Holder. **Verifier:** Inji Verify, Mock OpenID4VP, or **Walt.id** (independent).
+   - The Walt.id nodes are a real, non-MOSIP OpenID4VC implementation (public demo, SD-JWT VC only), so a credential from one ecosystem is verified by another: Walt.id issuer → our verifier, mock issuer → Walt.id verifier. Walt.id's credential is rejected by Inji Verify (it needs an x5c chain), which the report shows.
    - The nodes come from one registry (`frontend/src/config/nodes.ts`), so adding an implementation is a single entry.
    - Each column shows a live status badge: Standby → In progress → Holding VC / Done / Rejected / Error.
    - Only the roles that were actually answered by the fallback show **Emulated**, and a banner names them in plain language.
@@ -87,7 +88,7 @@ The design (protocols, frontend state model and data flow) is in [docs/architect
 6. **Tamper / chaos mode (negative paths)**
    - Expire the timestamp or corrupt the signature at presentation time to show that the verifier rejects the credential.
 7. **Interoperability report**
-   - A heatmap of all **20** supported combinations (issuer × wallet rows, verifier × format columns), built from real runs. Untested cells say **UNTESTED**, and clicking a cell filters the run history. A list view is also available.
+   - A heatmap of all **30** supported combinations (issuer × wallet rows, verifier × format columns), built from real runs. Untested cells say **UNTESTED**, and clicking a cell filters the run history. A list view is also available.
    - Real and emulated results are scored separately ("Real: x/y pass · Emulated: x/y pass"), so a pass against the mock engine is never presented as an Inji result.
    - Failures are tagged with the interoperability layer they broke at: Technical, Syntactical, Semantic or Organizational, after Schumm et al. (2025).
    - **Run All Combinations**, filters (format, outcome, mode, layer), and **Markdown / JSON export** (the Markdown is the submission's interop matrix).

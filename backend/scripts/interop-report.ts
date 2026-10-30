@@ -24,7 +24,9 @@ type Format = 'w3c-vc' | 'sd-jwt' | 'mso-mdoc';
 const NODES = {
   issuer: [
     { id: 'inji-certify', label: 'Inji Certify', formats: ['w3c-vc', 'sd-jwt', 'mso-mdoc'] },
-    { id: 'mock-openid4vci', label: 'Mock OpenID4VCI', formats: ['w3c-vc', 'sd-jwt', 'mso-mdoc'] }
+    { id: 'mock-openid4vci', label: 'Mock OpenID4VCI', formats: ['w3c-vc', 'sd-jwt', 'mso-mdoc'] },
+    // Independent (non-MOSIP) implementations: Walt.id's public demo, SD-JWT VC only.
+    { id: 'walt-issuer', label: 'Walt.id Issuer', formats: ['sd-jwt'] }
   ],
   wallet: [
     { id: 'inji-wallet', label: 'Inji Web / Mobile', formats: ['w3c-vc', 'sd-jwt', 'mso-mdoc'] },
@@ -33,7 +35,8 @@ const NODES = {
   verifier: [
     // Inji Verify's service accepts no mDoc (G-10), as in the UI's registry.
     { id: 'inji-verify', label: 'Inji Verify', formats: ['w3c-vc', 'sd-jwt'] },
-    { id: 'mock-openid4vp', label: 'Mock OpenID4VP', formats: ['w3c-vc', 'sd-jwt', 'mso-mdoc'] }
+    { id: 'mock-openid4vp', label: 'Mock OpenID4VP', formats: ['w3c-vc', 'sd-jwt', 'mso-mdoc'] },
+    { id: 'walt-verifier', label: 'Walt.id Verifier', formats: ['sd-jwt'] }
   ]
 } as const;
 const FORMAT_LABEL: Record<Format, string> = { 'w3c-vc': 'W3C VC (JSON-LD)', 'sd-jwt': 'SD-JWT VC', 'mso-mdoc': 'mDoc (ISO 18013-5)' };
@@ -185,6 +188,8 @@ async function main() {
     '',
     '- A real Inji Certify credential at the mock verifier: it carries no holder binding, so a strict verifier rejects it (G-12).',
     '- Inji Verify accepting "wrong type" and "replay": its `/vc-verification` checks a credential, not a presentation (G-8).',
+    '- A Walt.id-issued credential at Inji Verify: Inji needs an x5c certificate chain and cannot resolve a did:key issuer (G-14).',
+    '- Walt.id accepting "wrong type" and "replay": its verifier checks signature and validity only, and cannot parse a key-binding JWT (G-15).',
     '',
     '## Clean runs (every supported combination)',
     '',

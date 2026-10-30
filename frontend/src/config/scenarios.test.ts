@@ -20,6 +20,12 @@ describe('SCENARIOS', () => {
     expect(SCENARIOS.find(s => s.testCase === 'TC-04')?.tamper).toEqual({ forceExpired: false, corruptSignature: true });
   });
 
+  it('has presets for an independent (Walt.id) issuer and verifier', () => {
+    const walt = SCENARIOS.filter(s => s.selection.issuer === 'walt-issuer' || s.selection.verifier === 'walt-verifier');
+    expect(walt.map(s => s.testCase)).toEqual(['TC-10', 'TC-11']);
+    expect(walt.every(s => s.selection.format === 'sd-jwt')).toBe(true);
+  });
+
   it('has at least one cross-ecosystem scenario in each direction', () => {
     const cross = SCENARIOS.filter(s => s.testCase.startsWith('TC-05'));
     expect(cross.some(s => s.selection.issuer.startsWith('mock') && s.selection.verifier === 'inji-verify')).toBe(true);

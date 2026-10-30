@@ -90,10 +90,10 @@ Our verifier catches all four. Inji Verify catches expiry and bad signatures; it
 
 # The interoperability report
 
-20 supported combinations (issuer × wallet × verifier × format) plus 20 attack runs, against the live sandbox.
+30 supported combinations (issuer × wallet × verifier × format) plus 24 attack runs, against the live sandbox, including an independent implementation (Walt.id).
 
-- **18 / 20** clean runs pass
-- **16 / 20** attacks correctly rejected
+- **26 / 30** clean runs pass
+- **18 / 24** attacks correctly rejected
 - Every failure is labelled with its layer: Technical, Syntactical, Semantic or Organizational
 - Filter run history by format, outcome, mode, layer and **Inji component build**
 - Nightly CI regenerates the report against Collab

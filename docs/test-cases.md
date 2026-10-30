@@ -4,7 +4,7 @@ These scenarios validate cross-ecosystem interoperability and protocol conforman
 
 **Setup:** run `docker compose up --build` (or `npm run dev:backend` + `npm run dev:frontend`) and open <http://localhost:5173>. The header should show **BFF: Online (Collab/Mock)**.
 
-**Shortcut:** each test case below has a **Quick scenario** button (TC-01, TC-02, TC-03, TC-04, TC-05a, TC-05b, TC-07, TC-08) that selects the nodes, sets the tamper options and runs the full flow. The manual steps remain the reference.
+**Shortcut:** each test case below has a **Quick scenario** button (TC-01, TC-02, TC-03, TC-04, TC-05a, TC-05b, TC-07, TC-08, TC-10, TC-11) that selects the nodes, sets the tamper options and runs the full flow. The manual steps remain the reference.
 
 **Reading results:**
 
@@ -93,8 +93,8 @@ These scenarios validate cross-ecosystem interoperability and protocol conforman
   - Combination A: `Mock OpenID4VCI` → `Inji Web / Mobile` → `Inji Verify`: a live `VALID` from Inji Verify, **PASS**.
   - Combination B: `Inji Certify` → `Simulated Holder` → `Mock OpenID4VP`
 - **Full matrix:**
-  1. Open **Interop Matrix Report** and click **Run All Combinations**. The button shows progress (`Running n/20…`).
-  2. When it finishes, check **Combinations Tested** reads **20 / 20**. The four Inji Verify × mDoc cells read **Not supported**.
+  1. Open **Interop Matrix Report** and click **Run All Combinations**. The button shows progress (`Running n/30…`).
+  2. When it finishes, check **Combinations Tested** reads **30 / 30**. Cells no node supports (Inji Verify × mDoc, and the Walt.id nodes × W3C or mDoc) read **Not supported**.
   3. Click **Markdown** to export the report.
 - **Expected result:**
   - The heatmap has an outcome in every cell. Scores are shown separately for **Real** and **Emulated** runs; cells marked † did not reach the real Collab services.
@@ -132,6 +132,26 @@ These scenarios validate cross-ecosystem interoperability and protocol conforman
 - **Objective:** the verifier rejects a presentation made for an earlier request (nonce binding, replay protection).
 - **Steps:** run any flow once, then run preset **TC-08** (or tick **Replay an Earlier Presentation** in tamper mode) with **Mock OpenID4VP**.
 - **Expected result:** `INVALID`, with **Holder binding** red and a message that the nonce does not match. Run History records a tampered **PASS** with layer TECH. Against Inji Verify, the same attack is accepted (it has no nonce) and recorded as FAIL (G-8).
+
+---
+
+## TC-10: A credential from an independent issuer (Walt.id)
+
+- **Objective:** cross-ecosystem interoperability: a real credential from a non-MOSIP OpenID4VCI Draft 13 issuer, verified by other ecosystems.
+- **Nodes:** `Walt.id Issuer` → `Simulated Holder` → `Mock OpenID4VP` · `SD-JWT VC` (preset **TC-10**). Needs internet access to Walt.id's public demo.
+- **Expected result:**
+  - Five **Live** issuance steps: create offer, fetch offer, fetch metadata, token (pre-authorized code), credential request. The proof type is `JWT (EdDSA)` and the banner says the credential is real, from an independent issuer.
+  - The mock verifier returns `VALID` (issuer found through its `did:key`, in the trust list; disclosures matched in nested `_sd`; key-binding JWT checked). **PASS**.
+  - Switch the verifier to **Walt.id Verifier**: `VALID` too.
+  - Switch it to **Inji Verify**: a rejection ("getX509CertChain must not be null", G-14): Inji Verify can't verify an issuer identified by `did:key`. Run History records a FAIL with layer TECH.
+
+---
+
+## TC-11: Our credential at an independent verifier (Walt.id)
+
+- **Objective:** an OpenID4VP presentation to a non-MOSIP verifier.
+- **Nodes:** `Mock OpenID4VCI` → `Simulated Holder` → `Walt.id Verifier` · `SD-JWT VC` (preset **TC-11**).
+- **Expected result:** four **Live** steps (verification session, presentation definition, `vp_token` submission, result) and `VALID`; the details say Walt.id checks signature and validity but has no holder binding. With **Enable Tamper Mode**: expired → `EXPIRED`, corrupted signature → `SIGNATURE_MISMATCH` (both correctly rejected); wrong type and replay are **accepted** by Walt.id (G-15), recorded as FAIL.
 
 ---
 

@@ -41,6 +41,16 @@ export const ISSUERS: NodeDescriptor<IssuerType>[] = [
     description: 'Self-hosted OID4VCI (Draft 13) mock for simulating edge cases and negative signatures.',
     isMosip: false,
     supportedFormats: ['w3c-vc', 'sd-jwt', 'mso-mdoc']
+  },
+  {
+    id: 'walt-issuer',
+    role: 'issuer',
+    label: 'Walt.id Issuer',
+    shortLabel: 'Walt.id Issuer',
+    badge: 'External',
+    description: 'Independent, non-MOSIP OpenID4VCI (Draft 13) issuer: Walt.id\'s public demo, issuing SD-JWT VC over a pre-authorized code.',
+    isMosip: false,
+    supportedFormats: ['sd-jwt']
   }
 ];
 
@@ -89,6 +99,17 @@ export const VERIFIERS: NodeDescriptor<VerifierType>[] = [
     isMosip: false,
     supportedFormats: ['w3c-vc', 'sd-jwt', 'mso-mdoc'],
     clientId: 'https://verify.mock.mosip.net'
+  },
+  {
+    id: 'walt-verifier',
+    role: 'verifier',
+    label: 'Walt.id Verifier',
+    shortLabel: 'Walt.id Verifier',
+    badge: 'External',
+    description: 'Independent, non-MOSIP OpenID4VP verifier: Walt.id\'s public demo, checking SD-JWT VC signature and validity. No key binding, so no replay protection.',
+    isMosip: false,
+    supportedFormats: ['sd-jwt'],
+    clientId: 'https://verifier.demo.walt.id/openid4vc/verify'
   }
 ];
 

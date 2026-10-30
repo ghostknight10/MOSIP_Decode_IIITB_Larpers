@@ -1,8 +1,8 @@
 export type CredentialFormat = 'w3c-vc' | 'sd-jwt' | 'mso-mdoc';
 
-export type IssuerType = 'inji-certify' | 'mock-openid4vci';
+export type IssuerType = 'inji-certify' | 'mock-openid4vci' | 'walt-issuer';
 export type WalletType = 'inji-wallet' | 'mock-wallet';
-export type VerifierType = 'inji-verify' | 'mock-openid4vp';
+export type VerifierType = 'inji-verify' | 'mock-openid4vp' | 'walt-verifier';
 
 export interface ProtocolLog {
   id: string;

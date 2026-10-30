@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-25T11:52:38.147Z",
+  "generatedAt": "2026-10-30T06:16:57.907Z",
   "bff": "http://localhost:4100",
   "components": {
     "label": "Verify v2·ui 8b11a4ad | Certify 1.0·6777054c | Mimoto 27c84ecf",
@@ -15,7 +15,7 @@
     "mimoto": {
       "registry": "27c84ecf"
     },
-    "checkedAt": "2026-10-25T11:51:53.438Z"
+    "checkedAt": "2026-10-30T06:16:10.170Z"
   },
   "runs": [
     {
@@ -24,7 +24,7 @@
       "verifier": "inji-verify",
       "format": "w3c-vc",
       "attack": null,
-      "transactionId": "tx-850ed4f0",
+      "transactionId": "tx-317be38a",
       "outcome": "PASS",
       "status": "VALID",
       "failedChecks": [],
@@ -32,7 +32,7 @@
       "emulated": false,
       "realIssuance": true,
       "liveSteps": 8,
-      "durationMs": 2610
+      "durationMs": 3235
     },
     {
       "issuer": "inji-certify",
@@ -40,7 +40,7 @@
       "verifier": "inji-verify",
       "format": "sd-jwt",
       "attack": null,
-      "transactionId": "tx-2d128047",
+      "transactionId": "tx-6ed5e6a8",
       "outcome": "PASS",
       "status": "VALID",
       "failedChecks": [],
@@ -48,7 +48,7 @@
       "emulated": true,
       "realIssuance": false,
       "liveSteps": 3,
-      "durationMs": 2390
+      "durationMs": 292
     },
     {
       "issuer": "inji-certify",
@@ -56,7 +56,7 @@
       "verifier": "mock-openid4vp",
       "format": "w3c-vc",
       "attack": null,
-      "transactionId": "tx-4c851658",
+      "transactionId": "tx-546bb769",
       "outcome": "FAIL",
       "status": "INVALID",
       "failedChecks": [
@@ -66,7 +66,7 @@
       "emulated": false,
       "realIssuance": true,
       "liveSteps": 7,
-      "durationMs": 1213,
+      "durationMs": 1378,
       "detail": "The credential is not bound to a holder (no credentialSubject.id), so possession cannot be proved.",
       "layer": "Technical"
     },
@@ -76,7 +76,7 @@
       "verifier": "mock-openid4vp",
       "format": "sd-jwt",
       "attack": null,
-      "transactionId": "tx-f456bafa",
+      "transactionId": "tx-d39b4899",
       "outcome": "PASS",
       "status": "VALID",
       "failedChecks": [],
@@ -84,7 +84,7 @@
       "emulated": true,
       "realIssuance": false,
       "liveSteps": 2,
-      "durationMs": 120
+      "durationMs": 92
     },
     {
       "issuer": "inji-certify",
@@ -92,7 +92,7 @@
       "verifier": "mock-openid4vp",
       "format": "mso-mdoc",
       "attack": null,
-      "transactionId": "tx-667a0d88",
+      "transactionId": "tx-fe4b4d04",
       "outcome": "PASS",
       "status": "VALID",
       "failedChecks": [],
@@ -100,7 +100,23 @@
       "emulated": true,
       "realIssuance": false,
       "liveSteps": 2,
-      "durationMs": 101
+      "durationMs": 97
+    },
+    {
+      "issuer": "inji-certify",
+      "wallet": "inji-wallet",
+      "verifier": "walt-verifier",
+      "format": "sd-jwt",
+      "attack": null,
+      "transactionId": "tx-73889065",
+      "outcome": "PASS",
+      "status": "VALID",
+      "failedChecks": [],
+      "proofType": "JWT (ES256)",
+      "emulated": true,
+      "realIssuance": false,
+      "liveSteps": 6,
+      "durationMs": 3113
     },
     {
       "issuer": "inji-certify",
@@ -108,7 +124,7 @@
       "verifier": "inji-verify",
       "format": "w3c-vc",
       "attack": null,
-      "transactionId": "tx-87c24403",
+      "transactionId": "tx-057f5339",
       "outcome": "PASS",
       "status": "VALID",
       "failedChecks": [],
@@ -116,7 +132,7 @@
       "emulated": false,
       "realIssuance": true,
       "liveSteps": 8,
-      "durationMs": 1489
+      "durationMs": 1713
     },
     {
       "issuer": "inji-certify",
@@ -124,7 +140,7 @@
       "verifier": "inji-verify",
       "format": "sd-jwt",
       "attack": null,
-      "transactionId": "tx-546ca2fd",
+      "transactionId": "tx-a895affb",
       "outcome": "PASS",
       "status": "VALID",
       "failedChecks": [],
@@ -132,7 +148,7 @@
       "emulated": true,
       "realIssuance": false,
       "liveSteps": 2,
-      "durationMs": 83
+      "durationMs": 3156
     },
     {
       "issuer": "inji-certify",
@@ -140,7 +156,7 @@
       "verifier": "mock-openid4vp",
       "format": "w3c-vc",
       "attack": null,
-      "transactionId": "tx-b03abadb",
+      "transactionId": "tx-6eda3d59",
       "outcome": "FAIL",
       "status": "INVALID",
       "failedChecks": [
@@ -150,7 +166,7 @@
       "emulated": false,
       "realIssuance": true,
       "liveSteps": 7,
-      "durationMs": 745,
+      "durationMs": 1261,
       "detail": "The credential is not bound to a holder (no credentialSubject.id), so possession cannot be proved.",
       "layer": "Technical"
     },
@@ -160,7 +176,7 @@
       "verifier": "mock-openid4vp",
       "format": "sd-jwt",
       "attack": null,
-      "transactionId": "tx-325dcae7",
+      "transactionId": "tx-4fcb08f5",
       "outcome": "PASS",
       "status": "VALID",
       "failedChecks": [],
@@ -168,7 +184,7 @@
       "emulated": true,
       "realIssuance": false,
       "liveSteps": 1,
-      "durationMs": 44
+      "durationMs": 49
     },
     {
       "issuer": "inji-certify",
@@ -176,7 +192,7 @@
       "verifier": "mock-openid4vp",
       "format": "mso-mdoc",
       "attack": null,
-      "transactionId": "tx-70808f31",
+      "transactionId": "tx-369cfbbe",
       "outcome": "PASS",
       "status": "VALID",
       "failedChecks": [],
@@ -184,7 +200,23 @@
       "emulated": true,
       "realIssuance": false,
       "liveSteps": 1,
-      "durationMs": 45
+      "durationMs": 201
+    },
+    {
+      "issuer": "inji-certify",
+      "wallet": "mock-wallet",
+      "verifier": "walt-verifier",
+      "format": "sd-jwt",
+      "attack": null,
+      "transactionId": "tx-7614c86f",
+      "outcome": "PASS",
+      "status": "VALID",
+      "failedChecks": [],
+      "proofType": "JWT (ES256)",
+      "emulated": true,
+      "realIssuance": false,
+      "liveSteps": 5,
+      "durationMs": 3378
     },
     {
       "issuer": "mock-openid4vci",
@@ -192,7 +224,7 @@
       "verifier": "inji-verify",
       "format": "w3c-vc",
       "attack": null,
-      "transactionId": "tx-690ae4cf",
+      "transactionId": "tx-f0099182",
       "outcome": "PASS",
       "status": "VALID",
       "failedChecks": [],
@@ -200,7 +232,7 @@
       "emulated": false,
       "realIssuance": false,
       "liveSteps": 1,
-      "durationMs": 773
+      "durationMs": 793
     },
     {
       "issuer": "mock-openid4vci",
@@ -208,7 +240,7 @@
       "verifier": "inji-verify",
       "format": "sd-jwt",
       "attack": null,
-      "transactionId": "tx-676af3f2",
+      "transactionId": "tx-50901bc0",
       "outcome": "PASS",
       "status": "VALID",
       "failedChecks": [],
@@ -216,7 +248,7 @@
       "emulated": false,
       "realIssuance": false,
       "liveSteps": 1,
-      "durationMs": 46
+      "durationMs": 151
     },
     {
       "issuer": "mock-openid4vci",
@@ -224,7 +256,7 @@
       "verifier": "mock-openid4vp",
       "format": "w3c-vc",
       "attack": null,
-      "transactionId": "tx-c8ab8812",
+      "transactionId": "tx-5eb11887",
       "outcome": "PASS",
       "status": "VALID",
       "failedChecks": [],
@@ -232,7 +264,7 @@
       "emulated": false,
       "realIssuance": false,
       "liveSteps": 0,
-      "durationMs": 11
+      "durationMs": 20
     },
     {
       "issuer": "mock-openid4vci",
@@ -240,7 +272,7 @@
       "verifier": "mock-openid4vp",
       "format": "sd-jwt",
       "attack": null,
-      "transactionId": "tx-9661d7bf",
+      "transactionId": "tx-85cd31cc",
       "outcome": "PASS",
       "status": "VALID",
       "failedChecks": [],
@@ -248,7 +280,7 @@
       "emulated": false,
       "realIssuance": false,
       "liveSteps": 0,
-      "durationMs": 3
+      "durationMs": 7
     },
     {
       "issuer": "mock-openid4vci",
@@ -256,7 +288,7 @@
       "verifier": "mock-openid4vp",
       "format": "mso-mdoc",
       "attack": null,
-      "transactionId": "tx-1c11f0f4",
+      "transactionId": "tx-2fd7f243",
       "outcome": "PASS",
       "status": "VALID",
       "failedChecks": [],
@@ -264,7 +296,23 @@
       "emulated": false,
       "realIssuance": false,
       "liveSteps": 0,
-      "durationMs": 3
+      "durationMs": 6
+    },
+    {
+      "issuer": "mock-openid4vci",
+      "wallet": "inji-wallet",
+      "verifier": "walt-verifier",
+      "format": "sd-jwt",
+      "attack": null,
+      "transactionId": "tx-164689c0",
+      "outcome": "PASS",
+      "status": "VALID",
+      "failedChecks": [],
+      "proofType": "JWT (ES256)",
+      "emulated": false,
+      "realIssuance": false,
+      "liveSteps": 4,
+      "durationMs": 1443
     },
     {
       "issuer": "mock-openid4vci",
@@ -272,7 +320,7 @@
       "verifier": "inji-verify",
       "format": "w3c-vc",
       "attack": null,
-      "transactionId": "tx-36676bbc",
+      "transactionId": "tx-13d83b7f",
       "outcome": "PASS",
       "status": "VALID",
       "failedChecks": [],
@@ -280,7 +328,7 @@
       "emulated": false,
       "realIssuance": false,
       "liveSteps": 1,
-      "durationMs": 319
+      "durationMs": 761
     },
     {
       "issuer": "mock-openid4vci",
@@ -288,7 +336,7 @@
       "verifier": "inji-verify",
       "format": "sd-jwt",
       "attack": null,
-      "transactionId": "tx-77e04a8b",
+      "transactionId": "tx-29f8db72",
       "outcome": "PASS",
       "status": "VALID",
       "failedChecks": [],
@@ -296,7 +344,7 @@
       "emulated": false,
       "realIssuance": false,
       "liveSteps": 1,
-      "durationMs": 47
+      "durationMs": 44
     },
     {
       "issuer": "mock-openid4vci",
@@ -304,7 +352,7 @@
       "verifier": "mock-openid4vp",
       "format": "w3c-vc",
       "attack": null,
-      "transactionId": "tx-a3d79d39",
+      "transactionId": "tx-23a781aa",
       "outcome": "PASS",
       "status": "VALID",
       "failedChecks": [],
@@ -312,7 +360,7 @@
       "emulated": false,
       "realIssuance": false,
       "liveSteps": 0,
-      "durationMs": 12
+      "durationMs": 17
     },
     {
       "issuer": "mock-openid4vci",
@@ -320,11 +368,27 @@
       "verifier": "mock-openid4vp",
       "format": "sd-jwt",
       "attack": null,
-      "transactionId": "tx-b20318ef",
+      "transactionId": "tx-02ba3406",
       "outcome": "PASS",
       "status": "VALID",
       "failedChecks": [],
       "proofType": "JWT (ES256)",
+      "emulated": false,
+      "realIssuance": false,
+      "liveSteps": 0,
+      "durationMs": 5
+    },
+    {
+      "issuer": "mock-openid4vci",
+      "wallet": "mock-wallet",
+      "verifier": "mock-openid4vp",
+      "format": "mso-mdoc",
+      "attack": null,
+      "transactionId": "tx-41df4b9e",
+      "outcome": "PASS",
+      "status": "VALID",
+      "failedChecks": [],
+      "proofType": "COSE_Sign1 (ES256)",
       "emulated": false,
       "realIssuance": false,
       "liveSteps": 0,
@@ -333,18 +397,122 @@
     {
       "issuer": "mock-openid4vci",
       "wallet": "mock-wallet",
-      "verifier": "mock-openid4vp",
-      "format": "mso-mdoc",
+      "verifier": "walt-verifier",
+      "format": "sd-jwt",
       "attack": null,
-      "transactionId": "tx-cde054c4",
+      "transactionId": "tx-b01e8f96",
       "outcome": "PASS",
       "status": "VALID",
       "failedChecks": [],
-      "proofType": "COSE_Sign1 (ES256)",
+      "proofType": "JWT (ES256)",
       "emulated": false,
       "realIssuance": false,
-      "liveSteps": 0,
-      "durationMs": 3
+      "liveSteps": 4,
+      "durationMs": 1484
+    },
+    {
+      "issuer": "walt-issuer",
+      "wallet": "inji-wallet",
+      "verifier": "inji-verify",
+      "format": "sd-jwt",
+      "attack": null,
+      "transactionId": "tx-d6f888c2",
+      "outcome": "FAIL",
+      "status": "SIGNATURE_MISMATCH",
+      "failedChecks": [
+        "signatureValid"
+      ],
+      "proofType": "JWT (EdDSA)",
+      "emulated": false,
+      "realIssuance": true,
+      "liveSteps": 6,
+      "durationMs": 3956,
+      "detail": "Inji Verify: schema and signature invalid (ERR_SIGNATURE_VERIFICATION_FAILED: Exception during Verification: getX509CertChain(...) must not be null); expiry not checked; 0 status check(s).",
+      "layer": "Technical"
+    },
+    {
+      "issuer": "walt-issuer",
+      "wallet": "inji-wallet",
+      "verifier": "mock-openid4vp",
+      "format": "sd-jwt",
+      "attack": null,
+      "transactionId": "tx-2c0c77d9",
+      "outcome": "PASS",
+      "status": "VALID",
+      "failedChecks": [],
+      "proofType": "JWT (EdDSA)",
+      "emulated": false,
+      "realIssuance": true,
+      "liveSteps": 5,
+      "durationMs": 1549
+    },
+    {
+      "issuer": "walt-issuer",
+      "wallet": "inji-wallet",
+      "verifier": "walt-verifier",
+      "format": "sd-jwt",
+      "attack": null,
+      "transactionId": "tx-3aacbb1a",
+      "outcome": "PASS",
+      "status": "VALID",
+      "failedChecks": [],
+      "proofType": "JWT (EdDSA)",
+      "emulated": false,
+      "realIssuance": true,
+      "liveSteps": 9,
+      "durationMs": 4889
+    },
+    {
+      "issuer": "walt-issuer",
+      "wallet": "mock-wallet",
+      "verifier": "inji-verify",
+      "format": "sd-jwt",
+      "attack": null,
+      "transactionId": "tx-d299e024",
+      "outcome": "FAIL",
+      "status": "SIGNATURE_MISMATCH",
+      "failedChecks": [
+        "signatureValid"
+      ],
+      "proofType": "JWT (EdDSA)",
+      "emulated": false,
+      "realIssuance": true,
+      "liveSteps": 6,
+      "durationMs": 1956,
+      "detail": "Inji Verify: schema and signature invalid (ERR_SIGNATURE_VERIFICATION_FAILED: Exception during Verification: getX509CertChain(...) must not be null); expiry not checked; 0 status check(s).",
+      "layer": "Technical"
+    },
+    {
+      "issuer": "walt-issuer",
+      "wallet": "mock-wallet",
+      "verifier": "mock-openid4vp",
+      "format": "sd-jwt",
+      "attack": null,
+      "transactionId": "tx-f0725d9b",
+      "outcome": "PASS",
+      "status": "VALID",
+      "failedChecks": [],
+      "proofType": "JWT (EdDSA)",
+      "emulated": false,
+      "realIssuance": true,
+      "liveSteps": 5,
+      "durationMs": 1539
+    },
+    {
+      "issuer": "walt-issuer",
+      "wallet": "mock-wallet",
+      "verifier": "walt-verifier",
+      "format": "sd-jwt",
+      "attack": null,
+      "transactionId": "tx-cad91220",
+      "outcome": "PASS",
+      "status": "VALID",
+      "failedChecks": [],
+      "proofType": "JWT (EdDSA)",
+      "emulated": false,
+      "realIssuance": true,
+      "liveSteps": 9,
+      "durationMs": 4010
     },
     {
       "issuer": "mock-openid4vci",
@@ -352,7 +520,7 @@
       "verifier": "inji-verify",
       "format": "w3c-vc",
       "attack": "forceExpired",
-      "transactionId": "tx-b11388e2",
+      "transactionId": "tx-77394933",
       "outcome": "PASS",
       "status": "EXPIRED",
       "failedChecks": [
@@ -362,7 +530,7 @@
       "emulated": false,
       "realIssuance": false,
       "liveSteps": 1,
-      "durationMs": 313
+      "durationMs": 861
     },
     {
       "issuer": "mock-openid4vci",
@@ -370,7 +538,7 @@
       "verifier": "inji-verify",
       "format": "w3c-vc",
       "attack": "corruptSignature",
-      "transactionId": "tx-6e70ecf5",
+      "transactionId": "tx-b0e31458",
       "outcome": "PASS",
       "status": "SIGNATURE_MISMATCH",
       "failedChecks": [
@@ -380,7 +548,7 @@
       "emulated": false,
       "realIssuance": false,
       "liveSteps": 1,
-      "durationMs": 303
+      "durationMs": 308
     },
     {
       "issuer": "mock-openid4vci",
@@ -388,7 +556,7 @@
       "verifier": "inji-verify",
       "format": "w3c-vc",
       "attack": "wrongCredentialType",
-      "transactionId": "tx-0089a688",
+      "transactionId": "tx-ff9ac1bc",
       "outcome": "FAIL",
       "status": "VALID",
       "failedChecks": [],
@@ -396,7 +564,7 @@
       "emulated": false,
       "realIssuance": false,
       "liveSteps": 1,
-      "durationMs": 310,
+      "durationMs": 308,
       "detail": "Inji Verify: schema and signature valid; expiry valid; 0 status check(s).",
       "layer": "Technical"
     },
@@ -406,7 +574,7 @@
       "verifier": "inji-verify",
       "format": "w3c-vc",
       "attack": "replayPresentation",
-      "transactionId": "tx-ed82c552",
+      "transactionId": "tx-17e7378d",
       "outcome": "FAIL",
       "status": "VALID",
       "failedChecks": [],
@@ -414,7 +582,7 @@
       "emulated": false,
       "realIssuance": false,
       "liveSteps": 1,
-      "durationMs": 313,
+      "durationMs": 314,
       "detail": "Inji Verify: schema and signature valid; expiry valid; 0 status check(s).",
       "layer": "Technical"
     },
@@ -424,7 +592,7 @@
       "verifier": "inji-verify",
       "format": "sd-jwt",
       "attack": "forceExpired",
-      "transactionId": "tx-cd1dd995",
+      "transactionId": "tx-220225ca",
       "outcome": "PASS",
       "status": "EXPIRED",
       "failedChecks": [
@@ -442,7 +610,7 @@
       "verifier": "inji-verify",
       "format": "sd-jwt",
       "attack": "corruptSignature",
-      "transactionId": "tx-f0ca0bee",
+      "transactionId": "tx-f3e8d221",
       "outcome": "PASS",
       "status": "SIGNATURE_MISMATCH",
       "failedChecks": [
@@ -452,7 +620,7 @@
       "emulated": false,
       "realIssuance": false,
       "liveSteps": 1,
-      "durationMs": 46
+      "durationMs": 40
     },
     {
       "issuer": "mock-openid4vci",
@@ -460,7 +628,7 @@
       "verifier": "inji-verify",
       "format": "sd-jwt",
       "attack": "wrongCredentialType",
-      "transactionId": "tx-bba1ed0a",
+      "transactionId": "tx-d1c436de",
       "outcome": "FAIL",
       "status": "VALID",
       "failedChecks": [],
@@ -478,7 +646,7 @@
       "verifier": "inji-verify",
       "format": "sd-jwt",
       "attack": "replayPresentation",
-      "transactionId": "tx-c1982663",
+      "transactionId": "tx-562d4a13",
       "outcome": "FAIL",
       "status": "VALID",
       "failedChecks": [],
@@ -486,7 +654,7 @@
       "emulated": false,
       "realIssuance": false,
       "liveSteps": 1,
-      "durationMs": 47,
+      "durationMs": 45,
       "detail": "Inji Verify: schema and signature valid; expiry valid; 0 status check(s).",
       "layer": "Technical"
     },
@@ -496,7 +664,7 @@
       "verifier": "mock-openid4vp",
       "format": "w3c-vc",
       "attack": "forceExpired",
-      "transactionId": "tx-1c7bf40d",
+      "transactionId": "tx-93ad353d",
       "outcome": "PASS",
       "status": "EXPIRED",
       "failedChecks": [
@@ -506,7 +674,7 @@
       "emulated": false,
       "realIssuance": false,
       "liveSteps": 0,
-      "durationMs": 10
+      "durationMs": 21
     },
     {
       "issuer": "mock-openid4vci",
@@ -514,7 +682,7 @@
       "verifier": "mock-openid4vp",
       "format": "w3c-vc",
       "attack": "corruptSignature",
-      "transactionId": "tx-cd69d490",
+      "transactionId": "tx-e350a131",
       "outcome": "PASS",
       "status": "SIGNATURE_MISMATCH",
       "failedChecks": [
@@ -524,7 +692,7 @@
       "emulated": false,
       "realIssuance": false,
       "liveSteps": 0,
-      "durationMs": 15
+      "durationMs": 19
     },
     {
       "issuer": "mock-openid4vci",
@@ -532,7 +700,7 @@
       "verifier": "mock-openid4vp",
       "format": "w3c-vc",
       "attack": "wrongCredentialType",
-      "transactionId": "tx-c417bd3b",
+      "transactionId": "tx-8945179f",
       "outcome": "PASS",
       "status": "INVALID",
       "failedChecks": [
@@ -542,7 +710,7 @@
       "emulated": false,
       "realIssuance": false,
       "liveSteps": 0,
-      "durationMs": 15
+      "durationMs": 20
     },
     {
       "issuer": "mock-openid4vci",
@@ -550,13 +718,31 @@
       "verifier": "mock-openid4vp",
       "format": "w3c-vc",
       "attack": "replayPresentation",
-      "transactionId": "tx-82cce4d9",
+      "transactionId": "tx-99c09b67",
       "outcome": "PASS",
       "status": "INVALID",
       "failedChecks": [
         "holderBinding"
       ],
       "proofType": "Ed25519Signature2020",
+      "emulated": false,
+      "realIssuance": false,
+      "liveSteps": 0,
+      "durationMs": 11
+    },
+    {
+      "issuer": "mock-openid4vci",
+      "wallet": "mock-wallet",
+      "verifier": "mock-openid4vp",
+      "format": "sd-jwt",
+      "attack": "forceExpired",
+      "transactionId": "tx-7cf624eb",
+      "outcome": "PASS",
+      "status": "EXPIRED",
+      "failedChecks": [
+        "notExpired"
+      ],
+      "proofType": "JWT (ES256)",
       "emulated": false,
       "realIssuance": false,
       "liveSteps": 0,
@@ -567,12 +753,12 @@
       "wallet": "mock-wallet",
       "verifier": "mock-openid4vp",
       "format": "sd-jwt",
-      "attack": "forceExpired",
-      "transactionId": "tx-1b7e05ca",
+      "attack": "corruptSignature",
+      "transactionId": "tx-d3cea935",
       "outcome": "PASS",
-      "status": "EXPIRED",
+      "status": "SIGNATURE_MISMATCH",
       "failedChecks": [
-        "notExpired"
+        "signatureValid"
       ],
       "proofType": "JWT (ES256)",
       "emulated": false,
@@ -585,26 +771,8 @@
       "wallet": "mock-wallet",
       "verifier": "mock-openid4vp",
       "format": "sd-jwt",
-      "attack": "corruptSignature",
-      "transactionId": "tx-3a278008",
-      "outcome": "PASS",
-      "status": "SIGNATURE_MISMATCH",
-      "failedChecks": [
-        "signatureValid"
-      ],
-      "proofType": "JWT (ES256)",
-      "emulated": false,
-      "realIssuance": false,
-      "liveSteps": 0,
-      "durationMs": 2
-    },
-    {
-      "issuer": "mock-openid4vci",
-      "wallet": "mock-wallet",
-      "verifier": "mock-openid4vp",
-      "format": "sd-jwt",
       "attack": "wrongCredentialType",
-      "transactionId": "tx-55a89dfd",
+      "transactionId": "tx-6a156e5e",
       "outcome": "PASS",
       "status": "INVALID",
       "failedChecks": [
@@ -622,7 +790,7 @@
       "verifier": "mock-openid4vp",
       "format": "sd-jwt",
       "attack": "replayPresentation",
-      "transactionId": "tx-305dd7a0",
+      "transactionId": "tx-33b3fdcc",
       "outcome": "PASS",
       "status": "INVALID",
       "failedChecks": [
@@ -632,7 +800,7 @@
       "emulated": false,
       "realIssuance": false,
       "liveSteps": 0,
-      "durationMs": 2
+      "durationMs": 4
     },
     {
       "issuer": "mock-openid4vci",
@@ -640,7 +808,7 @@
       "verifier": "mock-openid4vp",
       "format": "mso-mdoc",
       "attack": "forceExpired",
-      "transactionId": "tx-daf5ecae",
+      "transactionId": "tx-b6e7bdca",
       "outcome": "PASS",
       "status": "EXPIRED",
       "failedChecks": [
@@ -650,7 +818,7 @@
       "emulated": false,
       "realIssuance": false,
       "liveSteps": 0,
-      "durationMs": 3
+      "durationMs": 4
     },
     {
       "issuer": "mock-openid4vci",
@@ -658,7 +826,7 @@
       "verifier": "mock-openid4vp",
       "format": "mso-mdoc",
       "attack": "corruptSignature",
-      "transactionId": "tx-0f5b0388",
+      "transactionId": "tx-73da38b2",
       "outcome": "PASS",
       "status": "SIGNATURE_MISMATCH",
       "failedChecks": [
@@ -668,7 +836,7 @@
       "emulated": false,
       "realIssuance": false,
       "liveSteps": 0,
-      "durationMs": 3
+      "durationMs": 6
     },
     {
       "issuer": "mock-openid4vci",
@@ -676,7 +844,7 @@
       "verifier": "mock-openid4vp",
       "format": "mso-mdoc",
       "attack": "wrongCredentialType",
-      "transactionId": "tx-a5fd7e20",
+      "transactionId": "tx-07a9fbee",
       "outcome": "PASS",
       "status": "INVALID",
       "failedChecks": [
@@ -686,7 +854,7 @@
       "emulated": false,
       "realIssuance": false,
       "liveSteps": 0,
-      "durationMs": 3
+      "durationMs": 5
     },
     {
       "issuer": "mock-openid4vci",
@@ -694,7 +862,7 @@
       "verifier": "mock-openid4vp",
       "format": "mso-mdoc",
       "attack": "replayPresentation",
-      "transactionId": "tx-62fc3662",
+      "transactionId": "tx-49f4aba0",
       "outcome": "PASS",
       "status": "INVALID",
       "failedChecks": [
@@ -704,7 +872,79 @@
       "emulated": false,
       "realIssuance": false,
       "liveSteps": 0,
-      "durationMs": 3
+      "durationMs": 6
+    },
+    {
+      "issuer": "mock-openid4vci",
+      "wallet": "mock-wallet",
+      "verifier": "walt-verifier",
+      "format": "sd-jwt",
+      "attack": "forceExpired",
+      "transactionId": "tx-0337ccaf",
+      "outcome": "PASS",
+      "status": "EXPIRED",
+      "failedChecks": [
+        "notExpired"
+      ],
+      "proofType": "JWT (ES256)",
+      "emulated": false,
+      "realIssuance": false,
+      "liveSteps": 4,
+      "durationMs": 1280
+    },
+    {
+      "issuer": "mock-openid4vci",
+      "wallet": "mock-wallet",
+      "verifier": "walt-verifier",
+      "format": "sd-jwt",
+      "attack": "corruptSignature",
+      "transactionId": "tx-94fccc04",
+      "outcome": "PASS",
+      "status": "SIGNATURE_MISMATCH",
+      "failedChecks": [
+        "signatureValid"
+      ],
+      "proofType": "JWT (ES256)",
+      "emulated": false,
+      "realIssuance": false,
+      "liveSteps": 4,
+      "durationMs": 1295
+    },
+    {
+      "issuer": "mock-openid4vci",
+      "wallet": "mock-wallet",
+      "verifier": "walt-verifier",
+      "format": "sd-jwt",
+      "attack": "wrongCredentialType",
+      "transactionId": "tx-8aca9a7c",
+      "outcome": "FAIL",
+      "status": "VALID",
+      "failedChecks": [],
+      "proofType": "JWT (ES256)",
+      "emulated": false,
+      "realIssuance": false,
+      "liveSteps": 4,
+      "durationMs": 1221,
+      "detail": "Walt.id verified the issuer signature and validity (signature, expired and not-before policies). It does not check a key-binding JWT, so there is no holder binding or replay protection.",
+      "layer": "Technical"
+    },
+    {
+      "issuer": "mock-openid4vci",
+      "wallet": "mock-wallet",
+      "verifier": "walt-verifier",
+      "format": "sd-jwt",
+      "attack": "replayPresentation",
+      "transactionId": "tx-bbed3e52",
+      "outcome": "FAIL",
+      "status": "VALID",
+      "failedChecks": [],
+      "proofType": "JWT (ES256)",
+      "emulated": false,
+      "realIssuance": false,
+      "liveSteps": 4,
+      "durationMs": 1255,
+      "detail": "Walt.id verified the issuer signature and validity (signature, expired and not-before policies). It does not check a key-binding JWT, so there is no holder binding or replay protection.",
+      "layer": "Technical"
     }
   ]
 }

@@ -241,10 +241,12 @@ describe('InteropMatrixReport heatmap and failure layers', () => {
     renderReport();
     expect(screen.getByRole('radio', { name: 'Heatmap' })).toHaveAttribute('aria-checked', 'true');
     const heatmap = screen.getAllByRole('table')[0];
-    expect(within(heatmap).getAllByRole('rowheader')).toHaveLength(4);
+    expect(within(heatmap).getAllByRole('rowheader')).toHaveLength(6);
     expect(within(heatmap).getAllByRole('button', { name: /UNTESTED/ })).toHaveLength(TOTAL);
-    // Inji Verify x mDoc: 4 issuer-wallet rows, shown as not supported and not clickable.
-    expect(within(heatmap).getAllByLabelText(/Inji Verify, mDoc \(ISO 18013-5\), not supported/)).toHaveLength(4);
+    // Inji Verify x mDoc: all 6 issuer-wallet rows, shown as not supported and not clickable.
+    expect(within(heatmap).getAllByLabelText(/Inji Verify, mDoc \(ISO 18013-5\), not supported/)).toHaveLength(6);
+    // The Walt.id nodes do SD-JWT only.
+    expect(within(heatmap).getAllByLabelText(/Walt\.id Verifier, W3C VC \(JSON-LD\), not supported/)).toHaveLength(6);
   });
 
   it('labels each cell with the combination, outcome, emulation and layer', () => {

@@ -30,6 +30,14 @@ describe('MatrixSelector', () => {
     expect(screen.getByRole('radio', { name: /mDoc/ })).toBeDisabled();
   });
 
+  it('allows SD-JWT only with the independent Walt.id nodes', () => {
+    renderSelector({ selection: { issuer: 'walt-issuer', wallet: 'mock-wallet', verifier: 'walt-verifier', format: 'sd-jwt' } });
+    const formats = within(column('Credential format'));
+    expect(formats.getByRole('radio', { name: /SD-JWT/ })).toBeEnabled();
+    expect(formats.getByRole('radio', { name: /W3C VC/ })).toBeDisabled();
+    expect(formats.getByRole('radio', { name: /mDoc/ })).toBeDisabled();
+  });
+
   it('offers mDoc with the mock verifier', () => {
     renderSelector({ selection: { ...selection, verifier: 'mock-openid4vp' } });
     expect(screen.getByRole('radio', { name: /mDoc/ })).toBeEnabled();
@@ -39,10 +47,15 @@ describe('MatrixSelector', () => {
     renderSelector();
     expect(within(column('Issuer')).getAllByRole('radio').map(r => r.textContent)).toEqual([
       expect.stringContaining('Inji Certify'),
-      expect.stringContaining('Mock OpenID4VCI')
+      expect.stringContaining('Mock OpenID4VCI'),
+      expect.stringContaining('Walt.id Issuer')
     ]);
     expect(within(column('Wallet')).getAllByRole('radio')).toHaveLength(2);
-    expect(within(column('Verifier')).getAllByRole('radio')).toHaveLength(2);
+    expect(within(column('Verifier')).getAllByRole('radio').map(r => r.textContent)).toEqual([
+      expect.stringContaining('Inji Verify'),
+      expect.stringContaining('Mock OpenID4VP'),
+      expect.stringContaining('Walt.id Verifier')
+    ]);
     expect(within(column('Credential format')).getAllByRole('radio')).toHaveLength(3);
   });
 

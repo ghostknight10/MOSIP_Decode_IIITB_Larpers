@@ -71,6 +71,16 @@ The mock issuer's and wallet's keys are generated each time the BFF starts. A ne
 
 ---
 
+## Walt.id demo (independent implementation)
+
+| Item | Value |
+| --- | --- |
+| Issuer | `https://issuer.portal.walt.id` (credential issuer `https://issuer.demo.walt.id/draft13`) |
+| Verifier | `https://verifier.portal.walt.id` |
+| Configuration | `VerifiableId_vc+sd-jwt` |
+| Issuer key | The Ed25519 demo key published in Walt.id's API documentation for the public demo issuer (not a secret). Its `did:key` is `did:key:z6MkjoRhq1jSNJdLiruSXrFFxagqrztZaXHqHGUTKJbcNywp`, derived from the key. The DID printed in their docs belongs to a different key (G-16). |
+| Account | None; the demo services are open |
+
 ## Endpoints used
 
 | Service | URL |

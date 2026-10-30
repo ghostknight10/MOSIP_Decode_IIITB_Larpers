@@ -75,6 +75,22 @@ export const SCENARIOS: Scenario[] = [
     tamper: null
   },
   {
+    id: 'walt-issuer',
+    testCase: 'TC-10',
+    label: 'Walt.id issuer → mock verifier',
+    description: 'A real SD-JWT from an independent OpenID4VCI Draft 13 issuer (Walt.id) verified by our verifier.',
+    selection: { issuer: 'walt-issuer', wallet: 'mock-wallet', verifier: 'mock-openid4vp', format: 'sd-jwt' },
+    tamper: null
+  },
+  {
+    id: 'walt-verifier',
+    testCase: 'TC-11',
+    label: 'Mock issuer → Walt.id verifier',
+    description: 'Our wallet presents over OpenID4VP to an independent verifier (Walt.id) and reads its verdict.',
+    selection: { issuer: 'mock-openid4vci', wallet: 'mock-wallet', verifier: 'walt-verifier', format: 'sd-jwt' },
+    tamper: null
+  },
+  {
     id: 'replay',
     testCase: 'TC-08',
     label: 'Replayed presentation',
