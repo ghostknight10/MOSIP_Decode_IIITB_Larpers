@@ -143,7 +143,7 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ run, onEnd }) =>
         textColor: 'var(--color-ink)',
         backgroundColor: 'var(--color-surface)',
         arrowColor: 'var(--color-surface)',
-        overlayColor: 'rgba(27, 30, 36, 0.45)',
+        overlayColor: 'color-mix(in srgb, var(--color-scrim) 55%, transparent)',
         spotlightRadius: 6,
         spotlightPadding: 6,
         width: 380,

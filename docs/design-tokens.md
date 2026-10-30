@@ -42,6 +42,22 @@ Each status has three tokens: `*-ink` for **text and icons**, `*-soft` for **fil
 
 Inji Verify's raw status colours are kept as `*-line`. `success-line` and `danger-line` reach 3:1 against white, which is enough for borders. `warning-line` doesn't (2.7:1), so **icons always use `*-ink`**.
 
+### Dark theme
+
+Light is the default. The header has a **Dark mode** toggle; the choice is saved in `localStorage` (`mosip-playground-theme`), and nothing is saved until someone uses it. Dark sets `data-theme="dark"` on `<html>`, which overrides the same token names, so components never branch on the theme. It applies on screen only: printing stays light.
+
+| Token | Dark value |
+| --- | --- |
+| `canvas` / `surface` / `surface-muted` | `#12141a` / `#1a1d24` / `#232731` |
+| `line` / `line-strong` | `#333845` / `#4a5162` |
+| `ink` / `ink-muted` / `ink-subtle` | `#eceef2` / `#b8bec9` / `#959cab` |
+| `accent` / `accent-hover` / `accent-soft` | `#e885c6` / `#f0a0d4` / `#2d1b28` |
+| `success` ink / soft / line | `#86d57a` / `#17261a` / `#4d9a43` |
+| `warning` ink / soft / line | `#f0b84a` / `#2b2210` / `#b87d00` |
+| `danger` ink / soft / line | `#ff8a85` / `#2e1a1b` / `#d9514f` |
+
+Two tokens exist so nothing needs a fixed colour: `on-accent` (text on an `accent` fill: white in light, dark in dark) and `scrim` (dimming behind dialogs). Contrast is tested for both themes. QR codes keep a white frame in both, because scanners need dark-on-light.
+
 ### Type
 
 | Token | Value | Use |
@@ -62,7 +78,7 @@ Sizes: `text-xs` (12px) is the minimum, `text-sm` (14px) is body text in panels,
 5. **Sentence case.** No `uppercase` with `tracking-wider` eyebrow labels. Headings say what the section is ("Run history", not "RUN HISTORY").
 6. **Quiet motion.** `transition-colors` for hover and selection only. No pulse, no decorative animation. A spinner only while a request is in flight. `prefers-reduced-motion` is respected globally.
 7. **Meaningful icons only.** Status, actions and roles get icons; headings don't. No sparkles or decorative icons.
-8. **One primary button per area.** Primary is `bg-accent text-white hover:bg-accent-hover`. Secondary is `bg-surface border-line-strong text-ink hover:bg-surface-muted`.
+8. **One primary button per area.** Primary is `bg-accent text-on-accent hover:bg-accent-hover`. Secondary is `bg-surface border-line-strong text-ink hover:bg-surface-muted`.
 9. **Focus is for focus.** A global 2px `accent` outline with a 2px offset on `:focus-visible`. Don't remove it, and don't reuse the focus style for anything else.
 10. **Real data over decoration.** Show actual payloads, IDs and counts. Empty states are one plain sentence that says what to do next.
 
@@ -95,6 +111,7 @@ Sizes: `text-xs` (12px) is the minimum, `text-sm` (14px) is body text in panels,
 - raw palette colours such as `text-emerald-300` or `bg-slate-900` (use tokens)
 - `transition-all`
 - text smaller than 12px
+- fixed `text-white`, `text-black` or `bg-black` (use `on-accent`, `scrim`, so dark mode works)
 - inline `…-gradient(` or `animation:` in style attributes or HTML strings
 
 It also checks `frontend/src/index.css`, where a theme regression lands first:

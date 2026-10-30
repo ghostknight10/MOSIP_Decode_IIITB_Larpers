@@ -3,41 +3,54 @@ import mermaid from 'mermaid';
 import { ProtocolLog } from '../types';
 import { Maximize2, X } from 'lucide-react';
 import { chronological, participantOf } from '../lib/participants';
+import { Theme } from '../hooks/useTheme';
 
 interface SequenceDiagramProps {
   logs: ProtocolLog[];
+  /** The page theme: the diagram is drawn again, in its colours, when it changes. */
+  theme?: Theme;
 }
 
-export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ logs }) => {
+/** #rrggbb as "r, g, b" for Mermaid's rect fill. */
+const rgbOf = (hex: string) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).join(', ');
+
+export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ logs, theme = 'light' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [svgContent, setSvgContent] = useState<string>('');
 
+  // Mermaid needs literal colours, so read the active theme's tokens from the page.
+  // (The fallbacks are the light theme, for where the stylesheet is not loaded.)
   useEffect(() => {
+    const token = (name: string, fallback: string) =>
+      getComputedStyle(document.documentElement).getPropertyValue(`--color-${name}`).trim() || fallback;
+    const surface = token('surface', '#ffffff');
+    const border = token('line-strong', '#c4c9d2');
+    const ink = token('ink', '#1b1e24');
+    const line = token('ink-muted', '#454b57');
     mermaid.initialize({
       startOnLoad: false,
-      // Light theme from the design tokens (frontend/src/index.css); Mermaid needs literal colours.
       theme: 'base',
       themeVariables: {
         fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
-        background: '#ffffff',
-        primaryColor: '#f4f5f7',
-        primaryTextColor: '#1b1e24',
-        primaryBorderColor: '#c4c9d2',
-        lineColor: '#454b57',
-        secondaryColor: '#f8eef4',
-        tertiaryColor: '#fafbfd',
-        noteBkgColor: '#fff5e3',
-        noteBorderColor: '#d98c00',
-        noteTextColor: '#7a4f00',
-        actorBkg: '#ffffff',
-        actorBorder: '#c4c9d2',
-        actorTextColor: '#1b1e24',
-        actorLineColor: '#c4c9d2',
-        signalColor: '#454b57',
-        signalTextColor: '#1b1e24',
-        sequenceNumberColor: '#ffffff'
+        background: surface,
+        primaryColor: token('surface-muted', '#f4f5f7'),
+        primaryTextColor: ink,
+        primaryBorderColor: border,
+        lineColor: line,
+        secondaryColor: token('accent-soft', '#f8eef4'),
+        tertiaryColor: token('canvas', '#fafbfd'),
+        noteBkgColor: token('warning-soft', '#fff5e3'),
+        noteBorderColor: token('warning-line', '#d98c00'),
+        noteTextColor: token('warning-ink', '#7a4f00'),
+        actorBkg: surface,
+        actorBorder: border,
+        actorTextColor: ink,
+        actorLineColor: border,
+        signalColor: line,
+        signalTextColor: ink,
+        sequenceNumberColor: surface
       },
       sequence: {
         actorMargin: 50,
@@ -46,7 +59,7 @@ export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ logs }) => {
         wrap: true
       }
     });
-  }, []);
+  }, [theme]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -91,7 +104,9 @@ export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ logs }) => {
       }
 
       if (l.tampered) {
-        diagram += '  rect rgb(255, 245, 227)\n'; // warning-soft
+        // warning-soft of the active theme
+        const warningSoft = getComputedStyle(document.documentElement).getPropertyValue('--color-warning-soft').trim();
+        diagram += `  rect rgb(${/^#[0-9a-f]{6}$/i.test(warningSoft) ? rgbOf(warningSoft) : '255, 245, 227'})\n`;
       }
 
       diagram += `  ${from}->>${to}: ${cleanAction} [${statusEmoji} ${l.status}]\n`;
@@ -117,7 +132,7 @@ export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ logs }) => {
         console.error('Mermaid render error:', err);
         setRenderError('Failed to render sequence graph');
       });
-  }, [logs]);
+  }, [logs, theme]);
 
   const openFullscreen = () => {
     if (dialogRef.current) {
@@ -175,7 +190,7 @@ export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ logs }) => {
             closeFullscreen();
           }
         }}
-        className="bg-surface border border-line text-ink rounded-md p-5 backdrop:bg-ink/40 max-w-5xl w-full max-h-[90vh] overflow-auto shadow-sm m-auto"
+        className="bg-surface border border-line text-ink rounded-md p-5 backdrop:bg-scrim/50 max-w-5xl w-full max-h-[90vh] overflow-auto shadow-sm m-auto"
       >
         <div className="flex items-center justify-between pb-3 mb-4 border-b border-line">
           <h3 className="text-base font-semibold text-ink">Full-Screen Sequence Visualizer</h3>

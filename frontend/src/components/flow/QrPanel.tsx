@@ -27,7 +27,7 @@ export const QrPanel: React.FC<{ title: string; uri: string; referenceUri?: stri
   return (
     <div className="p-3 mb-4 rounded-md bg-surface border border-line flex flex-col sm:flex-row items-start gap-3">
       {fits ? (
-        <div className="hidden sm:block p-2 bg-surface border border-line rounded shrink-0">
+        <div className="hidden sm:block p-2 bg-white border border-line rounded shrink-0">
           <QRCodeSVG value={uri} size={132} level="L" />
         </div>
       ) : (

@@ -57,7 +57,7 @@ export const CredentialQr: React.FC<{ credential: unknown }> = ({ credential }) 
           {encoding && (
             <>
               {encoding.fits ? (
-                <div className="p-2 bg-surface border border-line rounded shrink-0" data-testid="credential-qr">
+                <div className="p-2 bg-white border border-line rounded shrink-0" data-testid="credential-qr">
                   <QRCodeSVG value={encoding.data} size={160} level="L" />
                 </div>
               ) : (

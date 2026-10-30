@@ -9,6 +9,27 @@ const renderHeader = (props: Partial<React.ComponentProps<typeof Header>> = {}) 
   return { setActiveTab };
 };
 
+describe('Header theme toggle', () => {
+  it('offers dark mode while light, and reports the state', async () => {
+    const onToggleTheme = vi.fn();
+    renderHeader({ theme: 'light', onToggleTheme });
+    const toggle = screen.getByRole('button', { name: 'Dark mode' });
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await userEvent.click(toggle);
+    expect(onToggleTheme).toHaveBeenCalledOnce();
+  });
+
+  it('offers light mode while dark', () => {
+    renderHeader({ theme: 'dark', onToggleTheme: vi.fn() });
+    expect(screen.getByRole('button', { name: 'Light mode' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('shows no toggle where none is wired', () => {
+    renderHeader();
+    expect(screen.queryByRole('button', { name: /mode/ })).not.toBeInTheDocument();
+  });
+});
+
 describe('Header', () => {
   it.each([
     [null, 'Connecting...'],

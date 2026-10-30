@@ -25,6 +25,10 @@
   --color-accent: #951f6f;
   --color-accent-hover: #7a1959;
   --color-accent-soft: #f8eef4;
+  /* Text and icons on an accent fill (buttons, selected options) */
+  --color-on-accent: #ffffff;
+  /* Dim layer behind dialogs; used with an opacity, e.g. bg-scrim/50 */
+  --color-scrim: #1b1e24;
 
   /* Status: *-ink for text and icons, *-soft for fills, *-line for borders */
   --color-success-ink: #2f6b27;
@@ -36,6 +40,45 @@
   --color-danger-ink: #a32d2c;
   --color-danger-soft: #fdeeee;
   --color-danger-line: #cb4241;
+}
+
+/*
+  Dark theme: opt-in. Set data-theme="dark" on <html> (the header toggle does
+  this and remembers it); light stays the default. Same token names, so no
+  component changes colour by theme. Screen only: printing and exports stay
+  light. Contrast of every pairing is checked in src/test/design.test.ts.
+*/
+@media screen {
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+
+    --color-canvas: #12141a;
+    --color-surface: #1a1d24;
+    --color-surface-muted: #232731;
+    --color-line: #333845;
+    --color-line-strong: #4a5162;
+
+    --color-ink: #eceef2;
+    --color-ink-muted: #b8bec9;
+    --color-ink-subtle: #959cab;
+
+    /* A lighter plum, so it reads on dark; fills take dark text. */
+    --color-accent: #e885c6;
+    --color-accent-hover: #f0a0d4;
+    --color-accent-soft: #2d1b28;
+    --color-on-accent: #1b1e24;
+    --color-scrim: #000000;
+
+    --color-success-ink: #86d57a;
+    --color-success-soft: #17261a;
+    --color-success-line: #4d9a43;
+    --color-warning-ink: #f0b84a;
+    --color-warning-soft: #2b2210;
+    --color-warning-line: #b87d00;
+    --color-danger-ink: #ff8a85;
+    --color-danger-soft: #2e1a1b;
+    --color-danger-line: #d9514f;
+  }
 }
 
 @layer base {

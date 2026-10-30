@@ -11,6 +11,7 @@ import { RunTimeline } from './components/RunTimeline';
 import { RunPlayer } from './components/RunPlayer';
 import { replaySlice } from './lib/participants';
 import { usePlaygroundRun } from './hooks/usePlaygroundRun';
+import { useTheme } from './hooks/useTheme';
 import { api } from './api/client';
 import { allCombinations, DEFAULT_SUBJECT } from './config/nodes';
 import { Scenario } from './config/scenarios';
@@ -22,6 +23,7 @@ export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'playground' | 'matrix'>('playground');
   const [serverConnected, setServerConnected] = useState<boolean | null>(null);
   const run = usePlaygroundRun();
+  const { theme, toggle: toggleTheme } = useTheme();
   const { selection } = run;
   const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
   const emulatedNotice = fallbackNotice(selection, run.issueFallback, run.verifyFallback);
@@ -87,6 +89,8 @@ export const App: React.FC = () => {
         setActiveTab={setActiveTab}
         runCount={run.history.length}
         onStartTour={startTour}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
       <OnboardingTour key={tourKey} run={tourRun} onEnd={() => setTourRun(false)} />
 
@@ -166,7 +170,7 @@ export const App: React.FC = () => {
                           role="radio"
                           aria-checked={logScope === scope}
                           onClick={() => setLogScope(scope)}
-                          className={`px-2.5 py-1 transition-colors not-first:border-l not-first:border-line-strong ${logScope === scope ? 'bg-accent text-white' : 'bg-surface text-ink hover:bg-surface-muted'}`}
+                          className={`px-2.5 py-1 transition-colors not-first:border-l not-first:border-line-strong ${logScope === scope ? 'bg-accent text-on-accent' : 'bg-surface text-ink hover:bg-surface-muted'}`}
                         >
                           {scope === 'run' ? 'This run' : `All runs (${txCount})`}
                         </button>
@@ -189,7 +193,7 @@ export const App: React.FC = () => {
                     </section>
                     {/* The diagram is unreadable on phones; the timeline above covers it there. */}
                     <div className="hidden md:block">
-                      <SequenceDiagram logs={shownLogs} />
+                      <SequenceDiagram logs={shownLogs} theme={theme} />
                     </div>
                     <button
                       type="button"

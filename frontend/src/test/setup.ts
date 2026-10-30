@@ -18,4 +18,5 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   localStorage.clear();
+  delete document.documentElement.dataset.theme;
 });
