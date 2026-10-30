@@ -4,6 +4,7 @@ import { CredentialFormat, RunPhase, VerificationResult, VerifierType } from '..
 import { getNode } from '../../config/nodes';
 import { absoluteUrl, buildVpRequestUri, buildVpRequestUriByReference } from '../../lib/credential';
 import { QrPanel } from './QrPanel';
+import { DigitalCredentialsRequest } from './DigitalCredentialsRequest';
 import { btnPrimary } from '../ui';
 import { VerdictCard } from './VerdictCard';
 import { SharedClaimsPanel } from './SharedClaimsPanel';
@@ -60,6 +61,9 @@ export const PresentPhase: React.FC<PresentPhaseProps> = ({
                 : undefined
             }
           />
+        )}
+        {presentationDefinition && (
+          <DigitalCredentialsRequest presentationDefinition={presentationDefinition} clientId={requestClientId} nonce={requestNonce} />
         )}
         {verificationResult && <VerdictCard result={verificationResult} />}
         {verificationResult && (
