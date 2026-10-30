@@ -292,4 +292,4 @@ A static list of 8 pre-wired combinations, kept for compatibility. The UI comput
 | [docs/design-tokens.md](docs/design-tokens.md) | Colours, type and visual rules (read before changing any UI) |
 | [docs/video-demo-script.md](docs/video-demo-script.md) | 3–5 minute demo script |
 
-Licensed under Apache-2.0.
+Licensed under the Apache License 2.0; see [LICENSE](LICENSE). (MOSIP's Inji repositories use MPL-2.0; if the team prefers it, replace `LICENSE` and the `license` field in `package.json`.)

@@ -18,10 +18,13 @@ dotenv.config({
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// CORS: allow configured origins, or reflect origin for single-container/same-origin deployments.
+// CORS: only the configured origins ('*' opts in to any). Unset means same-origin
+// only, which is all the single-container deployment (BFF serving the UI) needs.
 const corsOrigin = process.env.FRONTEND_URL
   ? (process.env.FRONTEND_URL === '*' ? true : process.env.FRONTEND_URL.split(',').map(o => o.trim()))
-  : true;
+  : false;
+// Behind Render / a reverse proxy, req.ip must be the client's, for rate limiting.
+if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
 
 app.use(cors({
   origin: corsOrigin,

@@ -2,8 +2,12 @@ import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { MockProtocolService } from '../mocks/mockService.js';
 import { CredentialFormat } from '../types/index.js';
+import { rateLimit } from '../middleware/rateLimit.js';
 
 export const oid4vciRouter = Router();
+
+// Public and unauthenticated by design (wallets call it), so bound the signing work.
+oid4vciRouter.use(rateLimit({ windowMs: 60_000, max: 60 }));
 
 const getBaseUrl = (req: Request) => {
   const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http';
