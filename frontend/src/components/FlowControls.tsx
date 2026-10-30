@@ -88,6 +88,7 @@ export const FlowControls: React.FC<FlowControlsProps> = ({
             type="button"
             onClick={() => onRunFullFlow(subjectData, tamper)}
             disabled={busy}
+            data-tour="run-flow"
             className={btnPrimary}
           >
             <FastForward className="h-3.5 w-3.5" />
@@ -105,6 +106,7 @@ export const FlowControls: React.FC<FlowControlsProps> = ({
           <button
             type="button"
             aria-pressed={tamperMode}
+            data-tour="tamper"
             onClick={() => onInputsChange({ ...inputs, tamperMode: !tamperMode })}
             className={tamperMode ? `${btnSecondary} border-warning-line bg-warning-soft text-warning-ink hover:bg-warning-soft` : btnSecondary}
           >

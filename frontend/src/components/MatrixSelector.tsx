@@ -157,14 +157,14 @@ export const MatrixSelector: React.FC<MatrixSelectorProps> = ({
   ];
 
   return (
-    <section aria-labelledby="matrix-heading" className="bg-surface border border-line rounded-md p-4 sm:p-5 mb-5">
+    <section aria-labelledby="matrix-heading" data-tour="matrix" className="bg-surface border border-line rounded-md p-4 sm:p-5 mb-5">
       <div className="flex flex-wrap items-end justify-between gap-3 pb-4 mb-4 border-b border-line">
         <div>
           <h2 id="matrix-heading" className="text-base font-semibold text-ink">Interoperability matrix</h2>
           <p className="text-sm text-ink-muted">Choose who issues, holds and verifies the credential, and in which format.</p>
         </div>
 
-        <div role="radiogroup" aria-label="Credential format" className="w-full sm:w-auto inline-flex rounded border border-line-strong overflow-hidden text-sm">
+        <div role="radiogroup" aria-label="Credential format" data-tour="format" className="w-full sm:w-auto inline-flex rounded border border-line-strong overflow-hidden text-sm">
           {FORMATS.map(f => {
             const active = selection.format === f.id;
             const supported = selectedNodes.every(n => n?.supportedFormats.includes(f.id));

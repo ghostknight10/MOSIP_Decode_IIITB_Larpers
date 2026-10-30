@@ -51,7 +51,8 @@ export const TelemetryPanel: React.FC<{ refreshKey?: number }> = ({ refreshKey =
   }, [refreshKey, tick]);
 
   if (failed && !metrics) return null; // an older BFF without the endpoint: show nothing
-  if (!metrics) return null;
+  // An unexpected payload (a proxy's error page, another service) must not take the page down.
+  if (!metrics || !metrics.totals || !Array.isArray(metrics.flows) || !Array.isArray(metrics.services)) return null;
 
   return (
     <section aria-labelledby="telemetry-heading" className={`${panel} p-4 sm:p-5 mb-5 print:hidden`}>

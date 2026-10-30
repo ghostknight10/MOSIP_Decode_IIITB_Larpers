@@ -6,6 +6,7 @@ import { ProtocolInspector } from './components/ProtocolInspector';
 import { SequenceDiagram } from './components/SequenceDiagram';
 import { InteropMatrixReport } from './components/InteropMatrixReport';
 import { TelemetryPanel } from './components/TelemetryPanel';
+import { OnboardingTour, tourSeen } from './components/OnboardingTour';
 import { RunTimeline } from './components/RunTimeline';
 import { RunPlayer } from './components/RunPlayer';
 import { replaySlice } from './lib/participants';
@@ -61,6 +62,15 @@ export const App: React.FC = () => {
     }
   };
 
+  // The tour starts once for a new visitor and can be reopened from the header.
+  const [tourRun, setTourRun] = useState(() => !tourSeen());
+  const [tourKey, setTourKey] = useState(0);
+  const startTour = () => {
+    setActiveTab('playground');
+    setTourKey(key => key + 1);
+    setTourRun(true);
+  };
+
   // Check BFF health on load and every 15s so the header reflects backend restarts
   useEffect(() => {
     const check = () => api.health().then(() => setServerConnected(true)).catch(() => setServerConnected(false));
@@ -76,7 +86,9 @@ export const App: React.FC = () => {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         runCount={run.history.length}
+        onStartTour={startTour}
       />
+      <OnboardingTour key={tourKey} run={tourRun} onEnd={() => setTourRun(false)} />
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6">
         {activeTab === 'playground' ? (
@@ -142,7 +154,7 @@ export const App: React.FC = () => {
               />
 
               {/* Effects: live protocol view, kept beside the actions on wide screens */}
-              <aside aria-label="Live protocol view" className="space-y-4 xl:sticky xl:top-28 xl:max-h-[calc(100vh-8rem)] xl:overflow-y-auto xl:pr-1">
+              <aside aria-label="Live protocol view" data-tour="live-view" className="space-y-4 xl:sticky xl:top-28 xl:max-h-[calc(100vh-8rem)] xl:overflow-y-auto xl:pr-1">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h2 className="text-base font-semibold text-ink">Live protocol view</h2>
                   {txCount > 1 && (

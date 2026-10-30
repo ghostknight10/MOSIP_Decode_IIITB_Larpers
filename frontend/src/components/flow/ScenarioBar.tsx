@@ -4,7 +4,7 @@ import { Scenario, SCENARIOS } from '../../config/scenarios';
 
 /** One-click presets for the documented test cases. */
 export const ScenarioBar: React.FC<{ onRun: (scenario: Scenario) => void; disabled: boolean }> = ({ onRun, disabled }) => (
-  <section aria-labelledby="scenario-heading" className="mb-4">
+  <section aria-labelledby="scenario-heading" data-tour="scenarios" className="mb-4">
     <h4 id="scenario-heading" className="text-sm font-semibold text-ink mb-2">
       Quick scenarios
     </h4>

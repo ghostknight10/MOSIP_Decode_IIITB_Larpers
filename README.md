@@ -94,6 +94,8 @@ The design (protocols, frontend state model and data flow) is in [docs/architect
    - **Use a credential from outside the playground:** paste a W3C credential, SD-JWT or mDoc (for example from Inji Web) and present it to either verifier.
    - Verification card showing **Valid**, **Invalid**, **Expired** or **Signature mismatch**, plus **Valid but Expired** when only the expiry check failed, and the individual checks (holder binding where the verifier checks it).
    - **What was shared:** the claims the verifier asked for, received and never saw, including any over-disclosure.
+   - **Credential as a QR code:** the issued credential encoded with MOSIP's PixelPass (zlib + base45), the encoding Inji Verify's QR scanner reads, with the size saving shown.
+   - **Same-device request:** where the browser supports the Digital Credentials API (Chrome 141+), a button asks a wallet on the device to present, with no QR code. Experimental, and the request side only.
 5. **Protocol transparency, beside the controls**
    - On wide screens the live protocol view stays next to the buttons. It shows the current run by default, with an "All runs" toggle.
    - A step timeline (also the phone view), the Mermaid sequence diagram, and the raw-message inspector. Every run carries one `x-transaction-id`.
@@ -141,6 +143,7 @@ npm run dev:frontend   # terminal 2, Vite on :5173, proxies /api to the BFF
 Before sharing a running instance with others, set `PLAYGROUND_TOKEN` in `.env` to a long random value (`openssl rand -hex 24`): the BFF then answers only the frontend's proxy. The MOSIP endpoints (`MOSIP_INJI_CERTIFY_URL`, `MOSIP_INJI_MIMOTO_URL`, `MOSIP_INJI_VERIFY_URL`) and allowed origins (`FRONTEND_URL`) are also set there.
 
 ### 3. Try it
+0. A short **tour** starts on your first visit (reopen it with **Take the tour** at the top).
 1. Click a **Quick scenario** (e.g. **TC-01 Happy path · W3C VC**), or pick nodes yourself and press **Run Full Flow**.
 2. Open **Inspect credential** and **What was shared**, then use the replay controls in the live protocol view to step through the exchange.
 3. Run **TC-03**, **TC-04** or **TC-08** (or turn on **Enable Tamper Mode** yourself) to see the verifier reject an expired, forged or replayed presentation.
@@ -223,6 +226,12 @@ Response: `{ success, isValid, verificationResult: { status, checks: { formatChe
 
 ### `GET /api/playground/logs` · `DELETE /api/playground/logs`
 `GET` returns the latest 100 audit frames (newest first) as `{ count, logs }`. `DELETE` clears the buffer.
+
+### `GET /api/playground/metrics`
+Telemetry since the BFF started: `{ since, totals, flows[], services[] }` with request counts, completed share, emulated count, verdict counts and average / p50 / p95 latency per flow (issue or verify, by node and format) and per Collab service host. `?format=prometheus` returns the Prometheus text format. The report's **Telemetry** panel reads it.
+
+### `/api/oid4vci/*` (public issuer)
+A standards-shaped OpenID4VCI issuer for external wallets: `/.well-known/openid-credential-issuer`, `/token`, `/nonce`, `/credential`. Unauthenticated by design and rate limited (60 requests a minute per client IP).
 
 ### `GET /api/playground/components`
 Fingerprint of the Collab component builds (Collab exposes no version numbers): `{ label, injiVerify: { api, uiBuild }, injiCertify: { url, protocol, metadata }, mimoto: { registry }, checkedAt }`, cached 10 minutes. Each run record stores the `label`, and the report filters by it.
