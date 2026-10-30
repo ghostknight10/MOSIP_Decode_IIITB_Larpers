@@ -2,6 +2,7 @@ import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { CredentialFormat, ProtocolLog, WalletType } from '../types/index.js';
 import { redactPayload } from '../utils/redactor.js';
+import { recordService } from '../utils/metrics.js';
 import { TamperOptions, isTampered, prepareCredential } from '../mocks/wallet.js';
 import { mdocDocument } from '../mocks/mdoc.js';
 
@@ -44,8 +45,10 @@ export async function liveCall({ method, url, body, contentType, headers: extra 
   try {
     response = await axios.request({ method, url, data: body, headers, timeout: TIMEOUT_MS, validateStatus: () => true });
   } catch (err: any) {
+    recordService(new URL(url).host, Date.now() - started, true);
     throw new CollabUnavailable(`${new URL(url).host} unreachable (${err.code ?? err.message})`);
   }
+  recordService(new URL(url).host, Date.now() - started, response.status >= 500);
   const responseType = String(response.headers?.['content-type'] ?? '');
   if (!responseType.includes('json') || typeof response.data !== 'object' || response.data === null) {
     throw new CollabUnavailable(`${new URL(url).host} answered HTTP ${response.status} without JSON`);

@@ -106,6 +106,23 @@ export interface CredentialSubjectInput {
 }
 
 /** One row of the interoperability report (mandatory task 7). */
+export interface SeriesStats {
+  count: number;
+  failures: number;
+  successRate: number | null;
+  avgMs: number;
+  p50Ms: number;
+  p95Ms: number;
+}
+
+/** GET /api/playground/metrics: telemetry since the BFF started. */
+export interface Metrics {
+  since: string;
+  totals: SeriesStats & { emulatedShare: number };
+  flows: (SeriesStats & { flow: 'issue' | 'verify'; issuer?: string; verifier?: string; format: string; emulated: number; verdicts: Record<string, number> })[];
+  services: (SeriesStats & { host: string })[];
+}
+
 export interface RunRecord {
   id: string;
   transactionId: string;

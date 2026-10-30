@@ -2,6 +2,7 @@ import {
   CredentialFormat,
   CredentialSubjectInput,
   IssueResponse,
+  Metrics,
   IssuerType,
   ProtocolLog,
   TamperOptions,
@@ -74,6 +75,9 @@ export const api = {
 
   verify: (params: VerifyParams, transactionId: string) =>
     request<VerifyResponse>('/api/playground/verify', { method: 'POST', body: JSON.stringify(params) }, transactionId),
+
+  /** Success rate and latency per flow and per Collab service. */
+  metrics: () => request<Metrics>('/api/playground/metrics'),
 
   /** Fingerprint of the Collab component builds (Inji Verify, Certify, Mimoto). */
   components: () => request<{ label: string }>('/api/playground/components'),

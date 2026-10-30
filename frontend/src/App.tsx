@@ -5,6 +5,7 @@ import { FlowControls } from './components/FlowControls';
 import { ProtocolInspector } from './components/ProtocolInspector';
 import { SequenceDiagram } from './components/SequenceDiagram';
 import { InteropMatrixReport } from './components/InteropMatrixReport';
+import { TelemetryPanel } from './components/TelemetryPanel';
 import { RunTimeline } from './components/RunTimeline';
 import { RunPlayer } from './components/RunPlayer';
 import { replaySlice } from './lib/participants';
@@ -195,13 +196,16 @@ export const App: React.FC = () => {
             </div>
           </div>
         ) : (
-          <InteropMatrixReport
-            history={run.history}
-            onRunAll={handleRunAll}
-            batchProgress={batchProgress}
-            busy={run.busy}
-            onClearHistory={run.clearHistory}
-          />
+          <>
+            <InteropMatrixReport
+              history={run.history}
+              onRunAll={handleRunAll}
+              batchProgress={batchProgress}
+              busy={run.busy}
+              onClearHistory={run.clearHistory}
+            />
+            <TelemetryPanel refreshKey={run.history.length} />
+          </>
         )}
       </main>
 

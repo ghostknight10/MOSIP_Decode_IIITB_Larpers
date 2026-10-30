@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import globalAuditBuffer from '../utils/RingBuffer.js';
 import { getReference, storeReference } from '../utils/references.js';
+import { prometheus, snapshot, trackFlow } from '../utils/metrics.js';
 import { MockProtocolService, claimsOf, sharedClaims } from '../mocks/mockService.js';
 import { presentToMockVerifier } from '../mocks/wallet.js';
 import { CollabUnavailable, certifyDiscovery, collabTargets, injiVerify } from '../services/collab.js';
@@ -59,7 +60,7 @@ const serverError = (res: Response, flow: string, err: unknown) => {
   return res.status(500).json({ success: false, error: `${flow} flow encountered an internal error` });
 };
 
-playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialRequest>, res: Response) => {
+playgroundRouter.post('/issue', trackFlow('issue'), async (req: Request<{}, {}, IssueCredentialRequest>, res: Response) => {
   const problem = invalidBody(req.body, 'issuer');
   if (problem) return res.status(400).json({ success: false, error: problem });
 
@@ -153,7 +154,7 @@ playgroundRouter.post('/issue', async (req: Request<{}, {}, IssueCredentialReque
   }
 });
 
-playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialRequest>, res: Response) => {
+playgroundRouter.post('/verify', trackFlow('verify'), async (req: Request<{}, {}, VerifyCredentialRequest>, res: Response) => {
   const problem = invalidBody(req.body, 'verifier');
   if (problem) return res.status(400).json({ success: false, error: problem });
 
@@ -227,6 +228,12 @@ playgroundRouter.post('/verify', async (req: Request<{}, {}, VerifyCredentialReq
   } catch (err) {
     return serverError(res, 'Verification', err);
   }
+});
+
+/** Success rate and latency per flow and per Collab service (JSON, or ?format=prometheus). */
+playgroundRouter.get('/metrics', (req: Request, res: Response) => {
+  if (req.query.format === 'prometheus') return res.type('text/plain; version=0.0.4').send(prometheus());
+  return res.json(snapshot());
 });
 
 /** Which build of each Collab component runs are talking to (regression tracking). */

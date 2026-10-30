@@ -6,6 +6,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { playgroundRouter } from '../src/routes/playground.js';
 import globalAuditBuffer from '../src/utils/RingBuffer.js';
 import { MockProtocolService } from '../src/mocks/mockService.js';
+import { resetMetrics } from '../src/utils/metrics.js';
 
 vi.mock('axios', async importOriginal => {
   const actual = await importOriginal<typeof import('axios')>();
@@ -270,6 +271,23 @@ describe('POST /issue with a Collab test identity (real Inji issuance)', () => {
     login();
     await post('/issue', { ...body, format: 'sd-jwt' });
     expect(requestMock.mock.calls.some(([c]: any[]) => c.url.includes('esignet'))).toBe(false);
+  });
+});
+
+describe('GET /metrics', () => {
+  it('counts flows and Collab calls, as JSON and as Prometheus text', async () => {
+    resetMetrics();
+    collab();
+    await post('/issue', { ...issueBody, issuer: 'inji-certify' });
+    await post('/issue', { issuer: 'evil' });
+    const metrics: any = await (await fetch(`${base}/metrics`)).json();
+    expect(metrics.flows).toEqual([
+      expect.objectContaining({ flow: 'issue', issuer: 'inji-certify', format: 'w3c-vc', count: 1, failures: 0, emulated: 1 }),
+      expect.objectContaining({ flow: 'issue', issuer: 'evil', format: 'unknown', count: 1, failures: 1 })
+    ]);
+    expect(metrics.services.map((s: any) => s.host)).toContain('injicertify-mosipid.collab.mosip.net');
+    const text = await (await fetch(`${base}/metrics?format=prometheus`)).text();
+    expect(text).toContain('playground_flow_requests_total{flow="issue",issuer="inji-certify",format="w3c-vc"} 1');
   });
 });
 
