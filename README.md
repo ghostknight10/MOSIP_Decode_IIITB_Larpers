@@ -143,7 +143,7 @@ npm run dev:frontend   # terminal 2, Vite on :5173, proxies /api to the BFF
 Before sharing a running instance with others, set `PLAYGROUND_TOKEN` in `.env` to a long random value (`openssl rand -hex 24`): the BFF then answers only the frontend's proxy. The MOSIP endpoints (`MOSIP_INJI_CERTIFY_URL`, `MOSIP_INJI_MIMOTO_URL`, `MOSIP_INJI_VERIFY_URL`) and allowed origins (`FRONTEND_URL`) are also set there.
 
 ### 3. Try it
-0. A short **tour** starts on your first visit (reopen it with **Take the tour** at the top).
+0. A short **tour** starts on your first visit (reopen it with **Take the tour** at the top). The top bar also has a **Dark mode** toggle (light is the default).
 1. Click a **Quick scenario** (e.g. **TC-01 Happy path · W3C VC**), or pick nodes yourself and press **Run Full Flow**.
 2. Open **Inspect credential** and **What was shared**, then use the replay controls in the live protocol view to step through the exchange.
 3. Run **TC-03**, **TC-04** or **TC-08** (or turn on **Enable Tamper Mode** yourself) to see the verifier reject an expired, forged or replayed presentation.

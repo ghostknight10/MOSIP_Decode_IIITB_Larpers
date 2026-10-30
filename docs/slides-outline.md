@@ -146,7 +146,7 @@ Browser UI (React 19, TypeScript, Tailwind, Vite) → Playground BFF (Node, Expr
 
 # Quality
 
-- **618 automated tests** (417 frontend, 201 backend), offline and repeatable
+- **664 automated tests** (463 frontend, 201 backend), offline and repeatable
 - CI on every push; nightly live run against Collab
 - Accessibility: WCAG-checked colour contrast, keyboard focus, never colour alone
 - Documented API, test data, test cases and results

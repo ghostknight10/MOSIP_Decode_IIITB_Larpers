@@ -98,6 +98,8 @@ The playground now follows MOSIP's own [Inji Verify](https://github.com/mosip/in
 - Inter for text, monospace only for data
 - flat 1px-bordered panels with small radii, quiet colour transitions, and a visible plum focus outline
 
+An opt-in **dark mode** (header toggle, light by default) swaps the same tokens, so it needed no component changes beyond removing fixed black and white. Its palette was checked for the same contrast ratios, and Mermaid diagrams re-render in the active theme.
+
 All colours come from tokens. The rules and sources are in [design-tokens.md](./design-tokens.md), and `frontend/src/test/design.test.ts` checks contrast and blocks the banned patterns in CI.
 
 ## 6. Verification
